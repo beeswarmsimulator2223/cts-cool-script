@@ -12,6 +12,13 @@ local Services = {
 }
 local LocalPlayer = Services.Players.LocalPlayer
 
+local ScriptConnections = {}
+local function safeConnect(signal, callback)
+    local conn = signal:Connect(callback)
+    table.insert(ScriptConnections, conn)
+    return conn
+end
+
 local Keys = {
     Toggle = Enum.KeyCode.F,
     Fly    = Enum.KeyCode.M,
@@ -753,6 +760,18 @@ local TweenService = game:GetService("TweenService")
 local UserInputSvc = Services.UserInput
 local isMobile = UserInputSvc.TouchEnabled and not UserInputSvc.KeyboardEnabled
 
+local function playSound(soundId)
+    local sound = Instance.new("Sound")
+    sound.SoundId = "rbxassetid://" .. tostring(soundId)
+    sound.Volume = 0.5
+    sound.Parent = game:GetService("SoundService")
+    sound:Play()
+    task.spawn(function()
+        sound.Ended:Wait()
+        sound:Destroy()
+    end)
+end
+
 local T = {
     BG      = Color3.fromRGB(14, 14, 20),
     Sidebar = Color3.fromRGB(18, 18, 26),
@@ -770,6 +789,103 @@ local function mkCorner(p, r)
 end
 local function mkStroke(p, col, th)
     local s = Instance.new("UIStroke"); s.Color = col or T.Stroke; s.Thickness = th or 1; s.Parent = p; return s
+end
+
+local loadingTexts = {
+    EN = {
+        "Loading Config...",
+        "Initializing ESP...",
+        "Applying Patches...",
+        "Applying Fly Engine...",
+        "Preparing UI...",
+        "Done!"
+    },
+    RU = {
+        "Загрузка конфига...",
+        "Инициализация ESP...",
+        "Применение патчей...",
+        "Настройка полёта...",
+        "Подготовка GUI...",
+        "Готово!"
+    }
+}
+
+local function ShowLoadingScreen(callback)
+    local lang = Localization.CurrentLanguage or "EN"
+    local texts = loadingTexts[lang] or loadingTexts.EN
+
+    local sg = Instance.new("ScreenGui")
+    sg.Name = "KolyanchikLoading"; sg.ResetOnSpawn = false; sg.IgnoreGuiInset = true
+    sg.Parent = Services.CoreGui
+
+    local bg = Instance.new("Frame")
+    bg.Size = UDim2.new(1,0,1,0); bg.BackgroundColor3 = Color3.new(0,0,0)
+    bg.BackgroundTransparency = 1; bg.Parent = sg
+    TweenService:Create(bg, TweenInfo.new(0.4), {BackgroundTransparency = 0.55}):Play()
+
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 320, 0, 160)
+    frame.Position = UDim2.new(0.5, 0, 0.5, 0)
+    frame.AnchorPoint = Vector2.new(0.5, 0.5)
+    frame.BackgroundColor3 = T.BG; frame.BorderSizePixel = 0; frame.Parent = sg
+    frame.BackgroundTransparency = 1
+    mkCorner(frame, 10); mkStroke(frame, T.Stroke, 1)
+
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, 0, 0, 40)
+    title.Position = UDim2.new(0, 0, 0, 15)
+    title.BackgroundTransparency = 1; title.Font = Enum.Font.GothamBold
+    title.TextSize = 20; title.TextColor3 = T.Accent; title.Text = "kolyanchik script"
+    title.TextTransparency = 1; title.Parent = frame
+
+    local status = Instance.new("TextLabel")
+    status.Size = UDim2.new(1, 0, 0, 24)
+    status.Position = UDim2.new(0, 0, 0, 60)
+    status.BackgroundTransparency = 1; status.Font = Enum.Font.GothamMedium
+    status.TextSize = 13; status.TextColor3 = T.Sub; status.Text = texts[1]
+    status.TextTransparency = 1; status.Parent = frame
+
+    local barBg = Instance.new("Frame")
+    barBg.Size = UDim2.new(0, 260, 0, 6)
+    barBg.Position = UDim2.new(0.5, 0, 0, 105)
+    barBg.AnchorPoint = Vector2.new(0.5, 0)
+    barBg.BackgroundColor3 = Color3.fromRGB(34, 34, 48); barBg.BorderSizePixel = 0
+    barBg.BackgroundTransparency = 1; barBg.Parent = frame
+    mkCorner(barBg, 3)
+
+    local barFill = Instance.new("Frame")
+    barFill.Size = UDim2.new(0, 0, 1, 0)
+    barFill.BackgroundColor3 = T.Accent; barFill.BorderSizePixel = 0
+    barFill.Parent = barBg; mkCorner(barFill, 3)
+
+    local ti = TweenInfo.new(0.4, Enum.EasingStyle.Quad)
+    TweenService:Create(frame, ti, {BackgroundTransparency = 0}):Play()
+    TweenService:Create(title, ti, {TextTransparency = 0}):Play()
+    TweenService:Create(status, ti, {TextTransparency = 0}):Play()
+    TweenService:Create(barBg, ti, {BackgroundTransparency = 0}):Play()
+    task.wait(0.4)
+
+    local steps = #texts
+    for i = 1, steps do
+        status.Text = texts[i]
+        local pct = i / steps
+        TweenService:Create(barFill, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(pct, 0, 1, 0)}):Play()
+        task.wait(0.3)
+    end
+
+    playSound(876941152)
+
+    TweenService:Create(frame, ti, {BackgroundTransparency = 1}):Play()
+    TweenService:Create(title, ti, {TextTransparency = 1}):Play()
+    TweenService:Create(status, ti, {TextTransparency = 1}):Play()
+    TweenService:Create(barBg, ti, {BackgroundTransparency = 1}):Play()
+    TweenService:Create(barFill, ti, {BackgroundTransparency = 1}):Play()
+    local fadeBg = TweenService:Create(bg, ti, {BackgroundTransparency = 1})
+    fadeBg:Play()
+    fadeBg.Completed:Wait()
+    sg:Destroy()
+
+    if callback then callback() end
 end
 local function mkDrag(frame, handle)
     local dragging, ds, fp = false, nil, nil
@@ -1017,6 +1133,7 @@ function Rayfield:CreateWindow(cfg)
                 local ti = TweenInfo.new(0.18, Enum.EasingStyle.Quad)
                 TweenService:Create(track, ti, {BackgroundColor3 = v and T.Accent or Color3.fromRGB(48,48,62)}):Play()
                 TweenService:Create(knob,  ti, {Position = v and UDim2.new(1,-18,0.5,-8) or UDim2.new(0,2,0.5,-8)}):Play()
+                playSound(876940317)
                 if data.Callback then data.Callback(val) end
             end
             local hit = Instance.new("TextButton"); hit.Size = UDim2.new(1,0,1,0)
@@ -1233,7 +1350,7 @@ function Rayfield:CreateWindow(cfg)
 end
 
 -- GUI Key toggle (PC)
-UserInputSvc.InputBegan:Connect(function(inp, gp)
+safeConnect(UserInputSvc.InputBegan, function(inp, gp)
     if gp then return end
     if inp.KeyCode == Keys.GUI then
         local sg = Rayfield.ScreenGui
@@ -1359,6 +1476,7 @@ local function BuildGUI()
     end
     FlyTab:CreateButton({ Name = t.ToggleFly,
         Callback = function()
+            playSound(876940317)
             if Fly.Active then stopFly(); Rayfield:Notify({ Title = "Fly", Content = t.FlyDisabled, Duration = 2 })
             else startFly(); Rayfield:Notify({ Title = "Fly", Content = t.FlyEnabled, Duration = 2 }) end
         end })
@@ -1416,7 +1534,7 @@ end
 -- ════════════════════════════════════════
 -- INPUT EVENTS
 -- ════════════════════════════════════════
-Services.UserInput.InputBegan:Connect(function(input, gameProcessed)
+safeConnect(Services.UserInput.InputBegan, function(input, gameProcessed)
     if gameProcessed then return end
     if Fly.IsRebinding or (tick() - Fly.LastRebindTime) < 0.5 then return end
     local t = Localization[Localization.CurrentLanguage]
@@ -1425,6 +1543,7 @@ Services.UserInput.InputBegan:Connect(function(input, gameProcessed)
             ESPToggle:Set(not ESP.Enabled)
         else
             ESP.Enabled = not ESP.Enabled; UpdateAllESPInstances(); SaveConfig()
+            playSound(876940317)
         end
         Rayfield:Notify({
             Title = "ESP",
@@ -1433,6 +1552,7 @@ Services.UserInput.InputBegan:Connect(function(input, gameProcessed)
         })
     end
     if input.KeyCode == Keys.Fly then
+        playSound(876940317)
         if Fly.Active then
             stopFly()
             Rayfield:Notify({ Title = "Fly", Content = t.FlyDisabled, Duration = 2 })
@@ -1445,7 +1565,7 @@ end)
 
 -- Mobile joystick (left half of screen)
 if Services.UserInput.TouchEnabled then
-    Services.UserInput.TouchStarted:Connect(function(touch, gameProcessed)
+    safeConnect(Services.UserInput.TouchStarted, function(touch, gameProcessed)
         if not Fly.Active then return end
         if MobileFly.Touch then return end
         local cam = Services.Workspace.CurrentCamera
@@ -1456,7 +1576,7 @@ if Services.UserInput.TouchEnabled then
             MobileFly.Delta = Vector2.new(0, 0)
         end
     end)
-    Services.UserInput.TouchMoved:Connect(function(touch, gameProcessed)
+    safeConnect(Services.UserInput.TouchMoved, function(touch, gameProcessed)
         if not Fly.Active then return end
         if touch ~= MobileFly.Touch then return end
         local dx = touch.Position.X - MobileFly.StartPos.X
@@ -1465,19 +1585,19 @@ if Services.UserInput.TouchEnabled then
         if raw.Magnitude > MobileFly.MaxRadius then raw = raw.Unit * MobileFly.MaxRadius end
         MobileFly.Delta = raw / MobileFly.MaxRadius
     end)
-    Services.UserInput.TouchEnded:Connect(function(touch, gameProcessed)
+    safeConnect(Services.UserInput.TouchEnded, function(touch, gameProcessed)
         if touch == MobileFly.Touch then MobileFly.Touch = nil; MobileFly.Delta = Vector2.new(0,0) end
     end)
 end
 
-workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
+safeConnect(workspace:GetPropertyChangedSignal("CurrentCamera"), function()
     Camera = Services.Workspace.CurrentCamera
 end)
 
 -- ════════════════════════════════════════
 -- MAIN LOOPS
 -- ════════════════════════════════════════
-Services.RunService.Heartbeat:Connect(function(dt)
+safeConnect(Services.RunService.Heartbeat, function(dt)
     Timers.VehicleScan += dt
     if Timers.VehicleScan >= Timers.ScanInterval then Timers.VehicleScan = 0; ScanVehicles() end
     Timers.Cleanup += dt
@@ -1485,7 +1605,7 @@ Services.RunService.Heartbeat:Connect(function(dt)
     UpdateDistanceLabels()
 end)
 
-Services.RunService.RenderStepped:Connect(function(dt)
+safeConnect(Services.RunService.RenderStepped, function(dt)
     Mark.TimeSinceUpdate += dt
     if Mark.TimeSinceUpdate >= Mark.UpdateInterval then Mark.TimeSinceUpdate = 0; UpdateMarkPositions() end
     if Fly.Active and Fly.Root and Fly.Root.Parent then
@@ -1510,26 +1630,25 @@ Services.RunService.RenderStepped:Connect(function(dt)
     end
 end)
 
--- Fog watcher
 local function ProcessAtmosphere(atm) if Other.RemoveFog then atm.Density = 0; atm.Haze = 0 end end
 local function WatchAtmosphere(atm)
     ProcessAtmosphere(atm)
-    atm.Changed:Connect(function(p) if (p == "Density" or p == "Haze") then ProcessAtmosphere(atm) end end)
+    safeConnect(atm.Changed, function(p) if (p == "Density" or p == "Haze") then ProcessAtmosphere(atm) end end)
 end
-Services.Lighting.ChildAdded:Connect(function(child) if child:IsA("Atmosphere") then WatchAtmosphere(child) end end)
+safeConnect(Services.Lighting.ChildAdded, function(child) if child:IsA("Atmosphere") then WatchAtmosphere(child) end end)
 for _, child in ipairs(Services.Lighting:GetChildren()) do if child:IsA("Atmosphere") then WatchAtmosphere(child) end end
 
 -- Weapon watcher (background thread to avoid blocking GUI)
 task.spawn(function()
     local vehiclesFolder = Services.Workspace:WaitForChild("Vehicles", 60)
     if not vehiclesFolder then return end
-    vehiclesFolder.ChildAdded:Connect(function(obj)
+    safeConnect(vehiclesFolder.ChildAdded, function(obj)
         if obj.Name == ("Chassis"..LocalPlayer.Name) then
             for _, hack in pairs(HACKS) do hack.patched = {}; hack.origPatched = {} end
             task.wait(1); SetupWeaponChassis(obj)
         end
     end)
-    vehiclesFolder.ChildRemoved:Connect(function(obj)
+    safeConnect(vehiclesFolder.ChildRemoved, function(obj)
         if not obj:IsA("Model") then return end
         local toRemove = {}
         for target, espData in pairs(ESP.Instances) do
@@ -1547,11 +1666,53 @@ end)
 -- ════════════════════════════════════════
 -- STARTUP
 -- ════════════════════════════════════════
-LoadConfig()
-ScanVehicles()
-if Other.PenView then task.spawn(PenView_Start) end
-if Graphics.Degradation then task.spawn(function() SetGraphicsDegradation(true) end) end
-InitWeapon()
-BuildGUI()
+local function CleanUpScript()
+    -- 1. Disconnect all script connections
+    for _, conn in ipairs(ScriptConnections) do
+        if conn and conn.Connected then conn:Disconnect() end
+    end
+    table.clear(ScriptConnections)
 
-print("kolyanchik script loaded!")
+    -- 2. Stop active features
+    stopFly()
+    PenView_Stop()
+    SetGraphicsDegradation(false)
+    ClearWeaponConnections()
+    if ChassisDescendantConn then ChassisDescendantConn:Disconnect(); ChassisDescendantConn = nil end
+    ClearAllESP()
+
+    -- 3. Destroy GUI and folders
+    if Rayfield.ScreenGui and Rayfield.ScreenGui.Parent then Rayfield.ScreenGui:Destroy() end
+    Rayfield.ScreenGui = nil
+    ESPToggle = nil
+
+    local loadingScreen = Services.CoreGui:FindFirstChild("KolyanchikLoading")
+    if loadingScreen then loadingScreen:Destroy() end
+
+    local markDisplay = Services.CoreGui:FindFirstChild("MarkDisplay")
+    if markDisplay then markDisplay:Destroy() end
+
+    local perfData = Services.CoreGui:FindFirstChild("PerfData")
+    if perfData then perfData:Destroy() end
+end
+
+local function RunStartup()
+    if getgenv then
+        if getgenv().CleanUpKolyanchikScript then
+            pcall(getgenv().CleanUpKolyanchikScript)
+        end
+        getgenv().CleanUpKolyanchikScript = CleanUpScript
+    end
+
+    LoadConfig()
+    ShowLoadingScreen(function()
+        ScanVehicles()
+        if Other.PenView then task.spawn(PenView_Start) end
+        if Graphics.Degradation then task.spawn(function() SetGraphicsDegradation(true) end) end
+        InitWeapon()
+        BuildGUI()
+        print("kolyanchik script loaded!")
+    end)
+end
+
+RunStartup()
