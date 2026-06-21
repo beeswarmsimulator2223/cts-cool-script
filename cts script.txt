@@ -25,6 +25,18 @@ local Keys = {
     GUI    = Enum.KeyCode.K
 }
 
+local T = {
+    BG      = Color3.fromRGB(14, 14, 20),
+    Sidebar = Color3.fromRGB(18, 18, 26),
+    Card    = Color3.fromRGB(24, 24, 34),
+    Stroke  = Color3.fromRGB(50, 50, 66),
+    Accent  = Color3.fromRGB(110, 75, 250),
+    Text    = Color3.fromRGB(235, 235, 245),
+    Sub     = Color3.fromRGB(148, 148, 164),
+    Hover   = Color3.fromRGB(34, 34, 48),
+    Red     = Color3.fromRGB(218, 68, 68),
+}
+
 local ESP = {
     Enabled = true,
     TeamCheck = false,
@@ -95,6 +107,7 @@ local Localization = {
         MainTab = "Main", VisualTab = "Visual", WeaponTab = "Weapon", FlyTab = "Fly", SettingsTab = "Settings",
         ControlSection = "Control",
         HideShowLabel = "Press K to hide/show interface",
+        ESPSection = "ESP",
         EnableESP = "Enable ESP",
         TeamCheck = "Team Check (enemies only)",
         ShowDistance = "Show Distance",
@@ -108,7 +121,7 @@ local Localization = {
         MarkSize = "Mark Size",
         FogSection = "Fog", RemoveFog = "Remove Fog",
         PenViewSection = "Penetration View", EnablePenView = "Enable Penetration View",
-        ColorsSection = "Colors", HullColor = "Hull Color", TurretColor = "Turret Color",
+        ColorsSection = "ESP Colors", HullColor = "Hull Color", TurretColor = "Turret Color",
         HighlightSettingsSection = "Highlight Settings",
         FillTransparency = "Fill Transparency", OutlineTransparency = "Outline Transparency",
         EnableFill = "Enable Fill", EnableOutline = "Enable Outline",
@@ -125,6 +138,10 @@ local Localization = {
         PerformanceSection = "Performance",
         MarkUpdateRate = "Mark Update Rate", ScanInterval = "Scan Interval",
         GraphicsDegradation = "Graphics Degradation",
+        ThemeSection = "Theme",
+        ThemeBGColor = "Background Color",
+        ThemeStrokeColor = "Border Color",
+        ThemeTextColor = "Text Color",
         ControlsSection = "Controls", ToggleESPKey = "Toggle ESP Key",
         ProjectSection = "Project", CopyGitHub = "Copy GitHub Link", CopyDiscord = "Copy Discord Link",
         Language = "Language / Язык",
@@ -141,6 +158,7 @@ local Localization = {
         MainTab = "Главное", VisualTab = "Визуальное", WeaponTab = "Оружие", FlyTab = "Полёт", SettingsTab = "Настройки",
         ControlSection = "Управление",
         HideShowLabel = "Нажмите K, чтобы скрыть/показать интерфейс",
+        ESPSection = "ESP",
         EnableESP = "Включить ESP",
         TeamCheck = "Проверка команды (только враги)",
         ShowDistance = "Показывать дистанцию",
@@ -154,7 +172,7 @@ local Localization = {
         MarkSize = "Размер метки",
         FogSection = "Туман", RemoveFog = "Убрать туман",
         PenViewSection = "Просмотр пробития", EnablePenView = "Включить просмотр пробития",
-        ColorsSection = "Цвета", HullColor = "Цвет корпуса", TurretColor = "Цвет башни",
+        ColorsSection = "Цвета ESP", HullColor = "Цвет корпуса", TurretColor = "Цвет башни",
         HighlightSettingsSection = "Настройки подсветки",
         FillTransparency = "Прозрачность заливки", OutlineTransparency = "Прозрачность контура",
         EnableFill = "Включить заливку", EnableOutline = "Включить контур",
@@ -171,6 +189,10 @@ local Localization = {
         PerformanceSection = "Производительность",
         MarkUpdateRate = "Частота обновления метки", ScanInterval = "Интервал сканирования",
         GraphicsDegradation = "Ухудшение графики",
+        ThemeSection = "Тема",
+        ThemeBGColor = "Цвет фона",
+        ThemeStrokeColor = "Цвет рамок",
+        ThemeTextColor = "Цвет текста",
         ControlsSection = "Клавиши управления", ToggleESPKey = "Клавиша ESP",
         ProjectSection = "Проект", CopyGitHub = "Скопировать ссылку GitHub", CopyDiscord = "Скопировать ссылку Discord",
         Language = "Язык / Language",
@@ -542,6 +564,7 @@ local function CreateESP(targetObject, color, isHull)
         markBillboard.Position = UDim2.new(0,0,0,0); markBillboard.BackgroundTransparency = 1
         markBillboard.Visible = false; markBillboard.Parent = MarkScreenGui
         local img = Instance.new("ImageLabel")
+        img.Name = "MarkImage"
         img.BackgroundTransparency = 1; img.Size = UDim2.new(1,0,1,0)
         img.Image = "rbxassetid://" .. tostring(Mark.DecalID); img.Parent = markBillboard
     end
@@ -605,12 +628,33 @@ function ProcessChassis(chassis)
     local playerName = chassis.Name:match("^Chassis(.+)$")
     if not playerName or playerName == "" then return end
     if playerName == LocalPlayer.Name then return end
-    if ESP.TeamCheck then
-        local targetPlayer = Services.Players:FindFirstChild(playerName)
-        if not targetPlayer then return end
+
+    local targetPlayer = Services.Players:FindFirstChild(playerName)
+    local isTeammate = false
+    if targetPlayer then
         local localTeam = LocalPlayer.Team; local targetTeam = targetPlayer.Team
-        if localTeam and targetTeam and localTeam == targetTeam then return end
+        if localTeam and targetTeam and localTeam == targetTeam then isTeammate = true end
     end
+
+    if ESP.TeamCheck and isTeammate then
+        -- Remove existing ESP for this chassis if it became a teammate
+        local function tryRemove(obj)
+            if not obj then return end
+            local ed = ESP.Instances[obj]
+            if ed then
+                if ed.Instance then ed.Instance:Destroy() end
+                if ed.DistanceBillboard then ed.DistanceBillboard:Destroy() end
+                if ed.MarkBillboard then ed.MarkBillboard:Destroy() end
+                ESP.Instances[obj] = nil
+            end
+        end
+        local hull = chassis:FindFirstChild("Hull")
+        if hull then for _, obj in ipairs(hull:GetChildren()) do if obj:IsA("Model") then tryRemove(obj) end end end
+        local turret = chassis:FindFirstChild("Turret")
+        if turret then for _, obj in ipairs(turret:GetChildren()) do if obj:IsA("Model") then tryRemove(obj) end end end
+        return
+    end
+
     local hull = chassis:FindFirstChild("Hull")
     if hull then for _, obj in ipairs(hull:GetChildren()) do if obj:IsA("Model") then CreateESP(obj, ESP.HullColor, true); break end end end
     local turret = chassis:FindFirstChild("Turret")
@@ -760,6 +804,9 @@ local TweenService = game:GetService("TweenService")
 local UserInputSvc = Services.UserInput
 local isMobile = UserInputSvc.TouchEnabled and not UserInputSvc.KeyboardEnabled
 
+local TOGGLE_SOUND_ID = "140231021022259"
+local LOAD_SOUND_ID   = "876941152"
+
 local function playSound(soundId)
     local sound = Instance.new("Sound")
     sound.SoundId = "rbxassetid://" .. tostring(soundId)
@@ -772,23 +819,76 @@ local function playSound(soundId)
     end)
 end
 
-local T = {
-    BG      = Color3.fromRGB(14, 14, 20),
-    Sidebar = Color3.fromRGB(18, 18, 26),
-    Card    = Color3.fromRGB(24, 24, 34),
-    Stroke  = Color3.fromRGB(50, 50, 66),
-    Accent  = Color3.fromRGB(110, 75, 250),
-    Text    = Color3.fromRGB(235, 235, 245),
-    Sub     = Color3.fromRGB(148, 148, 164),
-    Hover   = Color3.fromRGB(34, 34, 48),
-    Red     = Color3.fromRGB(218, 68, 68),
-}
-
 local function mkCorner(p, r)
     local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, r or 8); c.Parent = p; return c
 end
+
+local function theme(inst, bgType, textType, strokeType)
+    if bgType then
+        inst:SetAttribute("ThemeBG", bgType)
+        if bgType == "BG" then inst.BackgroundColor3 = T.BG
+        elseif bgType == "Sidebar" then inst.BackgroundColor3 = T.Sidebar
+        elseif bgType == "Card" then inst.BackgroundColor3 = T.Card
+        elseif bgType == "Hover" then inst.BackgroundColor3 = T.Hover
+        elseif bgType == "Stroke" then inst.BackgroundColor3 = T.Stroke
+        elseif bgType == "Accent" then inst.BackgroundColor3 = T.Accent
+        end
+    end
+    if textType then
+        inst:SetAttribute("ThemeText", textType)
+        if textType == "Text" then inst.TextColor3 = T.Text
+        elseif textType == "Sub" then inst.TextColor3 = T.Sub
+        elseif textType == "Accent" then inst.TextColor3 = T.Accent
+        end
+    end
+    if strokeType then
+        inst:SetAttribute("ThemeStroke", strokeType)
+        if strokeType == "Stroke" then
+            if inst:IsA("UIStroke") then inst.Color = T.Stroke else inst.BackgroundColor3 = T.Stroke end
+        elseif strokeType == "Accent" then
+            if inst:IsA("UIStroke") then inst.Color = T.Accent else inst.BackgroundColor3 = T.Accent end
+        end
+    end
+    return inst
+end
+
 local function mkStroke(p, col, th)
-    local s = Instance.new("UIStroke"); s.Color = col or T.Stroke; s.Thickness = th or 1; s.Parent = p; return s
+    local s = Instance.new("UIStroke"); s.Color = col or T.Stroke; s.Thickness = th or 1; s.Parent = p
+    if col == T.Stroke or col == nil then
+        theme(s, nil, nil, "Stroke")
+    end
+    return s
+end
+
+local function ApplyTheme()
+    if not Rayfield.ScreenGui then return end
+    for _, inst in ipairs(Rayfield.ScreenGui:GetDescendants()) do
+        local bgType = inst:GetAttribute("ThemeBG")
+        local textType = inst:GetAttribute("ThemeText")
+        local strokeType = inst:GetAttribute("ThemeStroke")
+        if bgType then
+            if bgType == "BG" then inst.BackgroundColor3 = T.BG
+            elseif bgType == "Sidebar" then inst.BackgroundColor3 = T.Sidebar
+            elseif bgType == "Card" then inst.BackgroundColor3 = T.Card
+            elseif bgType == "Hover" then inst.BackgroundColor3 = T.Hover
+            elseif bgType == "Stroke" then inst.BackgroundColor3 = T.Stroke
+            elseif bgType == "Accent" then inst.BackgroundColor3 = T.Accent
+            end
+        end
+        if textType then
+            if textType == "Text" then inst.TextColor3 = T.Text
+            elseif textType == "Sub" then inst.TextColor3 = T.Sub
+            elseif textType == "Accent" then inst.TextColor3 = T.Accent
+            end
+        end
+        if strokeType then
+            if strokeType == "Stroke" then
+                if inst:IsA("UIStroke") then inst.Color = T.Stroke else inst.BackgroundColor3 = T.Stroke end
+            elseif strokeType == "Accent" then
+                if inst:IsA("UIStroke") then inst.Color = T.Accent else inst.BackgroundColor3 = T.Accent end
+            end
+        end
+    end
 end
 
 local loadingTexts = {
@@ -810,6 +910,10 @@ local loadingTexts = {
     }
 }
 
+local function GetUserAvatarUrl(userId)
+    return "https://www.roblox.com/headshot-thumbnail/image?userId=" .. tostring(userId) .. "&width=150&height=150&format=png"
+end
+
 local function ShowLoadingScreen(callback)
     local lang = Localization.CurrentLanguage or "EN"
     local texts = loadingTexts[lang] or loadingTexts.EN
@@ -818,36 +922,52 @@ local function ShowLoadingScreen(callback)
     sg.Name = "KolyanchikLoading"; sg.ResetOnSpawn = false; sg.IgnoreGuiInset = true
     sg.Parent = Services.CoreGui
 
-    local bg = Instance.new("Frame")
-    bg.Size = UDim2.new(1,0,1,0); bg.BackgroundColor3 = Color3.new(0,0,0)
-    bg.BackgroundTransparency = 1; bg.Parent = sg
-    TweenService:Create(bg, TweenInfo.new(0.4), {BackgroundTransparency = 0.55}):Play()
+    local overlay = Instance.new("Frame")
+    overlay.Size = UDim2.new(1,0,1,0); overlay.BackgroundColor3 = Color3.new(0,0,0)
+    overlay.BackgroundTransparency = 1; overlay.Parent = sg
+    TweenService:Create(overlay, TweenInfo.new(0.4), {BackgroundTransparency = 0.5}):Play()
 
     local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0, 320, 0, 160)
+    frame.Size = UDim2.new(0, 340, 0, 220)
     frame.Position = UDim2.new(0.5, 0, 0.5, 0)
     frame.AnchorPoint = Vector2.new(0.5, 0.5)
     frame.BackgroundColor3 = T.BG; frame.BorderSizePixel = 0; frame.Parent = sg
     frame.BackgroundTransparency = 1
-    mkCorner(frame, 10); mkStroke(frame, T.Stroke, 1)
+    mkCorner(frame, 14); mkStroke(frame, T.Stroke, 1)
+
+    -- Avatar circle
+    local avatarCircle = Instance.new("Frame")
+    avatarCircle.Size = UDim2.new(0, 64, 0, 64)
+    avatarCircle.Position = UDim2.new(0.5, -32, 0, 18)
+    avatarCircle.BackgroundColor3 = T.Card
+    avatarCircle.BorderSizePixel = 0; avatarCircle.ClipsDescendants = true
+    avatarCircle.Parent = frame
+    mkCorner(avatarCircle, 32)
+    mkStroke(avatarCircle, T.Accent, 2)
+
+    local avatarImg = Instance.new("ImageLabel")
+    avatarImg.Size = UDim2.new(1,0,1,0)
+    avatarImg.BackgroundTransparency = 1
+    avatarImg.Image = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(LocalPlayer.UserId) .. "&w=150&h=150"
+    avatarImg.Parent = avatarCircle
 
     local title = Instance.new("TextLabel")
-    title.Size = UDim2.new(1, 0, 0, 40)
-    title.Position = UDim2.new(0, 0, 0, 15)
+    title.Size = UDim2.new(1, 0, 0, 32)
+    title.Position = UDim2.new(0, 0, 0, 88)
     title.BackgroundTransparency = 1; title.Font = Enum.Font.GothamBold
-    title.TextSize = 20; title.TextColor3 = T.Accent; title.Text = "kolyanchik script"
+    title.TextSize = 17; title.TextColor3 = T.Accent; title.Text = "kolyanchik script"
     title.TextTransparency = 1; title.Parent = frame
 
     local status = Instance.new("TextLabel")
-    status.Size = UDim2.new(1, 0, 0, 24)
-    status.Position = UDim2.new(0, 0, 0, 60)
+    status.Size = UDim2.new(1, 0, 0, 22)
+    status.Position = UDim2.new(0, 0, 0, 124)
     status.BackgroundTransparency = 1; status.Font = Enum.Font.GothamMedium
-    status.TextSize = 13; status.TextColor3 = T.Sub; status.Text = texts[1]
+    status.TextSize = 12; status.TextColor3 = T.Sub; status.Text = texts[1]
     status.TextTransparency = 1; status.Parent = frame
 
     local barBg = Instance.new("Frame")
-    barBg.Size = UDim2.new(0, 260, 0, 6)
-    barBg.Position = UDim2.new(0.5, 0, 0, 105)
+    barBg.Size = UDim2.new(0, 280, 0, 6)
+    barBg.Position = UDim2.new(0.5, 0, 0, 158)
     barBg.AnchorPoint = Vector2.new(0.5, 0)
     barBg.BackgroundColor3 = Color3.fromRGB(34, 34, 48); barBg.BorderSizePixel = 0
     barBg.BackgroundTransparency = 1; barBg.Parent = frame
@@ -858,35 +978,44 @@ local function ShowLoadingScreen(callback)
     barFill.BackgroundColor3 = T.Accent; barFill.BorderSizePixel = 0
     barFill.Parent = barBg; mkCorner(barFill, 3)
 
+    local pctLbl = Instance.new("TextLabel")
+    pctLbl.Size = UDim2.new(1,0,0,18); pctLbl.Position = UDim2.new(0,0,0,172)
+    pctLbl.BackgroundTransparency = 1; pctLbl.Font = Enum.Font.Gotham; pctLbl.TextSize = 11
+    pctLbl.TextColor3 = T.Sub; pctLbl.Text = "0%"; pctLbl.TextTransparency = 1; pctLbl.Parent = frame
+
     local ti = TweenInfo.new(0.4, Enum.EasingStyle.Quad)
     TweenService:Create(frame, ti, {BackgroundTransparency = 0}):Play()
     TweenService:Create(title, ti, {TextTransparency = 0}):Play()
     TweenService:Create(status, ti, {TextTransparency = 0}):Play()
     TweenService:Create(barBg, ti, {BackgroundTransparency = 0}):Play()
+    TweenService:Create(pctLbl, ti, {TextTransparency = 0}):Play()
     task.wait(0.4)
 
     local steps = #texts
     for i = 1, steps do
         status.Text = texts[i]
+        pctLbl.Text = math.floor((i/steps)*100) .. "%"
         local pct = i / steps
         TweenService:Create(barFill, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(pct, 0, 1, 0)}):Play()
         task.wait(0.3)
     end
 
-    playSound(876941152)
+    playSound(LOAD_SOUND_ID)
 
     TweenService:Create(frame, ti, {BackgroundTransparency = 1}):Play()
     TweenService:Create(title, ti, {TextTransparency = 1}):Play()
     TweenService:Create(status, ti, {TextTransparency = 1}):Play()
     TweenService:Create(barBg, ti, {BackgroundTransparency = 1}):Play()
     TweenService:Create(barFill, ti, {BackgroundTransparency = 1}):Play()
-    local fadeBg = TweenService:Create(bg, ti, {BackgroundTransparency = 1})
+    TweenService:Create(pctLbl, ti, {TextTransparency = 1}):Play()
+    local fadeBg = TweenService:Create(overlay, ti, {BackgroundTransparency = 1})
     fadeBg:Play()
     fadeBg.Completed:Wait()
     sg:Destroy()
 
     if callback then callback() end
 end
+
 local function mkDrag(frame, handle)
     local dragging, ds, fp = false, nil, nil
     handle.InputBegan:Connect(function(inp)
@@ -924,11 +1053,13 @@ function Rayfield:Notify(data)
     end
     local card = Instance.new("Frame"); card.Size = UDim2.new(1,0,0,66)
     card.BackgroundColor3 = T.Card; card.BackgroundTransparency = 1; card.BorderSizePixel = 0; card.Parent = nh
+    theme(card, "Card")
     mkCorner(card, 8); local cs = mkStroke(card, T.Accent, 1); cs.Transparency = 1
     local lbl = Instance.new("TextLabel"); lbl.Size = UDim2.new(1,-16,0,22); lbl.Position = UDim2.new(0,10,0,5)
     lbl.BackgroundTransparency = 1; lbl.Font = Enum.Font.GothamBold; lbl.TextSize = 13
     lbl.TextColor3 = T.Accent; lbl.TextXAlignment = Enum.TextXAlignment.Left
     lbl.Text = data.Title or ""; lbl.TextTransparency = 1; lbl.Parent = card
+    theme(lbl, nil, "Accent")
     local body = Instance.new("TextLabel"); body.Size = UDim2.new(1,-16,0,34); body.Position = UDim2.new(0,10,0,26)
     body.BackgroundTransparency = 1; body.Font = Enum.Font.Gotham; body.TextSize = 12
     body.TextColor3 = T.Text; body.TextXAlignment = Enum.TextXAlignment.Left
@@ -961,68 +1092,119 @@ function Rayfield:CreateWindow(cfg)
     if vpW < 100 then vpW = 800 end
     if vpH < 100 then vpH = 600 end
 
-    local W = math.min(math.clamp(math.floor(vpW * 0.82), 380, 640), vpW - 20)
-    local H = math.min(math.clamp(math.floor(vpH * 0.76), 260, 430), vpH - 20)
-    local SW = 115  -- sidebar width
+    local W = math.min(math.clamp(math.floor(vpW * 0.82), 400, 660), vpW - 20)
+    local H = math.min(math.clamp(math.floor(vpH * 0.76), 340, 450), vpH - 20)
+    local SW = 120  -- sidebar width
 
     -- Main window
     local win = Instance.new("Frame"); win.Name = "Window"
     win.AnchorPoint = Vector2.new(0.5, 0.5)
     win.Size = UDim2.new(0, W, 0, H); win.Position = UDim2.new(0.5, 0, 0.5, 0)
     win.BackgroundColor3 = T.BG; win.BorderSizePixel = 0; win.Parent = sg
+    theme(win, "BG")
     mkCorner(win, 12); mkStroke(win, T.Stroke, 1)
 
     -- Title bar (drag handle)
-    local bar = Instance.new("Frame"); bar.Size = UDim2.new(1,0,0,40)
-    bar.BackgroundTransparency = 1; bar.Parent = win
-    local titleLbl = Instance.new("TextLabel"); titleLbl.Size = UDim2.new(1,-90,1,0)
-    titleLbl.Position = UDim2.new(0, SW+12, 0, 0); titleLbl.BackgroundTransparency = 1
-    titleLbl.Font = Enum.Font.GothamBold; titleLbl.TextSize = 15; titleLbl.TextColor3 = T.Text
+    local bar = Instance.new("Frame"); bar.Name = "TitleBar"
+    bar.Size = UDim2.new(1,0,0,44)
+    bar.BackgroundColor3 = T.Sidebar; bar.BorderSizePixel = 0; bar.Parent = win
+    theme(bar, "Sidebar")
+    mkCorner(bar, 12)
+    -- Patch bottom corners
+    local barFix = Instance.new("Frame"); barFix.Size = UDim2.new(1,0,0,12)
+    barFix.Position = UDim2.new(0,0,1,-12); barFix.BackgroundColor3 = T.Sidebar
+    barFix.BorderSizePixel = 0; barFix.Parent = bar
+    theme(barFix, "Sidebar")
+
+    local titleLbl = Instance.new("TextLabel"); titleLbl.Size = UDim2.new(1,-60,1,0)
+    titleLbl.Position = UDim2.new(0, 14, 0, 0); titleLbl.BackgroundTransparency = 1
+    titleLbl.Font = Enum.Font.GothamBold; titleLbl.TextSize = 14; titleLbl.TextColor3 = T.Text
     titleLbl.TextXAlignment = Enum.TextXAlignment.Left; titleLbl.Text = cfg.Name or "kolyanchik script"
     titleLbl.Parent = bar
-    local xBtn = Instance.new("TextButton"); xBtn.Size = UDim2.new(0,26,0,26)
-    xBtn.Position = UDim2.new(1,-36,0.5,-13); xBtn.BackgroundColor3 = Color3.fromRGB(36,22,42)
-    xBtn.Font = Enum.Font.GothamBold; xBtn.TextSize = 13; xBtn.TextColor3 = T.Red
+    theme(titleLbl, nil, "Text")
+
+    local xBtn = Instance.new("TextButton"); xBtn.Size = UDim2.new(0,28,0,28)
+    xBtn.Position = UDim2.new(1,-38,0.5,-14); xBtn.BackgroundColor3 = Color3.fromRGB(36,22,42)
+    xBtn.Font = Enum.Font.GothamBold; xBtn.TextSize = 14; xBtn.TextColor3 = T.Red
     xBtn.Text = "✕"; xBtn.Parent = bar; mkCorner(xBtn, 7); mkStroke(xBtn, T.Stroke, 1)
     xBtn.MouseButton1Click:Connect(function() win.Visible = false end)
     mkDrag(win, bar)
 
-    -- Divider under title bar (only in content area)
+    -- Divider under title bar
     local barLine = Instance.new("Frame"); barLine.Size = UDim2.new(1,-SW,0,1)
-    barLine.Position = UDim2.new(0,SW,0,40); barLine.BackgroundColor3 = T.Stroke
+    barLine.Position = UDim2.new(0,SW,0,44); barLine.BackgroundColor3 = T.Stroke
     barLine.BorderSizePixel = 0; barLine.Parent = win
+    theme(barLine, nil, nil, "Stroke")
 
     -- Sidebar panel
     local sidePanel = Instance.new("Frame"); sidePanel.Name = "Sidebar"
     sidePanel.Size = UDim2.new(0,SW,1,0); sidePanel.BackgroundColor3 = T.Sidebar
     sidePanel.BorderSizePixel = 0; sidePanel.Parent = win
+    theme(sidePanel, "Sidebar")
     mkCorner(sidePanel, 12)
-    -- Square off the right side of sidebar corners
     local sfix = Instance.new("Frame"); sfix.Size = UDim2.new(0,12,1,0)
     sfix.Position = UDim2.new(1,-12,0,0); sfix.BackgroundColor3 = T.Sidebar
     sfix.BorderSizePixel = 0; sfix.Parent = sidePanel
-    -- Vertical divider line
+    theme(sfix, "Sidebar")
     local sdiv = Instance.new("Frame"); sdiv.Size = UDim2.new(0,1,1,0)
     sdiv.Position = UDim2.new(1,-1,0,0); sdiv.BackgroundColor3 = T.Stroke
     sdiv.BorderSizePixel = 0; sdiv.Parent = sidePanel
+    theme(sdiv, nil, nil, "Stroke")
+
+    -- User profile in sidebar (bottom-left)
+    local userProfile = Instance.new("Frame")
+    userProfile.Name = "UserProfile"
+    userProfile.Size = UDim2.new(1, 0, 0, 80)
+    userProfile.Position = UDim2.new(0, 0, 1, -85)
+    userProfile.BackgroundTransparency = 1
+    userProfile.Parent = sidePanel
+
+    local avatarFrame = Instance.new("Frame")
+    avatarFrame.Size = UDim2.new(0, 42, 0, 42)
+    avatarFrame.Position = UDim2.new(0.5, -21, 0, 5)
+    avatarFrame.BackgroundColor3 = T.Card
+    avatarFrame.BorderSizePixel = 0
+    avatarFrame.Parent = userProfile
+    theme(avatarFrame, "Card")
+    mkCorner(avatarFrame, 21)
+    mkStroke(avatarFrame, T.Accent, 1.5)
+
+    local avatarImg2 = Instance.new("ImageLabel")
+    avatarImg2.Size = UDim2.new(1, 0, 1, 0)
+    avatarImg2.BackgroundTransparency = 1
+    avatarImg2.Image = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(LocalPlayer.UserId) .. "&w=150&h=150"
+    avatarImg2.Parent = avatarFrame
+    mkCorner(avatarImg2, 21)
+
+    local welcomeLbl = Instance.new("TextLabel")
+    welcomeLbl.Size = UDim2.new(1, -10, 0, 24)
+    welcomeLbl.Position = UDim2.new(0, 5, 0, 50)
+    welcomeLbl.BackgroundTransparency = 1
+    welcomeLbl.Font = Enum.Font.GothamMedium; welcomeLbl.TextSize = 10
+    welcomeLbl.TextXAlignment = Enum.TextXAlignment.Center
+    welcomeLbl.Text = "Welcome, " .. LocalPlayer.Name
+    welcomeLbl.TextTruncate = Enum.TextTruncate.AtEnd
+    welcomeLbl.Parent = userProfile
+    theme(welcomeLbl, nil, "Sub")
 
     -- "MENU" header in sidebar
-    local menuHdr = Instance.new("TextLabel"); menuHdr.Size = UDim2.new(1,0,0,40)
+    local menuHdr = Instance.new("TextLabel"); menuHdr.Size = UDim2.new(1,0,0,44)
     menuHdr.BackgroundTransparency = 1; menuHdr.Font = Enum.Font.GothamBold
-    menuHdr.TextSize = 11; menuHdr.TextColor3 = T.Accent; menuHdr.Text = "MENU"; menuHdr.Parent = sidePanel
+    menuHdr.TextSize = 10; menuHdr.TextColor3 = T.Accent; menuHdr.Text = "MENU"; menuHdr.Parent = sidePanel
+    theme(menuHdr, nil, "Accent")
 
-    -- TabList: inner frame that holds ONLY tab buttons (no separator)
+    -- TabList
     local tabList = Instance.new("Frame"); tabList.Name = "TabList"
-    tabList.Size = UDim2.new(1,0,1,-44); tabList.Position = UDim2.new(0,0,0,44)
+    tabList.Size = UDim2.new(1,0,1,-48 - 85); tabList.Position = UDim2.new(0,0,0,48)
     tabList.BackgroundTransparency = 1; tabList.Parent = sidePanel
     local tabLayout = Instance.new("UIListLayout"); tabLayout.Padding = UDim.new(0,4)
     tabLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center; tabLayout.Parent = tabList
-    local tabPad = Instance.new("UIPadding"); tabPad.PaddingLeft = UDim.new(0,8)
-    tabPad.PaddingRight = UDim.new(0,8); tabPad.Parent = tabList
+    local tabPad = Instance.new("UIPadding"); tabPad.PaddingLeft = UDim.new(0,7)
+    tabPad.PaddingRight = UDim.new(0,7); tabPad.Parent = tabList
 
     -- Content area (right side)
     local contentArea = Instance.new("Frame"); contentArea.Name = "Content"
-    contentArea.Size = UDim2.new(1,-SW,1,-41); contentArea.Position = UDim2.new(0,SW,0,41)
+    contentArea.Size = UDim2.new(1,-SW,1,-45); contentArea.Position = UDim2.new(0,SW,0,45)
     contentArea.BackgroundTransparency = 1; contentArea.ClipsDescendants = true; contentArea.Parent = win
 
     -- Floating toggle button
@@ -1032,6 +1214,7 @@ function Rayfield:CreateWindow(cfg)
     floatBtn.BackgroundColor3 = T.BG; floatBtn.BackgroundTransparency = 0.1
     floatBtn.Font = Enum.Font.GothamBold; floatBtn.TextSize = 18; floatBtn.TextColor3 = T.Accent
     floatBtn.Text = "☰"; floatBtn.Parent = sg; mkCorner(floatBtn, 22); mkStroke(floatBtn, T.Accent, 1.5)
+    theme(floatBtn, "BG")
     floatBtn.MouseButton1Click:Connect(function() win.Visible = not win.Visible end)
     mkDrag(floatBtn, floatBtn)
 
@@ -1042,9 +1225,9 @@ function Rayfield:CreateWindow(cfg)
         -- Content scroll
         local scroll = Instance.new("ScrollingFrame"); scroll.Name = name.."_Scroll"
         scroll.Size = UDim2.new(1,0,1,0); scroll.BackgroundTransparency = 1
-        scroll.ScrollBarThickness = 5; scroll.ScrollBarImageColor3 = T.Accent
+        scroll.ScrollBarThickness = 4; scroll.ScrollBarImageColor3 = T.Accent
         scroll.CanvasSize = UDim2.new(0,0,0,0); scroll.Visible = false; scroll.Parent = contentArea
-        local sLayout = Instance.new("UIListLayout"); sLayout.Padding = UDim.new(0,7)
+        local sLayout = Instance.new("UIListLayout"); sLayout.Padding = UDim.new(0,6)
         sLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center; sLayout.Parent = scroll
         local sPad = Instance.new("UIPadding"); sPad.PaddingTop = UDim.new(0,10)
         sPad.PaddingBottom = UDim.new(0,14); sPad.PaddingLeft = UDim.new(0,10); sPad.PaddingRight = UDim.new(0,10)
@@ -1057,12 +1240,14 @@ function Rayfield:CreateWindow(cfg)
         -- Sidebar button
         local btn = Instance.new("TextButton"); btn.Name = name.."_Btn"
         btn.Size = UDim2.new(1,0,0,32); btn.BackgroundColor3 = T.Accent; btn.BackgroundTransparency = 1
-        btn.Font = Enum.Font.GothamMedium; btn.TextSize = 13; btn.TextColor3 = T.Sub
+        btn.Font = Enum.Font.GothamMedium; btn.TextSize = 12; btn.TextColor3 = T.Sub
         btn.TextXAlignment = Enum.TextXAlignment.Left; btn.Text = "  "..name; btn.Parent = tabList
+        theme(btn, "Accent", "Sub")
         mkCorner(btn, 7)
         local indicator = Instance.new("Frame"); indicator.Size = UDim2.new(0,3,0.55,0)
         indicator.Position = UDim2.new(0,3,0.225,0); indicator.BackgroundColor3 = T.Accent
         indicator.BorderSizePixel = 0; indicator.Visible = false; indicator.Parent = btn; mkCorner(indicator, 2)
+        theme(indicator, "Accent")
 
         local tabObj = { scroll = scroll, btn = btn, indicator = indicator }
         table.insert(winObj.Tabs, tabObj)
@@ -1071,11 +1256,13 @@ function Rayfield:CreateWindow(cfg)
             if winObj.ActiveTab == tabObj then return end
             if winObj.ActiveTab then
                 winObj.ActiveTab.scroll.Visible = false
-                winObj.ActiveTab.btn.TextColor3 = T.Sub; winObj.ActiveTab.btn.BackgroundTransparency = 1
+                theme(winObj.ActiveTab.btn, nil, "Sub")
+                winObj.ActiveTab.btn.BackgroundTransparency = 1
                 winObj.ActiveTab.indicator.Visible = false
             end
             winObj.ActiveTab = tabObj; scroll.Visible = true
-            btn.TextColor3 = T.Text; btn.BackgroundTransparency = 0.83; indicator.Visible = true
+            theme(btn, nil, "Text")
+            btn.BackgroundTransparency = 0.83; indicator.Visible = true
         end
         btn.MouseButton1Click:Connect(activate)
         if #winObj.Tabs == 1 then activate() end
@@ -1087,9 +1274,11 @@ function Rayfield:CreateWindow(cfg)
             lbl.BackgroundTransparency = 1; lbl.Font = Enum.Font.GothamBold; lbl.TextSize = 10
             lbl.TextColor3 = T.Accent; lbl.TextXAlignment = Enum.TextXAlignment.Left
             lbl.Text = secName:upper(); lbl.Parent = f
+            theme(lbl, nil, "Accent")
             local line = Instance.new("Frame"); line.Size = UDim2.new(1,0,0,1)
             line.Position = UDim2.new(0,0,1,-1); line.BackgroundColor3 = T.Stroke
             line.BorderSizePixel = 0; line.Parent = f
+            theme(line, nil, nil, "Stroke")
         end
 
         function tabObj:CreateLabel(text)
@@ -1097,12 +1286,14 @@ function Rayfield:CreateWindow(cfg)
             lbl.BackgroundTransparency = 1; lbl.Font = Enum.Font.Gotham; lbl.TextSize = 12
             lbl.TextColor3 = T.Sub; lbl.TextXAlignment = Enum.TextXAlignment.Left
             lbl.TextWrapped = true; lbl.Text = text; lbl.Parent = scroll
+            theme(lbl, nil, "Sub")
         end
 
         function tabObj:CreateButton(data)
             local b = Instance.new("TextButton"); b.Size = UDim2.new(1,0,0,36)
             b.BackgroundColor3 = T.Card; b.BorderSizePixel = 0; b.Font = Enum.Font.GothamMedium
             b.TextSize = 13; b.TextColor3 = T.Text; b.Text = data.Name or "Button"; b.Parent = scroll
+            theme(b, "Card", "Text")
             mkCorner(b, 7); mkStroke(b, T.Stroke, 1)
             b.MouseEnter:Connect(function() TweenService:Create(b, TweenInfo.new(0.14), {BackgroundColor3 = T.Hover}):Play() end)
             b.MouseLeave:Connect(function() TweenService:Create(b, TweenInfo.new(0.14), {BackgroundColor3 = T.Card}):Play() end)
@@ -1113,12 +1304,14 @@ function Rayfield:CreateWindow(cfg)
             local flag = data.Flag; local val = data.CurrentValue == true
             local card = Instance.new("Frame"); card.Size = UDim2.new(1,0,0,36)
             card.BackgroundColor3 = T.Card; card.BorderSizePixel = 0; card.Parent = scroll
+            theme(card, "Card")
             mkCorner(card, 7); mkStroke(card, T.Stroke, 1)
             local lbl = Instance.new("TextLabel"); lbl.Size = UDim2.new(1,-60,1,0)
             lbl.Position = UDim2.new(0,12,0,0); lbl.BackgroundTransparency = 1
             lbl.Font = Enum.Font.GothamMedium; lbl.TextSize = 13; lbl.TextColor3 = T.Text
             lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.TextWrapped = true
             lbl.Text = data.Name or "Toggle"; lbl.Parent = card
+            theme(lbl, nil, "Text")
             local track = Instance.new("Frame"); track.Size = UDim2.new(0,38,0,20)
             track.Position = UDim2.new(1,-50,0.5,-10)
             track.BackgroundColor3 = val and T.Accent or Color3.fromRGB(48,48,62)
@@ -1128,17 +1321,20 @@ function Rayfield:CreateWindow(cfg)
             knob.BackgroundColor3 = Color3.fromRGB(234,234,244); knob.BorderSizePixel = 0
             knob.Parent = track; mkCorner(knob, 8)
             if flag then Rayfield.Flags[flag] = val end
+            local tabRef = tabObj
             local function setVal(v)
                 val = v; if flag then Rayfield.Flags[flag] = val end
                 local ti = TweenInfo.new(0.18, Enum.EasingStyle.Quad)
                 TweenService:Create(track, ti, {BackgroundColor3 = v and T.Accent or Color3.fromRGB(48,48,62)}):Play()
                 TweenService:Create(knob,  ti, {Position = v and UDim2.new(1,-18,0.5,-8) or UDim2.new(0,2,0.5,-8)}):Play()
-                playSound(876940317)
+                playSound(TOGGLE_SOUND_ID)
                 if data.Callback then data.Callback(val) end
             end
+            function tabRef:Set(v) setVal(v) end
             local hit = Instance.new("TextButton"); hit.Size = UDim2.new(1,0,1,0)
             hit.BackgroundTransparency = 1; hit.Text = ""; hit.Parent = card
             hit.MouseButton1Click:Connect(function() setVal(not val) end)
+            return tabRef
         end
 
         function tabObj:CreateSlider(data)
@@ -1147,60 +1343,93 @@ function Rayfield:CreateWindow(cfg)
             local val = math.clamp(data.CurrentValue or sMin, sMin, sMax)
             local card = Instance.new("Frame"); card.Size = UDim2.new(1,0,0,52)
             card.BackgroundColor3 = T.Card; card.BorderSizePixel = 0; card.Parent = scroll
+            theme(card, "Card")
             mkCorner(card, 7); mkStroke(card, T.Stroke, 1)
             local nameLbl = Instance.new("TextLabel"); nameLbl.Size = UDim2.new(0.6,0,0,24)
             nameLbl.Position = UDim2.new(0,12,0,2); nameLbl.BackgroundTransparency = 1
             nameLbl.Font = Enum.Font.GothamMedium; nameLbl.TextSize = 13; nameLbl.TextColor3 = T.Text
             nameLbl.TextXAlignment = Enum.TextXAlignment.Left; nameLbl.Text = data.Name or "Slider"; nameLbl.Parent = card
+            theme(nameLbl, nil, "Text")
             local valLbl = Instance.new("TextLabel"); valLbl.Size = UDim2.new(0.38,0,0,24)
             valLbl.Position = UDim2.new(0.62,0,0,2); valLbl.BackgroundTransparency = 1
             valLbl.Font = Enum.Font.Gotham; valLbl.TextSize = 12; valLbl.TextColor3 = T.Accent
             valLbl.TextXAlignment = Enum.TextXAlignment.Right
-            local displayVal = (sInc % 1 == 0 and tostring(val) or string.format("%.3f", val):gsub("%.?0+$", ""))
+            local displayVal = (sInc % 1 == 0 and tostring(val) or string.format("%.2f", val))
             valLbl.Text = displayVal..suf; valLbl.Parent = card
-            local track = Instance.new("Frame"); track.Size = UDim2.new(1,-24,0,6)
+            theme(valLbl, nil, "Accent")
+            local track = Instance.new("Frame"); track.Name = "SliderTrack"
+            track.Size = UDim2.new(1,-24,0,6)
             track.Position = UDim2.new(0,12,0,36); track.BackgroundColor3 = Color3.fromRGB(44,44,58)
             track.BorderSizePixel = 0; track.Parent = card; mkCorner(track, 3)
             local fill = Instance.new("Frame"); fill.Size = UDim2.new((val-sMin)/math.max(sMax-sMin,0.0001),0,1,0)
             fill.BackgroundColor3 = T.Accent; fill.BorderSizePixel = 0; fill.Parent = track; mkCorner(fill, 3)
+            theme(fill, "Accent")
             local knob = Instance.new("Frame"); knob.Size = UDim2.new(0,14,0,14)
             knob.Position = UDim2.new(1,-7,0.5,-7); knob.BackgroundColor3 = Color3.fromRGB(234,234,244)
             knob.BorderSizePixel = 0; knob.Parent = fill; mkCorner(knob, 7)
             if flag then Rayfield.Flags[flag] = val end
-            local aInp = nil
+
+            local isDragging = false
             local function upd(px)
-                local pct = math.clamp((px - track.AbsolutePosition.X) / math.max(track.AbsoluteSize.X,1), 0, 1)
-                local rounded = math.clamp(sMin + math.round((sMin + (sMax-sMin)*pct - sMin)/sInc)*sInc, sMin, sMax)
-                val = rounded; if flag then Rayfield.Flags[flag] = val end
-                local displayVal = (sInc % 1 == 0 and tostring(val) or string.format("%.3f", val):gsub("%.?0+$", ""))
-                valLbl.Text = displayVal..suf
+                local pct = math.clamp((px - track.AbsolutePosition.X) / math.max(track.AbsoluteSize.X, 1), 0, 1)
+                local raw = sMin + (sMax - sMin) * pct
+                local rounded = math.clamp(math.round((raw - sMin) / sInc) * sInc + sMin, sMin, sMax)
+                val = rounded
+                if flag then Rayfield.Flags[flag] = val end
+                local dv = (sInc % 1 == 0 and tostring(val) or string.format("%.2f", val))
+                valLbl.Text = dv..suf
                 fill.Size = UDim2.new((val-sMin)/math.max(sMax-sMin,0.0001),0,1,0)
                 if data.Callback then data.Callback(val) end
             end
-            local hit = Instance.new("TextButton"); hit.Size = UDim2.new(1,0,1.8,0)
-            hit.Position = UDim2.new(0,0,-0.4,0); hit.BackgroundTransparency = 1; hit.Text = ""; hit.Parent = track
+
+            -- Use a transparent button the size of the whole card for hit detection
+            local hit = Instance.new("TextButton"); hit.Size = UDim2.new(1,0,0,22)
+            hit.Position = UDim2.new(0,0,0,30); hit.BackgroundTransparency = 1; hit.Text = ""; hit.Parent = card
             hit.InputBegan:Connect(function(inp)
                 if inp.UserInputType == Enum.UserInputType.MouseButton1
-                or inp.UserInputType == Enum.UserInputType.Touch then aInp = inp; upd(inp.Position.X) end
+                or inp.UserInputType == Enum.UserInputType.Touch then
+                    isDragging = true
+                    upd(inp.Position.X)
+                end
             end)
-            UserInputSvc.InputChanged:Connect(function(inp) if inp == aInp then upd(inp.Position.X) end end)
-            UserInputSvc.InputEnded:Connect(function(inp) if inp == aInp then aInp = nil end end)
+            -- Use global InputChanged with isDragging flag (safe, per-slider)
+            local movedConn = UserInputSvc.InputChanged:Connect(function(inp)
+                if not isDragging then return end
+                if inp.UserInputType == Enum.UserInputType.MouseMovement
+                or inp.UserInputType == Enum.UserInputType.Touch then
+                    upd(inp.Position.X)
+                end
+            end)
+            local endConn = UserInputSvc.InputEnded:Connect(function(inp)
+                if inp.UserInputType == Enum.UserInputType.MouseButton1
+                or inp.UserInputType == Enum.UserInputType.Touch then
+                    isDragging = false
+                end
+            end)
+            -- Clean up those connections when scroll is destroyed
+            scroll.Destroying:Connect(function()
+                movedConn:Disconnect()
+                endConn:Disconnect()
+            end)
         end
 
         function tabObj:CreateInput(data)
             local flag = data.Flag; local val = data.CurrentValue or ""
             local card = Instance.new("Frame"); card.Size = UDim2.new(1,0,0,36)
             card.BackgroundColor3 = T.Card; card.BorderSizePixel = 0; card.Parent = scroll
+            theme(card, "Card")
             mkCorner(card, 7); mkStroke(card, T.Stroke, 1)
             local lbl = Instance.new("TextLabel"); lbl.Size = UDim2.new(1,-148,1,0)
             lbl.Position = UDim2.new(0,12,0,0); lbl.BackgroundTransparency = 1
             lbl.Font = Enum.Font.GothamMedium; lbl.TextSize = 13; lbl.TextColor3 = T.Text
             lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.Text = data.Name or "Input"; lbl.Parent = card
+            theme(lbl, nil, "Text")
             local box = Instance.new("TextBox"); box.Size = UDim2.new(0,128,0,24)
             box.Position = UDim2.new(1,-140,0.5,-12); box.BackgroundColor3 = Color3.fromRGB(30,30,44)
             box.BorderSizePixel = 0; box.Font = Enum.Font.Gotham; box.TextSize = 12; box.TextColor3 = T.Text
             box.PlaceholderText = data.PlaceholderText or "..."; box.PlaceholderColor3 = T.Sub
             box.Text = val; box.ClearTextOnFocus = false; box.Parent = card; mkCorner(box, 5); mkStroke(box, T.Stroke, 1)
+            theme(box, nil, "Text")
             if flag then Rayfield.Flags[flag] = val end
             box.FocusLost:Connect(function()
                 if flag then Rayfield.Flags[flag] = box.Text end
@@ -1215,14 +1444,17 @@ function Rayfield:CreateWindow(cfg)
             local card = Instance.new("Frame"); card.Size = UDim2.new(1,0,0,36)
             card.BackgroundColor3 = T.Card; card.BorderSizePixel = 0
             card.ClipsDescendants = true; card.Parent = scroll; mkCorner(card, 7); mkStroke(card, T.Stroke, 1)
+            theme(card, "Card")
             local lbl = Instance.new("TextLabel"); lbl.Size = UDim2.new(1,-148,0,36)
             lbl.Position = UDim2.new(0,12,0,0); lbl.BackgroundTransparency = 1
             lbl.Font = Enum.Font.GothamMedium; lbl.TextSize = 13; lbl.TextColor3 = T.Text
             lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.Text = data.Name or "Dropdown"; lbl.Parent = card
+            theme(lbl, nil, "Text")
             local selBtn = Instance.new("TextButton"); selBtn.Size = UDim2.new(0,128,0,24)
             selBtn.Position = UDim2.new(1,-140,0,6); selBtn.BackgroundColor3 = Color3.fromRGB(30,30,44)
             selBtn.Font = Enum.Font.Gotham; selBtn.TextSize = 11; selBtn.TextColor3 = T.Text
             selBtn.Text = cur.." ▾"; selBtn.Parent = card; mkCorner(selBtn, 5); mkStroke(selBtn, T.Stroke, 1)
+            theme(selBtn, nil, "Text")
             local listFrame = Instance.new("Frame"); listFrame.Size = UDim2.new(1,-22,0,#opts*29)
             listFrame.Position = UDim2.new(0,11,0,40); listFrame.BackgroundTransparency = 1
             listFrame.Visible = false; listFrame.Parent = card
@@ -1241,10 +1473,14 @@ function Rayfield:CreateWindow(cfg)
                 ob.Font = Enum.Font.Gotham; ob.TextSize = 12
                 ob.TextColor3 = (opt == cur) and T.Accent or T.Text
                 ob.Text = "  "..opt; ob.TextXAlignment = Enum.TextXAlignment.Left; ob.Parent = listFrame; mkCorner(ob, 5)
+                theme(ob, nil, (opt == cur) and "Accent" or "Text")
                 ob.MouseButton1Click:Connect(function()
                     cur = opt; selBtn.Text = cur.." ▾"
                     for _, ch in ipairs(listFrame:GetChildren()) do
-                        if ch:IsA("TextButton") then ch.TextColor3 = (ch.Text == "  "..opt) and T.Accent or T.Text end
+                        if ch:IsA("TextButton") then
+                            local isSelected = (ch.Text == "  "..opt)
+                            theme(ch, nil, isSelected and "Accent" or "Text")
+                        end
                     end
                     if flag then Rayfield.Flags[flag] = {cur} end
                     if data.Callback then data.Callback({cur}) end
@@ -1260,10 +1496,12 @@ function Rayfield:CreateWindow(cfg)
             local card = Instance.new("Frame"); card.Size = UDim2.new(1,0,0,36)
             card.BackgroundColor3 = T.Card; card.BorderSizePixel = 0
             card.ClipsDescendants = true; card.Parent = scroll; mkCorner(card, 7); mkStroke(card, T.Stroke, 1)
+            theme(card, "Card")
             local lbl = Instance.new("TextLabel"); lbl.Size = UDim2.new(1,-58,0,36)
             lbl.Position = UDim2.new(0,12,0,0); lbl.BackgroundTransparency = 1
             lbl.Font = Enum.Font.GothamMedium; lbl.TextSize = 13; lbl.TextColor3 = T.Text
             lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.Text = data.Name or "Color"; lbl.Parent = card
+            theme(lbl, nil, "Text")
             local preview = Instance.new("TextButton"); preview.Size = UDim2.new(0,34,0,22)
             preview.Position = UDim2.new(1,-46,0,7); preview.BackgroundColor3 = curColor
             preview.BorderSizePixel = 0; preview.Text = ""; preview.Parent = card; mkCorner(preview, 5); mkStroke(preview, T.Stroke, 1)
@@ -1292,8 +1530,9 @@ function Rayfield:CreateWindow(cfg)
                 vLbl.Position = UDim2.new(1,-28,0,0); vLbl.BackgroundTransparency = 1
                 vLbl.Font = Enum.Font.SourceSans; vLbl.TextSize = 12; vLbl.TextColor3 = T.Sub
                 vLbl.Text = tostring(sv[chan]); vLbl.Parent = row
-                local aI = nil
-                local function upd(px)
+                theme(vLbl, nil, "Sub")
+                local colorDragging = false
+                local function updC(px)
                     local pct = math.clamp((px-bar.AbsolutePosition.X)/math.max(bar.AbsoluteSize.X,1),0,1)
                     sv[chan] = math.round(pct*255); fillC.Size = UDim2.new(pct,0,1,0)
                     vLbl.Text = tostring(sv[chan]); updateColor()
@@ -1302,10 +1541,18 @@ function Rayfield:CreateWindow(cfg)
                 hit.Position = UDim2.new(0,0,-0.25,0); hit.BackgroundTransparency = 1; hit.Text = ""; hit.Parent = bar
                 hit.InputBegan:Connect(function(inp)
                     if inp.UserInputType == Enum.UserInputType.MouseButton1
-                    or inp.UserInputType == Enum.UserInputType.Touch then aI = inp; upd(inp.Position.X) end
+                    or inp.UserInputType == Enum.UserInputType.Touch then colorDragging = true; updC(inp.Position.X) end
                 end)
-                UserInputSvc.InputChanged:Connect(function(inp) if inp == aI then upd(inp.Position.X) end end)
-                UserInputSvc.InputEnded:Connect(function(inp) if inp == aI then aI = nil end end)
+                local cmConn = UserInputSvc.InputChanged:Connect(function(inp)
+                    if not colorDragging then return end
+                    if inp.UserInputType == Enum.UserInputType.MouseMovement
+                    or inp.UserInputType == Enum.UserInputType.Touch then updC(inp.Position.X) end
+                end)
+                local ceConn = UserInputSvc.InputEnded:Connect(function(inp)
+                    if inp.UserInputType == Enum.UserInputType.MouseButton1
+                    or inp.UserInputType == Enum.UserInputType.Touch then colorDragging = false end
+                end)
+                scroll.Destroying:Connect(function() cmConn:Disconnect(); ceConn:Disconnect() end)
             end
             preview.MouseButton1Click:Connect(function()
                 expanded = not expanded; panel.Visible = expanded
@@ -1319,14 +1566,17 @@ function Rayfield:CreateWindow(cfg)
             if isMobile then if flag then Rayfield.Flags[flag] = {CurrentKeybind = key} end; return end
             local card = Instance.new("Frame"); card.Size = UDim2.new(1,0,0,36)
             card.BackgroundColor3 = T.Card; card.BorderSizePixel = 0; card.Parent = scroll; mkCorner(card, 7); mkStroke(card, T.Stroke, 1)
+            theme(card, "Card")
             local lbl = Instance.new("TextLabel"); lbl.Size = UDim2.new(1,-108,1,0)
             lbl.Position = UDim2.new(0,12,0,0); lbl.BackgroundTransparency = 1
             lbl.Font = Enum.Font.GothamMedium; lbl.TextSize = 13; lbl.TextColor3 = T.Text
             lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.Text = data.Name or "Keybind"; lbl.Parent = card
+            theme(lbl, nil, "Text")
             local bindBtn = Instance.new("TextButton"); bindBtn.Size = UDim2.new(0,90,0,24)
             bindBtn.Position = UDim2.new(1,-100,0.5,-12); bindBtn.BackgroundColor3 = Color3.fromRGB(30,30,44)
             bindBtn.Font = Enum.Font.Gotham; bindBtn.TextSize = 11; bindBtn.TextColor3 = T.Text
             bindBtn.Text = "[ "..key.." ]"; bindBtn.Parent = card; mkCorner(bindBtn, 5); mkStroke(bindBtn, T.Stroke, 1)
+            theme(bindBtn, nil, "Text")
             if flag then Rayfield.Flags[flag] = {CurrentKeybind = key} end
             local listening = false; local conn = nil
             bindBtn.MouseButton1Click:Connect(function()
@@ -1366,7 +1616,6 @@ local function BuildGUI()
     local t = Localization[Localization.CurrentLanguage]
 
     Window = Rayfield:CreateWindow({ Name = t.WindowTitle })
-
     Rayfield:Notify({ Title = t.LoadedTitle, Content = t.LoadedContent, Duration = 5 })
 
     local MainTab     = Window:CreateTab(t.MainTab)
@@ -1378,12 +1627,7 @@ local function BuildGUI()
     -- ── Main Tab ──────────────────────────────────────────────
     MainTab:CreateSection(t.ControlSection)
     MainTab:CreateLabel(t.HideShowLabel)
-    ESPToggle = MainTab:CreateToggle({ Name = t.EnableESP, CurrentValue = ESP.Enabled, Flag = "ESPToggle",
-        Callback = function(v) if IsRebuildingUI then return end; ESP.Enabled = v; UpdateAllESPInstances(); SaveConfig() end })
-    MainTab:CreateToggle({ Name = t.TeamCheck, CurrentValue = ESP.TeamCheck, Flag = "TeamCheckFlag",
-        Callback = function(v) if IsRebuildingUI then return end; ESP.TeamCheck = v; task.defer(function() ClearAllESP(); ScanVehicles() end); SaveConfig() end })
-    MainTab:CreateToggle({ Name = t.ShowDistance, CurrentValue = ESP.ShowDistance, Flag = "ShowDistanceFlag",
-        Callback = function(v) if IsRebuildingUI then return end; ESP.ShowDistance = v; UpdateAllESPInstances(); SaveConfig() end })
+
     MainTab:CreateSection(t.MarkSettingsSection)
     MainTab:CreateToggle({ Name = t.EnableMark, CurrentValue = Mark.Enabled, Flag = "EnableMarkFlag",
         Callback = function(v) if IsRebuildingUI then return end; Mark.Enabled = v
@@ -1393,7 +1637,7 @@ local function BuildGUI()
     MainTab:CreateSlider({ Name = t.MarkDistance, Range = {0,5000}, Increment = 50,
         Suffix = " studs", CurrentValue = Mark.Distance, Flag = "MarkDistanceFlag",
         Callback = function(v) if IsRebuildingUI then return end; Mark.Distance = v; SaveConfig() end })
-    MainTab:CreateLabel(t.MarkAppearance)
+    MainTab:CreateSection(t.MarkAppearance)
     MainTab:CreateInput({ Name = t.MarkDecalID, PlaceholderText = "11552476728",
         RemoveTextAfterFocusLost = false, CurrentValue = Mark.DecalID, Flag = "MarkDecalIDFlag",
         Callback = function(v) if IsRebuildingUI then return end
@@ -1414,6 +1658,39 @@ local function BuildGUI()
             SaveConfig() end })
 
     -- ── Visual Tab ────────────────────────────────────────────
+    VisualTab:CreateSection(t.ESPSection)
+    ESPToggle = VisualTab:CreateToggle({ Name = t.EnableESP, CurrentValue = ESP.Enabled, Flag = "ESPToggle",
+        Callback = function(v) if IsRebuildingUI then return end; ESP.Enabled = v; UpdateAllESPInstances(); SaveConfig() end })
+    VisualTab:CreateToggle({ Name = t.TeamCheck, CurrentValue = ESP.TeamCheck, Flag = "TeamCheckFlag",
+        Callback = function(v) if IsRebuildingUI then return end; ESP.TeamCheck = v; task.defer(function() ClearAllESP(); ScanVehicles() end); SaveConfig() end })
+    VisualTab:CreateToggle({ Name = t.ShowDistance, CurrentValue = ESP.ShowDistance, Flag = "ShowDistanceFlag",
+        Callback = function(v) if IsRebuildingUI then return end; ESP.ShowDistance = v; UpdateAllESPInstances(); SaveConfig() end })
+
+    VisualTab:CreateSection(t.ColorsSection)
+    VisualTab:CreateColorPicker({ Name = t.HullColor, Color = ESP.HullColor, Flag = "HullColorFlag",
+        Callback = function(v) if IsRebuildingUI then return end; ESP.HullColor = v
+            for _, ed in pairs(ESP.Instances) do if ed.IsHull then
+                ed.Color = v; UpdateESPInstance(ed)
+                if ed.DistanceLabel then ed.DistanceLabel.TextColor3 = v end
+            end end; SaveConfig() end })
+    VisualTab:CreateColorPicker({ Name = t.TurretColor, Color = ESP.TurretColor, Flag = "TurretColorFlag",
+        Callback = function(v) if IsRebuildingUI then return end; ESP.TurretColor = v
+            for _, ed in pairs(ESP.Instances) do if not ed.IsHull then
+                ed.Color = v; UpdateESPInstance(ed)
+            end end; SaveConfig() end })
+
+    VisualTab:CreateSection(t.HighlightSettingsSection)
+    VisualTab:CreateToggle({ Name = t.EnableFill, CurrentValue = ESP.EnableFill, Flag = "EnableFillFlag",
+        Callback = function(v) if IsRebuildingUI then return end; ESP.EnableFill = v; UpdateAllESPInstances(); SaveConfig() end })
+    VisualTab:CreateToggle({ Name = t.EnableOutline, CurrentValue = ESP.EnableOutline, Flag = "EnableOutlineFlag",
+        Callback = function(v) if IsRebuildingUI then return end; ESP.EnableOutline = v; UpdateAllESPInstances(); SaveConfig() end })
+    VisualTab:CreateSlider({ Name = t.FillTransparency, Range = {0,1}, Increment = 0.01,
+        CurrentValue = ESP.FillTransparency, Flag = "FillTransparencyFlag",
+        Callback = function(v) if IsRebuildingUI then return end; ESP.FillTransparency = v; UpdateAllESPInstances(); SaveConfig() end })
+    VisualTab:CreateSlider({ Name = t.OutlineTransparency, Range = {0,1}, Increment = 0.01,
+        CurrentValue = ESP.OutlineTransparency, Flag = "OutlineTransparencyFlag",
+        Callback = function(v) if IsRebuildingUI then return end; ESP.OutlineTransparency = v; UpdateAllESPInstances(); SaveConfig() end })
+
     VisualTab:CreateSection(t.FogSection)
     VisualTab:CreateToggle({ Name = t.RemoveFog, CurrentValue = Other.RemoveFog, Flag = "RemoveFogFlag",
         Callback = function(v) if IsRebuildingUI then return end; Other.RemoveFog = v
@@ -1424,25 +1701,8 @@ local function BuildGUI()
     VisualTab:CreateToggle({ Name = t.EnablePenView, CurrentValue = Other.PenView, Flag = "PenViewFlag",
         Callback = function(v) if IsRebuildingUI then return end; Other.PenView = v
             if v then PenView_Start() else PenView_Stop() end; SaveConfig() end })
-    VisualTab:CreateSection(t.ColorsSection)
-    VisualTab:CreateColorPicker({ Name = t.HullColor, Color = ESP.HullColor, Flag = "HullColorFlag",
-        Callback = function(v) if IsRebuildingUI then return end; ESP.HullColor = v; SaveConfig() end })
-    VisualTab:CreateColorPicker({ Name = t.TurretColor, Color = ESP.TurretColor, Flag = "TurretColorFlag",
-        Callback = function(v) if IsRebuildingUI then return end; ESP.TurretColor = v; SaveConfig() end })
-    VisualTab:CreateSection(t.HighlightSettingsSection)
-    VisualTab:CreateSlider({ Name = t.FillTransparency, Range = {0,1}, Increment = 0.01,
-        CurrentValue = ESP.FillTransparency, Flag = "FillTransparencyFlag",
-        Callback = function(v) if IsRebuildingUI then return end; ESP.FillTransparency = v; UpdateAllESPInstances(); SaveConfig() end })
-    VisualTab:CreateSlider({ Name = t.OutlineTransparency, Range = {0,1}, Increment = 0.01,
-        CurrentValue = ESP.OutlineTransparency, Flag = "OutlineTransparencyFlag",
-        Callback = function(v) if IsRebuildingUI then return end; ESP.OutlineTransparency = v; UpdateAllESPInstances(); SaveConfig() end })
-    VisualTab:CreateToggle({ Name = t.EnableFill, CurrentValue = ESP.EnableFill, Flag = "EnableFillFlag",
-        Callback = function(v) if IsRebuildingUI then return end; ESP.EnableFill = v; UpdateAllESPInstances(); SaveConfig() end })
-    VisualTab:CreateToggle({ Name = t.EnableOutline, CurrentValue = ESP.EnableOutline, Flag = "EnableOutlineFlag",
-        Callback = function(v) if IsRebuildingUI then return end; ESP.EnableOutline = v; UpdateAllESPInstances(); SaveConfig() end })
 
     -- ── Weapon Tab ────────────────────────────────────────────
-    WeaponTab:CreateSection(t.WeaponSection)
     WeaponTab:CreateSection("Penetration")
     WeaponTab:CreateToggle({ Name = t.PenetrationHack, CurrentValue = HACKS.Penetration.active, Flag = "HackPenetrationFlag",
         Callback = function(v) if IsRebuildingUI then return end; HACKS.Penetration.active = v; task.defer(InitWeapon); SaveConfig() end })
@@ -1476,7 +1736,7 @@ local function BuildGUI()
     end
     FlyTab:CreateButton({ Name = t.ToggleFly,
         Callback = function()
-            playSound(876940317)
+            playSound(TOGGLE_SOUND_ID)
             if Fly.Active then stopFly(); Rayfield:Notify({ Title = "Fly", Content = t.FlyDisabled, Duration = 2 })
             else startFly(); Rayfield:Notify({ Title = "Fly", Content = t.FlyEnabled, Duration = 2 }) end
         end })
@@ -1490,6 +1750,7 @@ local function BuildGUI()
             task.delay(0.5, function() Fly.IsRebinding = false end); Keys.Fly = key; SaveConfig() end end })
 
     -- ── Settings Tab ──────────────────────────────────────────
+
     SettingsTab:CreateSection(t.PerformanceSection)
     SettingsTab:CreateSlider({ Name = t.MarkUpdateRate, Range = {0.016,0.1}, Increment = 0.016,
         Suffix = "s", CurrentValue = Mark.UpdateInterval, Flag = "MarkUpdateIntervalFlag",
@@ -1539,12 +1800,8 @@ safeConnect(Services.UserInput.InputBegan, function(input, gameProcessed)
     if Fly.IsRebinding or (tick() - Fly.LastRebindTime) < 0.5 then return end
     local t = Localization[Localization.CurrentLanguage]
     if input.KeyCode == Keys.Toggle then
-        if ESPToggle then
-            ESPToggle:Set(not ESP.Enabled)
-        else
-            ESP.Enabled = not ESP.Enabled; UpdateAllESPInstances(); SaveConfig()
-            playSound(876940317)
-        end
+        ESP.Enabled = not ESP.Enabled; UpdateAllESPInstances(); SaveConfig()
+        playSound(TOGGLE_SOUND_ID)
         Rayfield:Notify({
             Title = "ESP",
             Content = ESP.Enabled and (t.ESPEnabled or "ESP Enabled") or (t.ESPDisabled or "ESP Disabled"),
@@ -1552,7 +1809,7 @@ safeConnect(Services.UserInput.InputBegan, function(input, gameProcessed)
         })
     end
     if input.KeyCode == Keys.Fly then
-        playSound(876940317)
+        playSound(TOGGLE_SOUND_ID)
         if Fly.Active then
             stopFly()
             Rayfield:Notify({ Title = "Fly", Content = t.FlyDisabled, Duration = 2 })
@@ -1667,13 +1924,11 @@ end)
 -- STARTUP
 -- ════════════════════════════════════════
 local function CleanUpScript()
-    -- 1. Disconnect all script connections
     for _, conn in ipairs(ScriptConnections) do
         if conn and conn.Connected then conn:Disconnect() end
     end
     table.clear(ScriptConnections)
 
-    -- 2. Stop active features
     stopFly()
     PenView_Stop()
     SetGraphicsDegradation(false)
@@ -1681,7 +1936,6 @@ local function CleanUpScript()
     if ChassisDescendantConn then ChassisDescendantConn:Disconnect(); ChassisDescendantConn = nil end
     ClearAllESP()
 
-    -- 3. Destroy GUI and folders
     if Rayfield.ScreenGui and Rayfield.ScreenGui.Parent then Rayfield.ScreenGui:Destroy() end
     Rayfield.ScreenGui = nil
     ESPToggle = nil
