@@ -1,0 +1,1749 @@
+print("Three?")
+
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local Services = {
+    RunService = game:GetService("RunService"),
+    UserInput = game:GetService("UserInputService"),
+    Players = game:GetService("Players"),
+    CoreGui = game:GetService("CoreGui"),
+    Workspace = game:GetService("Workspace"),
+    Lighting = game:GetService("Lighting")
+}
+local LocalPlayer = Services.Players.LocalPlayer
+
+local Keys = {
+    Toggle = Enum.KeyCode.F,
+    Fly = Enum.KeyCode.M
+}
+
+local ESP = {
+    Enabled = true,
+    TeamCheck = false,
+    ShowDistance = false,
+    EnableFill = true,
+    EnableOutline = true,
+    Instances = {},
+    HullColor = Color3.new(0.8, 0.2, 0.9),
+    TurretColor = Color3.new(0.2, 0.9, 0.4),
+    FillTransparency = 0.5,
+    OutlineTransparency = 0.2
+}
+
+local Mark = {
+    Enabled = false,
+    Distance = 1000,
+    DecalID = "11552476728",
+    OffsetY = 50,
+    Size = 25,
+    UpdateInterval = 0.016,
+    TimeSinceUpdate = 0
+}
+
+local Timers = {
+    VehicleScan = 0,
+    Cleanup = 0,
+    ScanInterval = 0.5,
+    CleanupInterval = 2
+}
+
+local Fly = {
+    Active = false,
+    Speed = 70,
+    Root = nil,
+    IsRebinding = false,
+    LastRebindTime = 0
+}
+
+-- Mobile joystick tracking for fly
+local MobileFly = {
+    Touch = nil,          -- tracked InputObject (the joystick finger)
+    StartPos = Vector2.new(0, 0),
+    Delta = Vector2.new(0, 0), -- normalized -1..1
+    MaxRadius = 75,        -- pixels of joystick travel
+}
+
+local Other = {
+    RemoveFog = false,
+    PenView = false
+}
+
+-- Graphics Degradation settings
+local Graphics = {
+    Degradation = false,
+    OriginalMaterials = setmetatable({}, { __mode = "k" }),
+    OriginalDecals = setmetatable({}, { __mode = "k" }),
+    OriginalShadows = true,
+    AddedConnection = nil
+}
+
+-- Localization System
+local Localization = {
+    CurrentLanguage = "EN", -- Defaults to English on first run
+    
+    EN = {
+        WindowTitle = "kolyanchik script",
+        LoadingTitle = "kolyanchik script",
+        LoadingSubtitle = "by snapsik",
+        LoadedTitle = "kolyanchik script Loaded",
+        LoadedContent = "Press K to hide interface during gameplay",
+        
+        MainTab = "Main",
+        VisualTab = "Visual",
+        WeaponTab = "Weapon",
+        FlyTab = "Fly",
+        SettingsTab = "Settings",
+        
+        -- Main Tab
+        ControlSection = "Control",
+        HideShowLabel = "Press K to hide/show interface",
+        EnableESP = "Enable ESP",
+        TeamCheck = "Team Check (enemies only)",
+        ShowDistance = "Show Distance",
+        MarkSettingsSection = "Mark Settings",
+        EnableMark = "Enable Mark",
+        DistanceToShowMark = "Distance to show mark",
+        MarkDistance = "Mark Distance",
+        MarkAppearance = "Mark appearance",
+        MarkDecalID = "Mark Decal ID",
+        MarkOffsetY = "Mark Offset Y",
+        MarkSize = "Mark Size",
+        
+        -- Visual Tab
+        FogSection = "Fog",
+        RemoveFog = "Remove Fog",
+        PenViewSection = "Penetration View",
+        EnablePenView = "Enable Penetration View",
+        ColorsSection = "Colors",
+        HullColor = "Hull Color",
+        TurretColor = "Turret Color",
+        HighlightSettingsSection = "Highlight Settings",
+        FillTransparency = "Fill Transparency",
+        OutlineTransparency = "Outline Transparency",
+        EnableFill = "Enable Fill",
+        EnableOutline = "Enable Outline",
+        
+        -- Weapon Tab
+        WeaponSection = "Weapon Modifiers",
+        PenetrationHack = "Enable Penetration Hack",
+        PenetrationVal = "Penetration Value",
+        RicochetHack = "Enable Ricochet Hack",
+        RicochetVal = "Ricochet Value",
+        BulletGravHack = "Enable Bullet Gravity Hack",
+        BulletGravVal = "Bullet Gravity Value",
+        ShellSpeedHack = "Enable Shell Speed Hack",
+        ShellSpeedVal = "Shell Speed Value",
+        
+        -- Fly Tab
+        FlightControlSection = "Flight Control",
+        FlightControlLabel = "W/A/S/D — move  |  Space — up  |  LCtrl — down",
+        FlightControlLabelMobile = "Joystick — move  |  Up/Down not available on mobile",
+        ToggleFly = "Toggle Fly",
+        FlySpeed = "Fly Speed",
+        KeybindSection = "Keybind",
+        ToggleFlyKey = "Toggle Fly Key",
+        
+        -- Settings Tab
+        PerformanceSection = "Performance",
+        MarkUpdateRate = "Mark Update Rate",
+        ScanInterval = "Scan Interval",
+        GraphicsDegradation = "Graphics Degradation",
+        ControlsSection = "Controls",
+        ToggleESPKey = "Toggle ESP Key",
+        ProjectSection = "Project",
+        CopyGitHub = "Copy GitHub Link",
+        CopyDiscord = "Copy Discord Link",
+        Language = "Language / Язык",
+        
+        -- Notifications
+        MarkUpdatedTitle = "Mark Updated",
+        MarkUpdatedContent = "Decal ID: ",
+        InvalidIDTitle = "Invalid ID",
+        InvalidIDContent = "Please enter a valid number",
+        FlyEnabled = "Flight enabled",
+        FlyDisabled = "Flight disabled",
+        CopiedTitle = "Copied",
+        CopiedContent = "Link copied to clipboard!",
+    },
+    RU = {
+        WindowTitle = "kolyanchik script",
+        LoadingTitle = "kolyanchik script",
+        LoadingSubtitle = "от snapsik",
+        LoadedTitle = "kolyanchik script Загружен",
+        LoadedContent = "Нажмите K, чтобы скрыть интерфейс во время игры",
+        
+        MainTab = "Главное",
+        VisualTab = "Визуальное",
+        WeaponTab = "Оружие",
+        FlyTab = "Полёт",
+        SettingsTab = "Настройки",
+        
+        -- Main Tab
+        ControlSection = "Управление",
+        HideShowLabel = "Нажмите K, чтобы скрыть/показать интерфейс",
+        EnableESP = "Включить ESP",
+        TeamCheck = "Проверка команды (только враги)",
+        ShowDistance = "Показывать дистанцию",
+        MarkSettingsSection = "Настройки метки",
+        EnableMark = "Включить метку",
+        DistanceToShowMark = "Дистанция для отображения метки",
+        MarkDistance = "Дистанция метки",
+        MarkAppearance = "Внешний вид метки",
+        MarkDecalID = "ID Декаля метки",
+        MarkOffsetY = "Смещение метки по Y",
+        MarkSize = "Размер метки",
+        
+        -- Visual Tab
+        FogSection = "Туман",
+        RemoveFog = "Убрать туман",
+        PenViewSection = "Просмотр пробития",
+        EnablePenView = "Включить просмотр пробития",
+        ColorsSection = "Цвета",
+        HullColor = "Цвет корпуса",
+        TurretColor = "Цвет башни",
+        HighlightSettingsSection = "Настройки подсветки",
+        FillTransparency = "Прозрачность заливки",
+        OutlineTransparency = "Прозрачность контура",
+        EnableFill = "Включить заливку",
+        EnableOutline = "Включить контур",
+        
+        -- Weapon Tab
+        WeaponSection = "Модификаторы оружия",
+        PenetrationHack = "Включить хак пробития",
+        PenetrationVal = "Значение пробития",
+        RicochetHack = "Включить хак рикошета",
+        RicochetVal = "Значение рикошета",
+        BulletGravHack = "Включить хак гравитации пуль",
+        BulletGravVal = "Значение гравитации пуль",
+        ShellSpeedHack = "Включить хак скорости снаряда",
+        ShellSpeedVal = "Значение скорости снаряда",
+        
+        -- Fly Tab
+        FlightControlSection = "Управление полётом",
+        FlightControlLabel = "W/A/S/D — движение  |  Пробел — вверх  |  LControl — вниз",
+        FlightControlLabelMobile = "Джойстик — движение  |  Вверх/вниз недоступно на мобильном",
+        ToggleFly = "Переключить полёт",
+        FlySpeed = "Скорость полёта",
+        KeybindSection = "Клавиша активации",
+        ToggleFlyKey = "Клавиша полёта",
+        
+        -- Settings Tab
+        PerformanceSection = "Производительность",
+        MarkUpdateRate = "Частота обновления метки",
+        ScanInterval = "Интервал сканирования",
+        GraphicsDegradation = "Ухудшение графики",
+        ControlsSection = "Клавиши управления",
+        ToggleESPKey = "Клавиша ESP",
+        ProjectSection = "Проект",
+        CopyGitHub = "Скопировать ссылку GitHub",
+        CopyDiscord = "Скопировать ссылку Discord",
+        Language = "Язык / Language",
+        
+        -- Notifications
+        MarkUpdatedTitle = "Метка обновлена",
+        MarkUpdatedContent = "ID Декаля: ",
+        InvalidIDTitle = "Неверный ID",
+        InvalidIDContent = "Пожалуйста, введите корректное число",
+        FlyEnabled = "Полёт включен",
+        FlyDisabled = "Полёт выключен",
+        CopiedTitle = "Скопировано",
+        CopiedContent = "Ссылка скопирована в буфер обмена!",
+    }
+}
+
+local HACKS = {
+    Penetration = {
+        target = 9999, active = false,
+        names = {"Penetration", "Penetrate"},
+        patched = {}, origPatched = {}
+    },
+    Ricochet = {
+        target = 9999, active = false,
+        names = {"RicochetAngle"},
+        patched = {}, origPatched = {}
+    },
+    BulletGravity = {
+        target = 0, active = false,
+        names = {"BulletGravity"},
+        patched = {}, origPatched = {}
+    },
+    ShellSpeed = {
+        target = 9999, active = false,
+        names = {"ShellSpeed"},
+        patched = {}, origPatched = {}
+    },
+}
+
+local WeaponConnections = {}
+local ChassisDescendantConn = nil
+
+local PenView = {
+    UI = nil,
+    HeartbeatConnection = nil,
+    LastPart = nil,
+    LastChassisName = nil,
+    ArmorTypes = {
+        "Structural Steel", "RHA", "HHRA", "CHA", "NERA", "Internal RHA", "Internal HHRA",
+        "Internal CHA", "Composite Screen", "Rubber-fabric Screen", "Internal Aluminium",
+        "Aluminium", "Aluminium Alloy", "Internal Aluminium Alloy", "Internal Structural Steel",
+        "ERA", "Wood", "Armour"
+    }
+}
+
+local Camera = Services.Workspace.CurrentCamera
+
+-- Rebuilding Flag to prevent callbacks from executing/saving during UI destruction
+local IsRebuildingUI = false
+
+-- Config Saving System using executor workspace
+local HttpService = game:GetService("HttpService")
+local CONFIG_FILE = "kolyanchik_script_config.json"
+
+local function SaveConfig()
+    if IsRebuildingUI then return end
+    
+    local data = {
+        Language = Localization.CurrentLanguage,
+        ESPEnabled = ESP.Enabled,
+        TeamCheck = ESP.TeamCheck,
+        ShowDistance = ESP.ShowDistance,
+        EnableFill = ESP.EnableFill,
+        EnableOutline = ESP.EnableOutline,
+        HullColor = {ESP.HullColor.R, ESP.HullColor.G, ESP.HullColor.B},
+        TurretColor = {ESP.TurretColor.R, ESP.TurretColor.G, ESP.TurretColor.B},
+        FillTransparency = ESP.FillTransparency,
+        OutlineTransparency = ESP.OutlineTransparency,
+        
+        MarkEnabled = Mark.Enabled,
+        MarkDistance = Mark.Distance,
+        MarkDecalID = Mark.DecalID,
+        MarkOffsetY = Mark.OffsetY,
+        MarkSize = Mark.Size,
+        MarkUpdateInterval = Mark.UpdateInterval,
+        
+        RemoveFog = Other.RemoveFog,
+        PenView = Other.PenView,
+        
+        PenetrationActive = HACKS.Penetration.active,
+        PenetrationTarget = HACKS.Penetration.target,
+        RicochetActive = HACKS.Ricochet.active,
+        RicochetTarget = HACKS.Ricochet.target,
+        BulletGravityActive = HACKS.BulletGravity.active,
+        BulletGravityTarget = HACKS.BulletGravity.target,
+        ShellSpeedActive = HACKS.ShellSpeed.active,
+        ShellSpeedTarget = HACKS.ShellSpeed.target,
+        
+        FlySpeed = Fly.Speed,
+        ScanInterval = Timers.ScanInterval,
+        GraphicsDegradation = Graphics.Degradation
+    }
+    
+    pcall(function()
+        if writefile then
+            writefile(CONFIG_FILE, HttpService:JSONEncode(data))
+        end
+    end)
+end
+
+local function LoadConfig()
+    local success, content = pcall(function()
+        if readfile and isfile and isfile(CONFIG_FILE) then
+            return readfile(CONFIG_FILE)
+        end
+    end)
+    
+    if success and content then
+        local ok, data = pcall(function() return HttpService:JSONDecode(content) end)
+        if ok and data then
+            Localization.CurrentLanguage = data.Language or "EN"
+            ESP.Enabled = data.ESPEnabled ~= nil and data.ESPEnabled or true
+            ESP.TeamCheck = data.TeamCheck or false
+            ESP.ShowDistance = data.ShowDistance or false
+            ESP.EnableFill = data.EnableFill ~= nil and data.EnableFill or true
+            ESP.EnableOutline = data.EnableOutline ~= nil and data.EnableOutline or true
+            if data.HullColor then ESP.HullColor = Color3.new(data.HullColor[1], data.HullColor[2], data.HullColor[3]) end
+            if data.TurretColor then ESP.TurretColor = Color3.new(data.TurretColor[1], data.TurretColor[2], data.TurretColor[3]) end
+            ESP.FillTransparency = data.FillTransparency or 0.5
+            ESP.OutlineTransparency = data.OutlineTransparency or 0.2
+            
+            Mark.Enabled = data.MarkEnabled or false
+            Mark.Distance = data.MarkDistance or 1000
+            Mark.DecalID = data.MarkDecalID or "11552476728"
+            Mark.OffsetY = data.MarkOffsetY or 50
+            Mark.Size = data.MarkSize or 25
+            Mark.UpdateInterval = data.MarkUpdateInterval or 0.016
+            
+            Other.RemoveFog = data.RemoveFog or false
+            Other.PenView = data.PenView or false
+            
+            HACKS.Penetration.active = data.PenetrationActive or false
+            HACKS.Penetration.target = data.PenetrationTarget or 9999
+            HACKS.Ricochet.active = data.RicochetActive or false
+            HACKS.Ricochet.target = data.RicochetTarget or 9999
+            HACKS.BulletGravity.active = data.BulletGravityActive or false
+            HACKS.BulletGravity.target = data.BulletGravityTarget or 0
+            HACKS.ShellSpeed.active = data.ShellSpeedActive or false
+            HACKS.ShellSpeed.target = data.ShellSpeedTarget or 9999
+            
+            Fly.Speed = data.FlySpeed or 70
+            Timers.ScanInterval = data.ScanInterval or 0.5
+            Graphics.Degradation = data.GraphicsDegradation or false
+        end
+    else
+        -- First run defaults to English
+        Localization.CurrentLanguage = "EN"
+    end
+end
+
+local function PenView_CreateUI()
+    for _, v in ipairs(LocalPlayer.PlayerGui:GetChildren()) do
+        if v.Name == "PenViewport" then v:Destroy() end
+    end
+    
+    local sg = Instance.new("ScreenGui")
+    sg.ResetOnSpawn = false
+    sg.IgnoreGuiInset = true
+    sg.DisplayOrder = -100
+    sg.Name = "PenViewport"
+    sg.Parent = LocalPlayer.PlayerGui
+    
+    local vp = Instance.new("ViewportFrame", sg)
+    vp.Size = UDim2.new(1, 0, 1, 0)
+    vp.BackgroundTransparency = 1
+    vp.ImageTransparency = 0.25
+    vp.ZIndex = -100
+    
+    local cam = Instance.new("Camera")
+    vp.CurrentCamera = cam
+    cam.CameraType = Enum.CameraType.Scriptable
+    
+    return {viewport = vp, vpcam = cam}
+end
+
+local function PenView_GetPenetration()
+    local vehicles = Services.Workspace:FindFirstChild("Vehicles")
+    if not vehicles then return 200 end
+    
+    local chassis = vehicles:FindFirstChild("Chassis" .. LocalPlayer.Name)
+    if not chassis then return 200 end
+    
+    local gunFolder = chassis:FindFirstChild("Gun")
+    if not gunFolder then return 200 end
+    
+    for _, gunWeapon in ipairs(gunFolder:GetChildren()) do
+        local config = gunWeapon:FindFirstChild("Config")
+        if config then
+            local shells = config:FindFirstChild("Shells")
+            if shells then
+                for _, folder in ipairs(shells:GetChildren()) do
+                    local penVal = folder:FindFirstChild("Penetration")
+                    if penVal then return penVal.Value end
+                end
+            end
+        end
+    end
+    
+    return 200
+end
+
+local function PenView_FindGunBrick(chassis)
+    local gun = chassis:FindFirstChild("Gun", true)
+    if not gun then return nil end
+    for _, obj in ipairs(gun:GetDescendants()) do
+        if obj.Name == "GunBrick" then return obj end
+    end
+    return nil
+end
+
+local function PenView_GetArmorThickness(hitPart, hitPos, direction, hitNormal)
+    if not hitPart or not hitPos then return 0 end
+    local params = RaycastParams.new()
+    params.FilterType = Enum.RaycastFilterType.Whitelist
+    params.FilterDescendantsInstances = {hitPart}
+    
+    local result = Services.Workspace:Raycast(hitPos + direction * 4, -direction * 50, params)
+    if result and result.Instance == hitPart then
+        local thickness = (hitPos - result.Position).Magnitude / 0.00357
+        if hitNormal then
+            local cos = math.abs(hitNormal:Dot(-direction.Unit))
+            thickness = thickness / math.max(cos, 0.05)
+        end
+        return thickness
+    end
+    return 0
+end
+
+local function PenView_UpdateViewport(ui, part, thickness, pen)
+    if not ui or not ui.viewport or not ui.viewport.Parent then
+        return
+    end
+    
+    if not part or not part.Parent then
+        if ui.viewport then ui.viewport:ClearAllChildren() end
+        PenView.LastPart = nil
+        return
+    end
+    
+    local mesh = ui.viewport:FindFirstChildWhichIsA("BasePart")
+    
+    if PenView.LastPart ~= part or not mesh then
+        PenView.LastPart = part
+        ui.viewport:ClearAllChildren()
+        
+        local clone = part:Clone()
+        clone.Transparency = 0.3
+        clone.CanCollide = false
+        clone.Anchored = true
+        clone.Parent = ui.viewport
+        
+        mesh = clone
+    end
+    
+    if not mesh then return end
+    
+    local ok = pcall(function()
+        mesh.CFrame = part.CFrame
+    end)
+    if not ok then
+        ui.viewport:ClearAllChildren()
+        PenView.LastPart = nil
+        return
+    end
+    
+    ui.vpcam.CFrame = Services.Workspace.CurrentCamera.CFrame
+    ui.vpcam.FieldOfView = Services.Workspace.CurrentCamera.FieldOfView
+    
+    local color
+    if thickness <= 0.1 or pen <= 0 then
+        color = Color3.fromRGB(90, 90, 90)
+    elseif thickness <= pen * 0.5 then
+        color = Color3.fromRGB(0, 255, 0)
+    elseif thickness < pen then
+        local t = (thickness - pen * 0.5) / (pen * 0.5)
+        color = Color3.new(1, 1 - t, 0)
+    else
+        color = Color3.fromRGB(255, 0, 0)
+    end
+    mesh.Color = color
+end
+
+local function PenView_StartHeartbeat(ui)
+    if PenView.HeartbeatConnection then PenView.HeartbeatConnection:Disconnect() end
+    PenView.LastPart = nil
+    
+    PenView.HeartbeatConnection = Services.RunService.Heartbeat:Connect(function()
+        if not ui or not ui.viewport or not ui.viewport.Parent then
+            if PenView.HeartbeatConnection then 
+                PenView.HeartbeatConnection:Disconnect()
+                PenView.HeartbeatConnection = nil
+            end
+            return
+        end
+        
+        local vehicles = Services.Workspace:FindFirstChild("Vehicles")
+        if not vehicles or not ui then
+            if ui and ui.viewport then ui.viewport:ClearAllChildren() end
+            return
+        end
+        
+        local chassis = vehicles:FindFirstChild("Chassis" .. LocalPlayer.Name)
+        if not chassis then
+            if ui.viewport then ui.viewport:ClearAllChildren() end
+            PenView.LastPart = nil
+            PenView.LastChassisName = nil
+            return
+        end
+        
+        if chassis.Name ~= PenView.LastChassisName then
+            PenView.LastChassisName = chassis.Name
+            PenView.LastPart = nil
+        end
+        
+        local gunBrick = PenView_FindGunBrick(chassis)
+        if not gunBrick then return end
+        
+        local pen = PenView_GetPenetration()
+        local origin = gunBrick.Position + gunBrick.CFrame.LookVector * 2
+        local dir = gunBrick.CFrame.LookVector
+        
+        local rayParams = RaycastParams.new()
+        rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+        rayParams.FilterDescendantsInstances = {chassis, Services.Workspace:FindFirstChild("Projectiles")}
+        rayParams.IgnoreWater = true
+        rayParams.CollisionGroup = "Default"
+        
+        local result = Services.Workspace:Raycast(origin, dir * 3000, rayParams)
+        
+        if result and result.Instance and table.find(PenView.ArmorTypes, result.Instance.Name) and result.Instance.CanCollide then
+            if not ui.viewport:FindFirstChildWhichIsA("BasePart") then
+                PenView.LastPart = nil
+            end
+            
+            local thickness = PenView_GetArmorThickness(result.Instance, result.Position, dir, result.Normal)
+            PenView_UpdateViewport(ui, result.Instance, thickness, pen)
+        else
+            if ui.viewport then ui.viewport:ClearAllChildren() end
+            PenView.LastPart = nil
+        end
+    end)
+end
+
+local function PenView_Reset()
+    if PenView.HeartbeatConnection then
+        PenView.HeartbeatConnection:Disconnect()
+        PenView.HeartbeatConnection = nil
+    end
+    PenView.LastPart = nil
+    PenView.LastChassisName = nil
+
+    PenView.UI = PenView_CreateUI()
+    PenView_StartHeartbeat(PenView.UI)
+end
+
+local function PenView_Monitor()
+    task.spawn(function()
+        while Other.PenView do
+            local vehicles = Services.Workspace:FindFirstChild("Vehicles")
+            local chassis = vehicles and vehicles:FindFirstChild("Chassis" .. LocalPlayer.Name)
+            
+            if chassis and not PenView.HeartbeatConnection then
+                PenView_Reset()
+            elseif not chassis and PenView.HeartbeatConnection then
+                if PenView.UI and PenView.UI.viewport then
+                    PenView.UI.viewport:ClearAllChildren()
+                end
+            end
+            task.wait(0.5)
+        end
+    end)
+end
+
+local PenView_VehiclesAddedConn
+local PenView_VehiclesRemovedConn
+
+local function PenView_Start()
+    PenView_Reset()
+    PenView_Monitor()
+    
+    local vehiclesFolder = Services.Workspace:FindFirstChild("Vehicles")
+    if vehiclesFolder then
+        PenView_VehiclesAddedConn = vehiclesFolder.ChildAdded:Connect(function(child)
+            if child.Name == "Vehicles" then
+                task.wait(0.8)
+                PenView_Reset()
+            end
+        end)
+        
+        PenView_VehiclesRemovedConn = vehiclesFolder.ChildRemoved:Connect(function(child)
+            if child.Name == "Vehicles" then
+                if PenView.UI and PenView.UI.viewport then
+                    PenView.UI.viewport:ClearAllChildren()
+                end
+            end
+        end)
+    end
+end
+
+local function PenView_Stop()
+    if PenView.HeartbeatConnection then
+        PenView.HeartbeatConnection:Disconnect()
+        PenView.HeartbeatConnection = nil
+    end
+    
+    if PenView_VehiclesAddedConn then
+        PenView_VehiclesAddedConn:Disconnect()
+        PenView_VehiclesAddedConn = nil
+    end
+    
+    if PenView_VehiclesRemovedConn then
+        PenView_VehiclesRemovedConn:Disconnect()
+        PenView_VehiclesRemovedConn = nil
+    end
+    
+    local pg = LocalPlayer.PlayerGui
+    local vp = pg:FindFirstChild("PenViewport")
+    if vp then vp:Destroy() end
+    
+    PenView.UI = nil
+    PenView.LastPart = nil
+    PenView.LastChassisName = nil
+end
+
+local ESPFolder = Instance.new("Folder")
+ESPFolder.Name = "PerfData"
+ESPFolder.Parent = Services.CoreGui
+
+local MarkScreenGui = Instance.new("ScreenGui")
+MarkScreenGui.Name = "MarkDisplay"
+MarkScreenGui.ResetOnSpawn = false
+MarkScreenGui.Parent = Services.CoreGui
+
+local function parseKeyCode(str)
+    if not str or str == "" then return nil end
+    local name = str:match("KeyCode%.(.+)") or str
+    for _, item in ipairs(Enum.KeyCode:GetEnumItems()) do
+        if item.Name == name then return item end
+    end
+    return nil
+end
+
+local bv = Instance.new("BodyVelocity")
+bv.Name = "TankFlyVelocity"
+bv.MaxForce = Vector3.new(500000, 500000, 500000)
+
+local bg = Instance.new("BodyGyro")
+bg.Name = "TankFlyGyro"
+bg.MaxTorque = Vector3.new(500000, 500000, 500000)
+bg.D = 120
+
+local function findFlyPart(model)
+    local candidates = {}
+    for _, part in ipairs(model:GetDescendants()) do
+        if part:IsA("BasePart") and not part:IsA("VehicleSeat") then
+            table.insert(candidates, part)
+        end
+    end
+    for _, part in ipairs(candidates) do
+        if part.Name:lower():find("hull") then return part end
+    end
+    if #candidates > 0 then
+        table.sort(candidates, function(a, b)
+            return (a.Size.X*a.Size.Y*a.Size.Z) > (b.Size.X*b.Size.Y*b.Size.Z)
+        end)
+        return candidates[1]
+    end
+    return nil
+end
+
+local function initFlyRoot()
+    local vehicles = workspace:FindFirstChild("Vehicles")
+    if not vehicles then return end
+    local tankModel = vehicles:FindFirstChild("Chassis" .. LocalPlayer.Name)
+    if not tankModel then return end
+    Fly.Root = findFlyPart(tankModel)
+end
+
+local function startFly()
+    if Fly.Active then return end
+    initFlyRoot()
+    Fly.Active = true
+    if Fly.Root then
+        bv.Parent = Fly.Root
+        bg.Parent = Fly.Root
+    end
+end
+
+local function stopFly()
+    if not Fly.Active then return end
+    Fly.Active = false
+    bv.Parent = nil
+    bg.Parent = nil
+end
+
+local function UpdateESPInstance(espData)
+    if not espData.Instance then return end
+    
+    espData.Instance.FillColor = ESP.EnableFill and espData.Color or Color3.new(0,0,0)
+    espData.Instance.FillTransparency = ESP.EnableFill and ESP.FillTransparency or 1
+    espData.Instance.OutlineColor = ESP.EnableOutline and espData.Color or Color3.new(0,0,0)
+    espData.Instance.OutlineTransparency = ESP.EnableOutline and ESP.OutlineTransparency or 1
+    espData.Instance.Enabled = ESP.Enabled
+
+    if espData.DistanceBillboard then
+        espData.DistanceBillboard.Enabled = ESP.Enabled and ESP.ShowDistance and espData.IsHull
+    end
+end
+
+local function UpdateAllESPInstances()
+    for _, espData in pairs(ESP.Instances) do
+        UpdateESPInstance(espData)
+    end
+end
+
+local function ClearAllESP()
+    for obj, espData in pairs(ESP.Instances) do
+        if espData.Instance then espData.Instance:Destroy() end
+        if espData.DistanceBillboard then espData.DistanceBillboard:Destroy() end
+        if espData.MarkBillboard then espData.MarkBillboard:Destroy() end
+    end
+    ESP.Instances = {}
+end
+
+local function ScanVehicles()
+    local vehiclesFolder = workspace:FindFirstChild("Vehicles")
+    if not vehiclesFolder then return end
+    for _, chassis in ipairs(vehiclesFolder:GetChildren()) do
+        ProcessChassis(chassis)
+    end
+end
+
+-- Graphics Degradation implementation
+local function DegradeInstance(v)
+    if v:IsA("BasePart") then
+        if not Graphics.OriginalMaterials[v] then
+            Graphics.OriginalMaterials[v] = v.Material
+        end
+        v.Material = Enum.Material.SmoothPlastic
+    elseif v:IsA("Decal") or v:IsA("Texture") then
+        if not Graphics.OriginalDecals[v] then
+            Graphics.OriginalDecals[v] = v.Transparency
+        end
+        v.Transparency = 1
+    elseif v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Smoke") or v:IsA("Fire") or v:IsA("Sparkles") then
+        if not Graphics.OriginalDecals[v] then
+            Graphics.OriginalDecals[v] = v.Enabled
+        end
+        v.Enabled = false
+    end
+end
+
+local function SetGraphicsDegradation(Value)
+    Graphics.Degradation = Value
+    if Value then
+        Graphics.OriginalShadows = Services.Lighting.GlobalShadows
+        Services.Lighting.GlobalShadows = false
+        
+        for _, v in ipairs(Services.Workspace:GetDescendants()) do
+            DegradeInstance(v)
+        end
+        
+        if not Graphics.AddedConnection then
+            Graphics.AddedConnection = Services.Workspace.DescendantAdded:Connect(function(v)
+                DegradeInstance(v)
+            end)
+        end
+    else
+        if Graphics.AddedConnection then
+            Graphics.AddedConnection:Disconnect()
+            Graphics.AddedConnection = nil
+        end
+        
+        Services.Lighting.GlobalShadows = Graphics.OriginalShadows
+        
+        for part, mat in pairs(Graphics.OriginalMaterials) do
+            if part and part.Parent then
+                part.Material = mat
+            end
+        end
+        table.clear(Graphics.OriginalMaterials)
+        
+        for obj, val in pairs(Graphics.OriginalDecals) do
+            if obj and obj.Parent then
+                if obj:IsA("Decal") or obj:IsA("Texture") then
+                    obj.Transparency = val
+                else
+                    obj.Enabled = val
+                end
+            end
+        end
+        table.clear(Graphics.OriginalDecals)
+    end
+end
+
+local function GetModelPosition(model)
+    if model:IsA("BasePart") then
+        return model.Position
+    end
+    if model.PrimaryPart then
+        return model.PrimaryPart.Position
+    end
+    local cf, size = model:GetBoundingBox()
+    return cf.Position
+end
+
+local function CreateESP(targetObject, color, isHull)
+    if ESP.Instances[targetObject] then return ESP.Instances[targetObject] end
+    
+    local highlight = Instance.new("Highlight")
+    highlight.FillColor = ESP.EnableFill and color or Color3.new(0,0,0)
+    highlight.FillTransparency = ESP.EnableFill and ESP.FillTransparency or 1
+    highlight.OutlineColor = ESP.EnableOutline and color or Color3.new(0,0,0)
+    highlight.OutlineTransparency = ESP.EnableOutline and ESP.OutlineTransparency or 1
+    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    highlight.Adornee = targetObject
+    highlight.Parent = ESPFolder
+    
+    local distanceBillboard, distanceLabel, markBillboard, turretAdornee
+    
+    if isHull then
+        distanceBillboard = Instance.new("BillboardGui")
+        distanceBillboard.Name = "DistanceDisplay"
+        distanceBillboard.Adornee = targetObject
+        distanceBillboard.Size = UDim2.new(0,200,0,50)
+        distanceBillboard.StudsOffset = Vector3.new(0,-3,0)
+        distanceBillboard.AlwaysOnTop = true
+        distanceBillboard.Enabled = ESP.Enabled and ESP.ShowDistance
+        distanceBillboard.Parent = ESPFolder
+        
+        distanceLabel = Instance.new("TextLabel")
+        distanceLabel.Name = "DistanceText"
+        distanceLabel.BackgroundTransparency = 1
+        distanceLabel.Size = UDim2.new(1,0,1,0)
+        distanceLabel.Font = Enum.Font.SourceSansBold
+        distanceLabel.TextSize = 18
+        distanceLabel.TextColor3 = color
+        distanceLabel.TextStrokeTransparency = 0
+        distanceLabel.TextStrokeColor3 = Color3.new(0,0,0)
+        distanceLabel.Text = "0 m"
+        distanceLabel.Parent = distanceBillboard
+        
+        local chassis = targetObject.Parent and targetObject.Parent.Parent
+        if chassis then
+            local turret = chassis:FindFirstChild("Turret")
+            if turret then
+                for _, obj in ipairs(turret:GetChildren()) do
+                    if obj:IsA("Model") then turretAdornee = obj break end
+                end
+            end
+        end
+        
+        markBillboard = Instance.new("Frame")
+        markBillboard.Name = "MarkDisplay"
+        markBillboard.Size = UDim2.new(0, Mark.Size, 0, Mark.Size)
+        markBillboard.Position = UDim2.new(0,0,0,0)
+        markBillboard.BackgroundTransparency = 1
+        markBillboard.Visible = false
+        markBillboard.Parent = MarkScreenGui
+        
+        local img = Instance.new("ImageLabel")
+        img.Name = "MarkImage"
+        img.BackgroundTransparency = 1
+        img.Size = UDim2.new(1,0,1,0)
+        img.Image = "rbxassetid://" .. tostring(Mark.DecalID)
+        img.Parent = markBillboard
+    end
+    
+    ESP.Instances[targetObject] = {
+        Instance = highlight,
+        DistanceLabel = distanceLabel,
+        DistanceBillboard = distanceBillboard,
+        MarkBillboard = markBillboard,
+        TurretAdornee = turretAdornee,
+        Target = targetObject,
+        Color = color,
+        IsHull = isHull,
+    }
+    return ESP.Instances[targetObject]
+end
+
+local function UpdateMarkPositions()
+    if not Camera then return end
+    if not Mark.Enabled then return end
+    
+    local camPos = Camera.CFrame.Position
+    local vpSize = Camera.ViewportSize
+    
+    for _, espData in pairs(ESP.Instances) do
+        if espData.MarkBillboard and espData.IsHull then
+            local target = espData.TurretAdornee or espData.Target
+            if target and target.Parent then
+                local ok, pos = pcall(GetModelPosition, target)
+                if not ok then pos = espData.Target.Position end
+                if (pos - camPos).Magnitude >= Mark.Distance then
+                    local sp, onScreen = Camera:WorldToViewportPoint(pos)
+                    if onScreen and sp.Z > 0 then
+                        local x = math.clamp(sp.X - Mark.Size/2, 0, vpSize.X - Mark.Size)
+                        local y = math.clamp(sp.Y - Mark.OffsetY - Mark.Size/2, 0, vpSize.Y - Mark.Size)
+                        espData.MarkBillboard.Position = UDim2.new(0, x, 0, y)
+                        espData.MarkBillboard.Visible  = true
+                    else
+                        espData.MarkBillboard.Visible = false
+                    end
+                else
+                    espData.MarkBillboard.Visible = false
+                end
+            else
+                espData.MarkBillboard.Visible = false
+            end
+        end
+    end
+end
+
+local function UpdateDistanceLabels()
+    if not Camera then return end
+    local camPos = Camera.CFrame.Position
+    for _, espData in pairs(ESP.Instances) do
+        if espData.IsHull and espData.DistanceLabel and espData.Target and espData.Target.Parent then
+            local ok, pos = pcall(GetModelPosition, espData.Target)
+            if ok then
+                local dist = math.floor((pos - camPos).Magnitude / 3)
+                espData.DistanceLabel.Text = dist .. " m"
+            end
+        end
+    end
+end
+
+local function CleanupESP()
+    local toRemove = {}
+    for obj, espData in pairs(ESP.Instances) do
+        if not obj or not obj.Parent then
+            table.insert(toRemove, obj)
+            if espData.Instance then espData.Instance:Destroy() end
+            if espData.DistanceBillboard then espData.DistanceBillboard:Destroy() end
+            if espData.MarkBillboard then espData.MarkBillboard:Destroy() end
+        end
+    end
+    for _, obj in ipairs(toRemove) do ESP.Instances[obj] = nil end
+end
+
+function ProcessChassis(chassis)
+    if not chassis:IsA("Model") or not chassis.Name:match("^Chassis") then return end
+    
+    local playerName = chassis.Name:match("^Chassis(.+)$")
+    if not playerName or playerName == "" then return end
+    
+    if playerName == LocalPlayer.Name then return end
+    
+    if ESP.TeamCheck then
+        local targetPlayer = Services.Players:FindFirstChild(playerName)
+        if not targetPlayer then return end
+        
+        local localTeam  = LocalPlayer.Team
+        local targetTeam = targetPlayer.Team
+        if localTeam and targetTeam and localTeam == targetTeam then return end
+    end
+    
+    local hull = chassis:FindFirstChild("Hull")
+    if hull then
+        for _, obj in ipairs(hull:GetChildren()) do
+            if obj:IsA("Model") then CreateESP(obj, ESP.HullColor, true) break end
+        end
+    end
+    local turret = chassis:FindFirstChild("Turret")
+    if turret then
+        for _, obj in ipairs(turret:GetChildren()) do
+            if obj:IsA("Model") then CreateESP(obj, ESP.TurretColor, false) break end
+        end
+    end
+end
+
+local function GetOwnChassis()
+    local vehicles = Services.Workspace:FindFirstChild("Vehicles")
+    if not vehicles then return nil end
+    return vehicles:FindFirstChild("Chassis" .. LocalPlayer.Name)
+end
+
+local function ForceValue(obj, hack)
+    if not hack.patched[obj] then
+        hack.patched[obj] = obj.Value
+    end
+    if obj:GetAttribute("Orig") ~= nil then
+        if not hack.origPatched[obj] then
+            hack.origPatched[obj] = obj:GetAttribute("Orig")
+        end
+        obj:SetAttribute("Orig", hack.target)
+    end
+    obj.Value = hack.target
+end
+
+local function WatchWeaponObject(obj)
+    for _, hack in pairs(HACKS) do
+        if hack.active then
+            for _, name in ipairs(hack.names) do
+                if obj.Name == name then
+                    ForceValue(obj, hack)
+                    WeaponConnections[obj] = obj:GetPropertyChangedSignal("Value"):Connect(function()
+                        if obj.Value ~= hack.target then
+                            ForceValue(obj, hack)
+                        end
+                    end)
+                    return
+                end
+            end
+        end
+    end
+end
+
+local function ClearWeaponConnections()
+    for _, conn in pairs(WeaponConnections) do conn:Disconnect() end
+    table.clear(WeaponConnections)
+end
+
+local function SetupWeaponChassis(chassis)
+    if ChassisDescendantConn then
+        ChassisDescendantConn:Disconnect()
+        ChassisDescendantConn = nil
+    end
+    ClearWeaponConnections()
+    for _, obj in ipairs(chassis:GetDescendants()) do
+        if obj:IsA("IntValue") or obj:IsA("NumberValue") then
+            WatchWeaponObject(obj)
+        end
+    end
+    ChassisDescendantConn = chassis.DescendantAdded:Connect(function(obj)
+        if obj:IsA("IntValue") or obj:IsA("NumberValue") then
+            WatchWeaponObject(obj)
+        end
+    end)
+end
+
+local function InitWeapon()
+    local chassis = GetOwnChassis()
+    if chassis then SetupWeaponChassis(chassis) end
+end
+
+-- GUI Builder
+local Window
+local function BuildGUI()
+    local t = Localization[Localization.CurrentLanguage]
+    
+    Window = Rayfield:CreateWindow({
+        Name = t.WindowTitle,
+        LoadingTitle = t.LoadingTitle,
+        LoadingSubtitle = t.LoadingSubtitle,
+        ConfigurationSaving = { Enabled = false }, -- disabled Rayfield's config, using our manual JSON saving
+        Discord = false,
+        KeySystem = false,
+    })
+    
+    Rayfield:Notify({
+        Title = t.LoadedTitle,
+        Content = t.LoadedContent,
+        Duration = 5,
+        Image = 4483362458,
+    })
+    
+    local MainTab = Window:CreateTab(t.MainTab, 4483362458)
+    local VisualTab = Window:CreateTab(t.VisualTab, 4483362458)
+    local WeaponTab = Window:CreateTab(t.WeaponTab, 4483362458)
+    local FlyTab = Window:CreateTab(t.FlyTab, 4483362458)
+    local SettingsTab = Window:CreateTab(t.SettingsTab, 4483362458)
+    
+    -- MainTab
+    MainTab:CreateSection(t.ControlSection)
+    MainTab:CreateLabel(t.HideShowLabel)
+    
+    MainTab:CreateToggle({
+        Name = t.EnableESP, CurrentValue = ESP.Enabled, Flag = "ESPToggle",
+        Callback = function(Value)
+            if IsRebuildingUI then return end
+            ESP.Enabled = Value
+            UpdateAllESPInstances()
+            SaveConfig()
+        end,
+    })
+    
+    MainTab:CreateToggle({
+        Name = t.TeamCheck, CurrentValue = ESP.TeamCheck, Flag = "TeamCheckFlag",
+        Callback = function(Value)
+            if IsRebuildingUI then return end
+            ESP.TeamCheck = Value
+            task.defer(function()
+                ClearAllESP()
+                ScanVehicles()
+            end)
+            SaveConfig()
+        end,
+    })
+    
+    MainTab:CreateToggle({
+        Name = t.ShowDistance, CurrentValue = ESP.ShowDistance, Flag = "ShowDistanceFlag",
+        Callback = function(Value)
+            if IsRebuildingUI then return end
+            ESP.ShowDistance = Value
+            UpdateAllESPInstances()
+            SaveConfig()
+        end,
+    })
+    
+    MainTab:CreateSection(t.MarkSettingsSection)
+    
+    MainTab:CreateToggle({
+        Name = t.EnableMark, CurrentValue = Mark.Enabled, Flag = "EnableMarkFlag",
+        Callback = function(Value)
+            if IsRebuildingUI then return end
+            Mark.Enabled = Value
+            for _, espData in pairs(ESP.Instances) do
+                if espData.MarkBillboard and espData.IsHull then
+                    espData.MarkBillboard.Visible = false
+                    espData.MarkBillboard.Position = UDim2.new(0, 0, 0, 0)
+                end
+            end
+            SaveConfig()
+        end,
+    })
+    
+    MainTab:CreateLabel(t.DistanceToShowMark)
+    MainTab:CreateSlider({
+        Name = t.MarkDistance, Range = {0,5000}, Increment = 50,
+        Suffix = " studs", CurrentValue = Mark.Distance, Flag = "MarkDistanceFlag",
+        Callback = function(Value)
+            if IsRebuildingUI then return end
+            Mark.Distance = Value
+            SaveConfig()
+        end,
+    })
+    
+    MainTab:CreateLabel(t.MarkAppearance)
+    MainTab:CreateInput({
+        Name = t.MarkDecalID, PlaceholderText = "11552476728",
+        RemoveTextAfterFocusLost = false, CurrentValue = Mark.DecalID, Flag = "MarkDecalIDFlag",
+        Callback = function(Value)
+            if IsRebuildingUI then return end
+            local id = tonumber(Value)
+            if id and id > 0 then
+                Mark.DecalID = tostring(id)
+                local textureId = "rbxassetid://" .. Mark.DecalID
+                for _, espData in pairs(ESP.Instances) do
+                    if espData.MarkBillboard then
+                        local img = espData.MarkBillboard:FindFirstChild("MarkImage")
+                        if img then img.Image = textureId end
+                    end
+                end
+                Rayfield:Notify({ Title = t.MarkUpdatedTitle, Content = t.MarkUpdatedContent..Mark.DecalID, Duration = 2, Image = 4483362458 })
+                SaveConfig()
+            else
+                Rayfield:Notify({ Title = t.InvalidIDTitle, Content = t.InvalidIDContent, Duration = 3, Image = 4483362458 })
+            end
+        end,
+    })
+    
+    MainTab:CreateSlider({
+        Name = t.MarkOffsetY, Range = {0,200}, Increment = 5,
+        Suffix = " px", CurrentValue = Mark.OffsetY, Flag = "MarkOffsetYFlag",
+        Callback = function(Value)
+            if IsRebuildingUI then return end
+            Mark.OffsetY = Value
+            SaveConfig()
+        end,
+    })
+    
+    MainTab:CreateSlider({
+        Name = t.MarkSize, Range = {5,50}, Increment = 5,
+        Suffix = " px", CurrentValue = Mark.Size, Flag = "MarkSizeFlag",
+        Callback = function(Value)
+            if IsRebuildingUI then return end
+            Mark.Size = Value
+            for _, espData in pairs(ESP.Instances) do
+                if espData.MarkBillboard then
+                    espData.MarkBillboard.Size = UDim2.new(0, Value, 0, Value)
+                end
+            end
+            SaveConfig()
+        end,
+    })
+    
+    -- VisualTab
+    VisualTab:CreateSection(t.FogSection)
+    VisualTab:CreateToggle({
+        Name = t.RemoveFog, CurrentValue = Other.RemoveFog, Flag = "RemoveFogFlag",
+        Callback = function(Value)
+            if IsRebuildingUI then return end
+            Other.RemoveFog = Value
+            for _, child in ipairs(Services.Lighting:GetChildren()) do
+                if child:IsA("Atmosphere") then
+                    if Value then
+                        child.Density = 0
+                        child.Haze = 0
+                    end
+                end
+            end
+            SaveConfig()
+        end,
+    })
+    
+    VisualTab:CreateSection(t.PenViewSection)
+    VisualTab:CreateToggle({
+        Name = t.EnablePenView, CurrentValue = Other.PenView, Flag = "PenViewFlag",
+        Callback = function(Value)
+            if IsRebuildingUI then return end
+            Other.PenView = Value
+            if Value then
+                PenView_Start()
+            else
+                PenView_Stop()
+            end
+            SaveConfig()
+        end,
+    })
+    
+    VisualTab:CreateSection(t.ColorsSection)
+    VisualTab:CreateColorPicker({
+        Name = t.HullColor, Color = ESP.HullColor, Flag = "HullColorFlag",
+        Callback = function(Value)
+            if IsRebuildingUI then return end
+            ESP.HullColor = Value
+            SaveConfig()
+        end,
+    })
+    
+    VisualTab:CreateColorPicker({
+        Name = t.TurretColor, Color = ESP.TurretColor, Flag = "TurretColorFlag",
+        Callback = function(Value)
+            if IsRebuildingUI then return end
+            ESP.TurretColor = Value
+            SaveConfig()
+        end,
+    })
+    
+    VisualTab:CreateSection(t.HighlightSettingsSection)
+    VisualTab:CreateSlider({
+        Name = t.FillTransparency, Range = {0,1}, Increment = 0.01,
+        CurrentValue = ESP.FillTransparency, Flag = "FillTransparencyFlag",
+        Callback = function(Value)
+            if IsRebuildingUI then return end
+            ESP.FillTransparency = Value
+            UpdateAllESPInstances()
+            SaveConfig()
+        end,
+    })
+    
+    VisualTab:CreateSlider({
+        Name = t.OutlineTransparency, Range = {0,1}, Increment = 0.01,
+        CurrentValue = ESP.OutlineTransparency, Flag = "OutlineTransparencyFlag",
+        Callback = function(Value)
+            if IsRebuildingUI then return end
+            ESP.OutlineTransparency = Value
+            UpdateAllESPInstances()
+            SaveConfig()
+        end,
+    })
+    
+    VisualTab:CreateToggle({
+        Name = t.EnableFill, CurrentValue = ESP.EnableFill, Flag = "EnableFillFlag",
+        Callback = function(Value)
+            if IsRebuildingUI then return end
+            ESP.EnableFill = Value
+            UpdateAllESPInstances()
+            SaveConfig()
+        end,
+    })
+    
+    VisualTab:CreateToggle({
+        Name = t.EnableOutline, CurrentValue = ESP.EnableOutline, Flag = "EnableOutlineFlag",
+        Callback = function(Value)
+            if IsRebuildingUI then return end
+            ESP.EnableOutline = Value
+            UpdateAllESPInstances()
+            SaveConfig()
+        end,
+    })
+    
+    -- WeaponTab
+    WeaponTab:CreateSection(t.WeaponSection)
+    WeaponTab:CreateSection("Penetration")
+    WeaponTab:CreateToggle({
+        Name = t.PenetrationHack, CurrentValue = HACKS.Penetration.active, Flag = "HackPenetrationFlag",
+        Callback = function(Value)
+            if IsRebuildingUI then return end
+            HACKS.Penetration.active = Value
+            task.defer(InitWeapon)
+            SaveConfig()
+        end,
+    })
+    WeaponTab:CreateSlider({
+        Name = t.PenetrationVal, Range = {0, 9999}, Increment = 1,
+        CurrentValue = HACKS.Penetration.target, Flag = "PenetrationValueFlag",
+        Callback = function(Value)
+            if IsRebuildingUI then return end
+            HACKS.Penetration.target = Value
+            if HACKS.Penetration.active then task.defer(InitWeapon) end
+            SaveConfig()
+        end,
+    })
+    
+    WeaponTab:CreateSection("Ricochet Angle")
+    WeaponTab:CreateToggle({
+        Name = t.RicochetHack, CurrentValue = HACKS.Ricochet.active, Flag = "HackRicochetFlag",
+        Callback = function(Value)
+            if IsRebuildingUI then return end
+            HACKS.Ricochet.active = Value
+            task.defer(InitWeapon)
+            SaveConfig()
+        end,
+    })
+    WeaponTab:CreateSlider({
+        Name = t.RicochetVal, Range = {0, 9999}, Increment = 1,
+        CurrentValue = HACKS.Ricochet.target, Flag = "RicochetValueFlag",
+        Callback = function(Value)
+            if IsRebuildingUI then return end
+            HACKS.Ricochet.target = Value
+            if HACKS.Ricochet.active then task.defer(InitWeapon) end
+            SaveConfig()
+        end,
+    })
+    
+    WeaponTab:CreateSection("Bullet Gravity")
+    WeaponTab:CreateToggle({
+        Name = t.BulletGravHack, CurrentValue = HACKS.BulletGravity.active, Flag = "HackBulletGravityFlag",
+        Callback = function(Value)
+            if IsRebuildingUI then return end
+            HACKS.BulletGravity.active = Value
+            task.defer(InitWeapon)
+            SaveConfig()
+        end,
+    })
+    WeaponTab:CreateSlider({
+        Name = t.BulletGravVal, Range = {-500, 500}, Increment = 1,
+        CurrentValue = HACKS.BulletGravity.target, Flag = "BulletGravityValueFlag",
+        Callback = function(Value)
+            if IsRebuildingUI then return end
+            HACKS.BulletGravity.target = Value
+            if HACKS.BulletGravity.active then task.defer(InitWeapon) end
+            SaveConfig()
+        end,
+    })
+    
+    WeaponTab:CreateSection("Shell Speed")
+    WeaponTab:CreateToggle({
+        Name = t.ShellSpeedHack, CurrentValue = HACKS.ShellSpeed.active, Flag = "HackShellSpeedFlag",
+        Callback = function(Value)
+            if IsRebuildingUI then return end
+            HACKS.ShellSpeed.active = Value
+            task.defer(InitWeapon)
+            SaveConfig()
+        end,
+    })
+    WeaponTab:CreateSlider({
+        Name = t.ShellSpeedVal, Range = {0, 9999}, Increment = 1,
+        CurrentValue = HACKS.ShellSpeed.target, Flag = "ShellSpeedValueFlag",
+        Callback = function(Value)
+            if IsRebuildingUI then return end
+            HACKS.ShellSpeed.target = Value
+            if HACKS.ShellSpeed.active then task.defer(InitWeapon) end
+            SaveConfig()
+        end,
+    })
+    
+    -- FlyTab
+    FlyTab:CreateSection(t.FlightControlSection)
+    do
+        local isMobile = Services.UserInput.TouchEnabled and not Services.UserInput.KeyboardEnabled
+        FlyTab:CreateLabel(isMobile and t.FlightControlLabelMobile or t.FlightControlLabel)
+    end
+    FlyTab:CreateButton({
+        Name = t.ToggleFly,
+        Callback = function()
+            if Fly.Active then
+                stopFly()
+                Rayfield:Notify({ Title = "Fly", Content = t.FlyDisabled, Duration = 2, Image = 4483362458 })
+            else
+                startFly()
+                Rayfield:Notify({ Title = "Fly", Content = t.FlyEnabled, Duration = 2, Image = 4483362458 })
+            end
+        end,
+    })
+    FlyTab:CreateSlider({
+        Name = t.FlySpeed, Range = {10,300}, Increment = 10,
+        Suffix = " studs/s", CurrentValue = Fly.Speed, Flag = "FlySpeedFlag",
+        Callback = function(Value)
+            if IsRebuildingUI then return end
+            Fly.Speed = Value
+            SaveConfig()
+        end,
+    })
+    FlyTab:CreateSection(t.KeybindSection)
+    FlyTab:CreateKeybind({
+        Name = t.ToggleFlyKey, CurrentKeybind = "M", HoldToInteract = false, Flag = "FlyKeyFlag",
+        Callback = function(Value)
+            local key = parseKeyCode(Value)
+            if key then
+                if key ~= Keys.Fly then
+                    -- Key is actually changing — block InputBegan briefly so the new
+                    -- key press doesn't also fire the toggle immediately
+                    Fly.IsRebinding = true
+                    Fly.LastRebindTime = tick()
+                    task.delay(0.5, function() Fly.IsRebinding = false end)
+                end
+                Keys.Fly = key
+            end
+        end,
+    })
+    
+    -- SettingsTab
+    SettingsTab:CreateSection(t.PerformanceSection)
+    SettingsTab:CreateSlider({
+        Name = t.MarkUpdateRate, Range = {0.016,0.1}, Increment = 0.016,
+        Suffix = "s", CurrentValue = Mark.UpdateInterval, Flag = "MarkUpdateIntervalFlag",
+        Callback = function(Value)
+            if IsRebuildingUI then return end
+            Mark.UpdateInterval = Value
+            SaveConfig()
+        end,
+    })
+    SettingsTab:CreateSlider({
+        Name = t.ScanInterval, Range = {0.1,2.0}, Increment = 0.1,
+        Suffix = "s", CurrentValue = Timers.ScanInterval, Flag = "ScanIntervalFlag",
+        Callback = function(Value)
+            if IsRebuildingUI then return end
+            Timers.ScanInterval = Value
+            SaveConfig()
+        end,
+    })
+    
+    SettingsTab:CreateSection(t.GraphicsDegradation)
+    SettingsTab:CreateToggle({
+        Name = t.GraphicsDegradation, CurrentValue = Graphics.Degradation, Flag = "GraphicsDegradationFlag",
+        Callback = function(Value)
+            if IsRebuildingUI then return end
+            SetGraphicsDegradation(Value)
+            SaveConfig()
+        end,
+    })
+    
+    SettingsTab:CreateSection(t.ControlsSection)
+    SettingsTab:CreateKeybind({
+        Name = t.ToggleESPKey, CurrentKeybind = "F", HoldToInteract = false, Flag = "ToggleKeyFlag",
+        Callback = function(Value)
+            local key = parseKeyCode(Value)
+            if key then
+                if key ~= Keys.Toggle then
+                    Fly.IsRebinding = true
+                    Fly.LastRebindTime = tick()
+                    task.delay(0.5, function() Fly.IsRebinding = false end)
+                end
+                Keys.Toggle = key
+            end
+        end,
+    })
+    
+    SettingsTab:CreateSection(t.Language)
+    SettingsTab:CreateDropdown({
+        Name = t.Language,
+        Options = {"English", "Русский"},
+        CurrentOption = {Localization.CurrentLanguage == "EN" and "English" or "Русский"},
+        MultipleOptions = false,
+        Flag = "LanguageDropdownFlag",
+        Callback = function(Option)
+            if IsRebuildingUI then return end
+            if not Option or type(Option) ~= "table" or not Option[1] then return end
+            local selected = Option[1]
+            local newLang = (selected == "English") and "EN" or "RU"
+            if Localization.CurrentLanguage ~= newLang then
+                Localization.CurrentLanguage = newLang
+                SaveConfig()
+                
+                -- Spawn the rebuild process
+                task.spawn(function()
+                    IsRebuildingUI = true
+                    
+                    -- Safe destruction of the old Rayfield Window
+                    pcall(function()
+                        Rayfield:Destroy()
+                    end)
+                    
+                    task.wait(0.5)
+                    
+                    -- Fetch and initialize a completely fresh instance of Rayfield
+                    local success, freshRayfield = pcall(function()
+                        return loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+                    end)
+                    
+                    if success and freshRayfield then
+                        Rayfield = freshRayfield
+                    end
+                    
+                    IsRebuildingUI = false
+                    BuildGUI()
+                end)
+            end
+        end,
+    })
+    
+    SettingsTab:CreateSection(t.ProjectSection)
+    SettingsTab:CreateButton({
+        Name = t.CopyGitHub,
+        Callback = function()
+            setclipboard("https://github.com/qwiix21/Cursed-Tank-Simulator-Script")
+            Rayfield:Notify({ Title = t.CopiedTitle, Content = t.CopiedContent, Duration = 3, Image = 4483362458 })
+        end,
+    })
+    SettingsTab:CreateButton({
+        Name = t.CopyDiscord,
+        Callback = function()
+            setclipboard("https://discord.gg/gHg5g7eDC4")
+            Rayfield:Notify({ Title = t.CopiedTitle, Content = t.CopiedContent, Duration = 3, Image = 4483362458 })
+        end,
+    })
+    
+    do
+        local tf = Rayfield.Flags and Rayfield.Flags["ToggleKeyFlag"]
+        if tf and tf.CurrentKeybind then
+            local k = parseKeyCode(tf.CurrentKeybind)
+            if k then Keys.Toggle = k end
+        end
+        local ff = Rayfield.Flags and Rayfield.Flags["FlyKeyFlag"]
+        if ff and ff.CurrentKeybind then
+            local k = parseKeyCode(ff.CurrentKeybind)
+            if k then Keys.Fly = k end
+        end
+    end
+end
+
+Services.UserInput.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if Fly.IsRebinding or (tick() - Fly.LastRebindTime) < 0.5 then return end
+    if input.KeyCode == Keys.Toggle then
+        ESP.Enabled = not ESP.Enabled
+        UpdateAllESPInstances()
+    end
+    if input.KeyCode == Keys.Fly then
+        if Fly.Active then stopFly() else startFly() end
+    end
+end)
+
+-- Mobile joystick tracking (left half of screen = joystick area)
+if Services.UserInput.TouchEnabled then
+    Services.UserInput.TouchStarted:Connect(function(touch, gameProcessed)
+        if MobileFly.Touch then return end -- already tracking a finger
+        local cam = Services.Workspace.CurrentCamera
+        local screenW = cam and cam.ViewportSize.X or 1920
+        -- Only grab touches on the LEFT half of the screen
+        if touch.Position.X < screenW * 0.5 then
+            MobileFly.Touch = touch
+            MobileFly.StartPos = Vector2.new(touch.Position.X, touch.Position.Y)
+            MobileFly.Delta = Vector2.new(0, 0)
+        end
+    end)
+
+    Services.UserInput.TouchMoved:Connect(function(touch, gameProcessed)
+        if touch ~= MobileFly.Touch then return end
+        local dx = touch.Position.X - MobileFly.StartPos.X
+        local dy = touch.Position.Y - MobileFly.StartPos.Y
+        local raw = Vector2.new(dx, dy)
+        if raw.Magnitude > MobileFly.MaxRadius then
+            raw = raw.Unit * MobileFly.MaxRadius
+        end
+        MobileFly.Delta = raw / MobileFly.MaxRadius -- -1..1 each axis
+    end)
+
+    Services.UserInput.TouchEnded:Connect(function(touch, gameProcessed)
+        if touch == MobileFly.Touch then
+            MobileFly.Touch = nil
+            MobileFly.Delta = Vector2.new(0, 0)
+        end
+    end)
+end
+
+workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
+    Camera = Services.Workspace.CurrentCamera
+end)
+
+Services.RunService.Heartbeat:Connect(function(dt)
+    Timers.VehicleScan += dt
+    if Timers.VehicleScan >= Timers.ScanInterval then
+        Timers.VehicleScan = 0
+        ScanVehicles()
+    end
+    
+    Timers.Cleanup += dt
+    if Timers.Cleanup >= Timers.CleanupInterval then
+        Timers.Cleanup = 0
+        CleanupESP()
+    end
+    
+    UpdateDistanceLabels()
+end)
+
+Services.RunService.RenderStepped:Connect(function(dt)
+    Mark.TimeSinceUpdate += dt
+    if Mark.TimeSinceUpdate >= Mark.UpdateInterval then
+        Mark.TimeSinceUpdate = 0
+        UpdateMarkPositions()
+    end
+    
+    if Fly.Active then
+        if Fly.Root and Fly.Root.Parent then
+            local cam  = Services.Workspace.CurrentCamera
+            local move = Vector3.zero
+
+            -- PC keyboard controls
+            if Services.UserInput:IsKeyDown(Enum.KeyCode.W) then move += cam.CFrame.LookVector end
+            if Services.UserInput:IsKeyDown(Enum.KeyCode.S) then move -= cam.CFrame.LookVector end
+            if Services.UserInput:IsKeyDown(Enum.KeyCode.A) then move -= cam.CFrame.RightVector end
+            if Services.UserInput:IsKeyDown(Enum.KeyCode.D) then move += cam.CFrame.RightVector end
+            if Services.UserInput:IsKeyDown(Enum.KeyCode.Space) then move += Vector3.new(0,1,0) end
+            if Services.UserInput:IsKeyDown(Enum.KeyCode.LeftControl) then move -= Vector3.new(0,1,0) end
+
+            -- Mobile virtual joystick (left-thumb touch)
+            if Services.UserInput.TouchEnabled then
+                local jx = MobileFly.Delta.X          -- left/right  (-1..1)
+                local jy = -MobileFly.Delta.Y          -- up = negative Y on screen, invert to get forward
+                if math.abs(jx) > 0.1 or math.abs(jy) > 0.1 then
+                    local flatLook  = Vector3.new(cam.CFrame.LookVector.X,  0, cam.CFrame.LookVector.Z)
+                    local flatRight = Vector3.new(cam.CFrame.RightVector.X, 0, cam.CFrame.RightVector.Z)
+                    if flatLook.Magnitude  > 0 then flatLook  = flatLook.Unit  end
+                    if flatRight.Magnitude > 0 then flatRight = flatRight.Unit end
+                    move += flatLook  * jy
+                    move += flatRight * jx
+                end
+            end
+
+            bv.Velocity = move.Magnitude > 0 and move.Unit * Fly.Speed or Vector3.zero
+            bg.CFrame   = cam.CFrame
+        end
+    end
+end)
+
+ScanVehicles()
+
+local function ProcessAtmosphere(atmosphere)
+    if Other.RemoveFog then
+        atmosphere.Density = 0
+        atmosphere.Haze = 0
+    end
+end
+
+local function WatchAtmosphere(atmosphere)
+    ProcessAtmosphere(atmosphere)
+    atmosphere.Changed:Connect(function(property)
+        if property == "Density" or property == "Haze" then
+            ProcessAtmosphere(atmosphere)
+        end
+    end)
+end
+
+Services.Lighting.ChildAdded:Connect(function(child)
+    if child:IsA("Atmosphere") then WatchAtmosphere(child) end
+end)
+
+for _, child in ipairs(Services.Lighting:GetChildren()) do
+    if child:IsA("Atmosphere") then WatchAtmosphere(child) end
+end
+
+local function InitWeaponWorkspaceWatcher()
+    Services.Workspace:WaitForChild("Vehicles").ChildAdded:Connect(function(obj)
+        if obj.Name == ("Chassis" .. LocalPlayer.Name) then
+            for _, hack in pairs(HACKS) do
+                hack.patched = {}
+                hack.origPatched = {}
+            end
+            task.wait(1)
+            SetupWeaponChassis(obj)
+        end
+    end)
+
+    Services.Workspace:WaitForChild("Vehicles").ChildRemoved:Connect(function(obj)
+        if not obj:IsA("Model") then return end
+        local toRemove = {}
+        for target, espData in pairs(ESP.Instances) do
+            if target == obj or (espData.Target and espData.Target:IsDescendantOf(obj)) then
+                table.insert(toRemove, target)
+                if espData.Instance then espData.Instance:Destroy() end
+                if espData.DistanceBillboard then espData.DistanceBillboard:Destroy() end
+                if espData.MarkBillboard then espData.MarkBillboard:Destroy() end
+            end
+        end
+        for _, t in ipairs(toRemove) do ESP.Instances[t] = nil end
+    end)
+end
+
+InitWeaponWorkspaceWatcher()
+
+-- Load settings from executor's workspace config file
+LoadConfig()
+
+-- Apply settings that were loaded
+if Other.PenView then
+    task.spawn(PenView_Start)
+end
+if Graphics.Degradation then
+    task.spawn(function()
+        SetGraphicsDegradation(true)
+    end)
+end
+
+InitWeapon()
+
+-- Build and initialize GUI
+BuildGUI()
