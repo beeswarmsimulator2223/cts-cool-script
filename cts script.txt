@@ -1,20 +1,21 @@
-print("Three?")
+print("kolyanchik script loading...")
 
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+local Rayfield = { Flags = {} }
 
 local Services = {
     RunService = game:GetService("RunService"),
-    UserInput = game:GetService("UserInputService"),
-    Players = game:GetService("Players"),
-    CoreGui = game:GetService("CoreGui"),
-    Workspace = game:GetService("Workspace"),
-    Lighting = game:GetService("Lighting")
+    UserInput  = game:GetService("UserInputService"),
+    Players    = game:GetService("Players"),
+    CoreGui    = game:GetService("CoreGui"),
+    Workspace  = game:GetService("Workspace"),
+    Lighting   = game:GetService("Lighting")
 }
 local LocalPlayer = Services.Players.LocalPlayer
 
 local Keys = {
     Toggle = Enum.KeyCode.F,
-    Fly = Enum.KeyCode.M
+    Fly    = Enum.KeyCode.M,
+    GUI    = Enum.KeyCode.K
 }
 
 local ESP = {
@@ -55,12 +56,11 @@ local Fly = {
     LastRebindTime = 0
 }
 
--- Mobile joystick tracking for fly
 local MobileFly = {
-    Touch = nil,          -- tracked InputObject (the joystick finger)
-    StartPos = Vector2.new(0, 0),
-    Delta = Vector2.new(0, 0), -- normalized -1..1
-    MaxRadius = 75,        -- pixels of joystick travel
+    Touch = nil,
+    StartPos = Vector2.new(0,0),
+    Delta = Vector2.new(0,0),
+    MaxRadius = 75,
 }
 
 local Other = {
@@ -68,7 +68,6 @@ local Other = {
     PenView = false
 }
 
--- Graphics Degradation settings
 local Graphics = {
     Degradation = false,
     OriginalMaterials = setmetatable({}, { __mode = "k" }),
@@ -77,24 +76,16 @@ local Graphics = {
     AddedConnection = nil
 }
 
--- Localization System
+-- ════════════════════════════════════════
+-- LOCALIZATION
+-- ════════════════════════════════════════
 local Localization = {
-    CurrentLanguage = "EN", -- Defaults to English on first run
-    
+    CurrentLanguage = "EN",
     EN = {
         WindowTitle = "kolyanchik script",
-        LoadingTitle = "kolyanchik script",
-        LoadingSubtitle = "by snapsik",
         LoadedTitle = "kolyanchik script Loaded",
-        LoadedContent = "Press K to hide interface during gameplay",
-        
-        MainTab = "Main",
-        VisualTab = "Visual",
-        WeaponTab = "Weapon",
-        FlyTab = "Fly",
-        SettingsTab = "Settings",
-        
-        -- Main Tab
+        LoadedContent = "Press K to hide/show interface",
+        MainTab = "Main", VisualTab = "Visual", WeaponTab = "Weapon", FlyTab = "Fly", SettingsTab = "Settings",
         ControlSection = "Control",
         HideShowLabel = "Press K to hide/show interface",
         EnableESP = "Enable ESP",
@@ -108,77 +99,39 @@ local Localization = {
         MarkDecalID = "Mark Decal ID",
         MarkOffsetY = "Mark Offset Y",
         MarkSize = "Mark Size",
-        
-        -- Visual Tab
-        FogSection = "Fog",
-        RemoveFog = "Remove Fog",
-        PenViewSection = "Penetration View",
-        EnablePenView = "Enable Penetration View",
-        ColorsSection = "Colors",
-        HullColor = "Hull Color",
-        TurretColor = "Turret Color",
+        FogSection = "Fog", RemoveFog = "Remove Fog",
+        PenViewSection = "Penetration View", EnablePenView = "Enable Penetration View",
+        ColorsSection = "Colors", HullColor = "Hull Color", TurretColor = "Turret Color",
         HighlightSettingsSection = "Highlight Settings",
-        FillTransparency = "Fill Transparency",
-        OutlineTransparency = "Outline Transparency",
-        EnableFill = "Enable Fill",
-        EnableOutline = "Enable Outline",
-        
-        -- Weapon Tab
+        FillTransparency = "Fill Transparency", OutlineTransparency = "Outline Transparency",
+        EnableFill = "Enable Fill", EnableOutline = "Enable Outline",
         WeaponSection = "Weapon Modifiers",
-        PenetrationHack = "Enable Penetration Hack",
-        PenetrationVal = "Penetration Value",
-        RicochetHack = "Enable Ricochet Hack",
-        RicochetVal = "Ricochet Value",
-        BulletGravHack = "Enable Bullet Gravity Hack",
-        BulletGravVal = "Bullet Gravity Value",
-        ShellSpeedHack = "Enable Shell Speed Hack",
-        ShellSpeedVal = "Shell Speed Value",
-        
-        -- Fly Tab
+        PenetrationHack = "Enable Penetration Hack", PenetrationVal = "Penetration Value",
+        RicochetHack = "Enable Ricochet Hack", RicochetVal = "Ricochet Value",
+        BulletGravHack = "Enable Bullet Gravity Hack", BulletGravVal = "Bullet Gravity Value",
+        ShellSpeedHack = "Enable Shell Speed Hack", ShellSpeedVal = "Shell Speed Value",
         FlightControlSection = "Flight Control",
         FlightControlLabel = "W/A/S/D — move  |  Space — up  |  LCtrl — down",
         FlightControlLabelMobile = "Joystick — move  |  Up/Down not available on mobile",
-        ToggleFly = "Toggle Fly",
-        FlySpeed = "Fly Speed",
-        KeybindSection = "Keybind",
-        ToggleFlyKey = "Toggle Fly Key",
-        
-        -- Settings Tab
+        ToggleFly = "Toggle Fly", FlySpeed = "Fly Speed",
+        KeybindSection = "Keybind", ToggleFlyKey = "Toggle Fly Key", ToggleGUIKey = "Toggle GUI Key",
         PerformanceSection = "Performance",
-        MarkUpdateRate = "Mark Update Rate",
-        ScanInterval = "Scan Interval",
+        MarkUpdateRate = "Mark Update Rate", ScanInterval = "Scan Interval",
         GraphicsDegradation = "Graphics Degradation",
-        ControlsSection = "Controls",
-        ToggleESPKey = "Toggle ESP Key",
-        ProjectSection = "Project",
-        CopyGitHub = "Copy GitHub Link",
-        CopyDiscord = "Copy Discord Link",
+        ControlsSection = "Controls", ToggleESPKey = "Toggle ESP Key",
+        ProjectSection = "Project", CopyGitHub = "Copy GitHub Link", CopyDiscord = "Copy Discord Link",
         Language = "Language / Язык",
-        
-        -- Notifications
-        MarkUpdatedTitle = "Mark Updated",
-        MarkUpdatedContent = "Decal ID: ",
-        InvalidIDTitle = "Invalid ID",
-        InvalidIDContent = "Please enter a valid number",
-        FlyEnabled = "Flight enabled",
-        FlyDisabled = "Flight disabled",
-        CopiedTitle = "Copied",
-        CopiedContent = "Link copied to clipboard!",
+        MarkUpdatedTitle = "Mark Updated", MarkUpdatedContent = "Decal ID: ",
+        InvalidIDTitle = "Invalid ID", InvalidIDContent = "Please enter a valid number",
+        FlyEnabled = "Flight enabled", FlyDisabled = "Flight disabled",
+        ESPEnabled = "ESP Enabled", ESPDisabled = "ESP Disabled",
+        CopiedTitle = "Copied", CopiedContent = "Link copied to clipboard!",
     },
     RU = {
         WindowTitle = "kolyanchik script",
-        LoadingTitle = "kolyanchik script",
-        LoadingSubtitle = "от snapsik",
         LoadedTitle = "kolyanchik script Загружен",
-        LoadedContent = "Нажмите K, чтобы скрыть интерфейс во время игры",
-        
-        MainTab = "Главное",
-        VisualTab = "Визуальное",
-        WeaponTab = "Оружие",
-        FlyTab = "Полёт",
-        SettingsTab = "Настройки",
-        
-        -- Main Tab
+        LoadedContent = "Нажмите K, чтобы скрыть/показать интерфейс",
+        MainTab = "Главное", VisualTab = "Визуальное", WeaponTab = "Оружие", FlyTab = "Полёт", SettingsTab = "Настройки",
         ControlSection = "Управление",
         HideShowLabel = "Нажмите K, чтобы скрыть/показать интерфейс",
         EnableESP = "Включить ESP",
@@ -192,190 +145,130 @@ local Localization = {
         MarkDecalID = "ID Декаля метки",
         MarkOffsetY = "Смещение метки по Y",
         MarkSize = "Размер метки",
-        
-        -- Visual Tab
-        FogSection = "Туман",
-        RemoveFog = "Убрать туман",
-        PenViewSection = "Просмотр пробития",
-        EnablePenView = "Включить просмотр пробития",
-        ColorsSection = "Цвета",
-        HullColor = "Цвет корпуса",
-        TurretColor = "Цвет башни",
+        FogSection = "Туман", RemoveFog = "Убрать туман",
+        PenViewSection = "Просмотр пробития", EnablePenView = "Включить просмотр пробития",
+        ColorsSection = "Цвета", HullColor = "Цвет корпуса", TurretColor = "Цвет башни",
         HighlightSettingsSection = "Настройки подсветки",
-        FillTransparency = "Прозрачность заливки",
-        OutlineTransparency = "Прозрачность контура",
-        EnableFill = "Включить заливку",
-        EnableOutline = "Включить контур",
-        
-        -- Weapon Tab
+        FillTransparency = "Прозрачность заливки", OutlineTransparency = "Прозрачность контура",
+        EnableFill = "Включить заливку", EnableOutline = "Включить контур",
         WeaponSection = "Модификаторы оружия",
-        PenetrationHack = "Включить хак пробития",
-        PenetrationVal = "Значение пробития",
-        RicochetHack = "Включить хак рикошета",
-        RicochetVal = "Значение рикошета",
-        BulletGravHack = "Включить хак гравитации пуль",
-        BulletGravVal = "Значение гравитации пуль",
-        ShellSpeedHack = "Включить хак скорости снаряда",
-        ShellSpeedVal = "Значение скорости снаряда",
-        
-        -- Fly Tab
+        PenetrationHack = "Включить хак пробития", PenetrationVal = "Значение пробития",
+        RicochetHack = "Включить хак рикошета", RicochetVal = "Значение рикошета",
+        BulletGravHack = "Включить хак гравитации пуль", BulletGravVal = "Значение гравитации пуль",
+        ShellSpeedHack = "Включить хак скорости снаряда", ShellSpeedVal = "Значение скорости снаряда",
         FlightControlSection = "Управление полётом",
         FlightControlLabel = "W/A/S/D — движение  |  Пробел — вверх  |  LControl — вниз",
         FlightControlLabelMobile = "Джойстик — движение  |  Вверх/вниз недоступно на мобильном",
-        ToggleFly = "Переключить полёт",
-        FlySpeed = "Скорость полёта",
-        KeybindSection = "Клавиша активации",
-        ToggleFlyKey = "Клавиша полёта",
-        
-        -- Settings Tab
+        ToggleFly = "Переключить полёт", FlySpeed = "Скорость полёта",
+        KeybindSection = "Клавиша активации", ToggleFlyKey = "Клавиша полёта", ToggleGUIKey = "Клавиша GUI",
         PerformanceSection = "Производительность",
-        MarkUpdateRate = "Частота обновления метки",
-        ScanInterval = "Интервал сканирования",
+        MarkUpdateRate = "Частота обновления метки", ScanInterval = "Интервал сканирования",
         GraphicsDegradation = "Ухудшение графики",
-        ControlsSection = "Клавиши управления",
-        ToggleESPKey = "Клавиша ESP",
-        ProjectSection = "Проект",
-        CopyGitHub = "Скопировать ссылку GitHub",
-        CopyDiscord = "Скопировать ссылку Discord",
+        ControlsSection = "Клавиши управления", ToggleESPKey = "Клавиша ESP",
+        ProjectSection = "Проект", CopyGitHub = "Скопировать ссылку GitHub", CopyDiscord = "Скопировать ссылку Discord",
         Language = "Язык / Language",
-        
-        -- Notifications
-        MarkUpdatedTitle = "Метка обновлена",
-        MarkUpdatedContent = "ID Декаля: ",
-        InvalidIDTitle = "Неверный ID",
-        InvalidIDContent = "Пожалуйста, введите корректное число",
-        FlyEnabled = "Полёт включен",
-        FlyDisabled = "Полёт выключен",
-        CopiedTitle = "Скопировано",
-        CopiedContent = "Ссылка скопирована в буфер обмена!",
+        MarkUpdatedTitle = "Метка обновлена", MarkUpdatedContent = "ID Декаля: ",
+        InvalidIDTitle = "Неверный ID", InvalidIDContent = "Пожалуйста, введите корректное число",
+        FlyEnabled = "Полёт включен", FlyDisabled = "Полёт выключен",
+        ESPEnabled = "ESP Включен", ESPDisabled = "ESP Выключен",
+        CopiedTitle = "Скопировано", CopiedContent = "Ссылка скопирована в буфер обмена!",
     }
 }
 
+-- ════════════════════════════════════════
+-- HACKS
+-- ════════════════════════════════════════
 local HACKS = {
-    Penetration = {
-        target = 9999, active = false,
-        names = {"Penetration", "Penetrate"},
-        patched = {}, origPatched = {}
-    },
-    Ricochet = {
-        target = 9999, active = false,
-        names = {"RicochetAngle"},
-        patched = {}, origPatched = {}
-    },
-    BulletGravity = {
-        target = 0, active = false,
-        names = {"BulletGravity"},
-        patched = {}, origPatched = {}
-    },
-    ShellSpeed = {
-        target = 9999, active = false,
-        names = {"ShellSpeed"},
-        patched = {}, origPatched = {}
-    },
+    Penetration   = { target = 9999, active = false, names = {"Penetration","Penetrate"}, patched = {}, origPatched = {} },
+    Ricochet      = { target = 9999, active = false, names = {"RicochetAngle"}, patched = {}, origPatched = {} },
+    BulletGravity = { target = 0, active = false, names = {"BulletGravity"}, patched = {}, origPatched = {} },
+    ShellSpeed    = { target = 9999, active = false, names = {"ShellSpeed"}, patched = {}, origPatched = {} },
 }
 
 local WeaponConnections = {}
 local ChassisDescendantConn = nil
 
+-- ════════════════════════════════════════
+-- PENETRATION VIEW
+-- ════════════════════════════════════════
 local PenView = {
-    UI = nil,
-    HeartbeatConnection = nil,
-    LastPart = nil,
-    LastChassisName = nil,
+    UI = nil, HeartbeatConnection = nil, LastPart = nil, LastChassisName = nil,
     ArmorTypes = {
-        "Structural Steel", "RHA", "HHRA", "CHA", "NERA", "Internal RHA", "Internal HHRA",
-        "Internal CHA", "Composite Screen", "Rubber-fabric Screen", "Internal Aluminium",
-        "Aluminium", "Aluminium Alloy", "Internal Aluminium Alloy", "Internal Structural Steel",
-        "ERA", "Wood", "Armour"
+        "Structural Steel","RHA","HHRA","CHA","NERA","Internal RHA","Internal HHRA",
+        "Internal CHA","Composite Screen","Rubber-fabric Screen","Internal Aluminium",
+        "Aluminium","Aluminium Alloy","Internal Aluminium Alloy","Internal Structural Steel",
+        "ERA","Wood","Armour"
     }
 }
 
 local Camera = Services.Workspace.CurrentCamera
-
--- Rebuilding Flag to prevent callbacks from executing/saving during UI destruction
 local IsRebuildingUI = false
 
--- Config Saving System using executor workspace
+-- ════════════════════════════════════════
+-- CONFIG SAVE / LOAD
+-- ════════════════════════════════════════
 local HttpService = game:GetService("HttpService")
 local CONFIG_FILE = "kolyanchik_script_config.json"
 
+local function parseKeyCode(str)
+    if not str or str == "" then return nil end
+    local name = str:match("KeyCode%.(.+)") or str
+    for _, item in ipairs(Enum.KeyCode:GetEnumItems()) do
+        if item.Name == name then return item end
+    end
+    return nil
+end
+
 local function SaveConfig()
     if IsRebuildingUI then return end
-    
     local data = {
         Language = Localization.CurrentLanguage,
-        ESPEnabled = ESP.Enabled,
-        TeamCheck = ESP.TeamCheck,
-        ShowDistance = ESP.ShowDistance,
-        EnableFill = ESP.EnableFill,
-        EnableOutline = ESP.EnableOutline,
+        ESPEnabled = ESP.Enabled, TeamCheck = ESP.TeamCheck, ShowDistance = ESP.ShowDistance,
+        EnableFill = ESP.EnableFill, EnableOutline = ESP.EnableOutline,
         HullColor = {ESP.HullColor.R, ESP.HullColor.G, ESP.HullColor.B},
         TurretColor = {ESP.TurretColor.R, ESP.TurretColor.G, ESP.TurretColor.B},
-        FillTransparency = ESP.FillTransparency,
-        OutlineTransparency = ESP.OutlineTransparency,
-        
-        MarkEnabled = Mark.Enabled,
-        MarkDistance = Mark.Distance,
-        MarkDecalID = Mark.DecalID,
-        MarkOffsetY = Mark.OffsetY,
-        MarkSize = Mark.Size,
-        MarkUpdateInterval = Mark.UpdateInterval,
-        
-        RemoveFog = Other.RemoveFog,
-        PenView = Other.PenView,
-        
-        PenetrationActive = HACKS.Penetration.active,
-        PenetrationTarget = HACKS.Penetration.target,
-        RicochetActive = HACKS.Ricochet.active,
-        RicochetTarget = HACKS.Ricochet.target,
-        BulletGravityActive = HACKS.BulletGravity.active,
-        BulletGravityTarget = HACKS.BulletGravity.target,
-        ShellSpeedActive = HACKS.ShellSpeed.active,
-        ShellSpeedTarget = HACKS.ShellSpeed.target,
-        
-        FlySpeed = Fly.Speed,
-        ScanInterval = Timers.ScanInterval,
-        GraphicsDegradation = Graphics.Degradation
+        FillTransparency = ESP.FillTransparency, OutlineTransparency = ESP.OutlineTransparency,
+        MarkEnabled = Mark.Enabled, MarkDistance = Mark.Distance, MarkDecalID = Mark.DecalID,
+        MarkOffsetY = Mark.OffsetY, MarkSize = Mark.Size, MarkUpdateInterval = Mark.UpdateInterval,
+        RemoveFog = Other.RemoveFog, PenView = Other.PenView,
+        PenetrationActive = HACKS.Penetration.active, PenetrationTarget = HACKS.Penetration.target,
+        RicochetActive = HACKS.Ricochet.active, RicochetTarget = HACKS.Ricochet.target,
+        BulletGravityActive = HACKS.BulletGravity.active, BulletGravityTarget = HACKS.BulletGravity.target,
+        ShellSpeedActive = HACKS.ShellSpeed.active, ShellSpeedTarget = HACKS.ShellSpeed.target,
+        FlySpeed = Fly.Speed, ScanInterval = Timers.ScanInterval,
+        GraphicsDegradation = Graphics.Degradation,
+        ToggleESPKey = Keys.Toggle.Name, ToggleFlyKey = Keys.Fly.Name, ToggleGUIKey = Keys.GUI.Name
     }
-    
     pcall(function()
-        if writefile then
-            writefile(CONFIG_FILE, HttpService:JSONEncode(data))
-        end
+        if writefile then writefile(CONFIG_FILE, HttpService:JSONEncode(data)) end
     end)
 end
 
 local function LoadConfig()
     local success, content = pcall(function()
-        if readfile and isfile and isfile(CONFIG_FILE) then
-            return readfile(CONFIG_FILE)
-        end
+        if readfile and isfile and isfile(CONFIG_FILE) then return readfile(CONFIG_FILE) end
     end)
-    
     if success and content then
         local ok, data = pcall(function() return HttpService:JSONDecode(content) end)
         if ok and data then
             Localization.CurrentLanguage = data.Language or "EN"
-            ESP.Enabled = data.ESPEnabled ~= nil and data.ESPEnabled or true
+            ESP.Enabled = (data.ESPEnabled ~= nil) and data.ESPEnabled or true
             ESP.TeamCheck = data.TeamCheck or false
             ESP.ShowDistance = data.ShowDistance or false
-            ESP.EnableFill = data.EnableFill ~= nil and data.EnableFill or true
-            ESP.EnableOutline = data.EnableOutline ~= nil and data.EnableOutline or true
+            ESP.EnableFill = (data.EnableFill ~= nil) and data.EnableFill or true
+            ESP.EnableOutline = (data.EnableOutline ~= nil) and data.EnableOutline or true
             if data.HullColor then ESP.HullColor = Color3.new(data.HullColor[1], data.HullColor[2], data.HullColor[3]) end
             if data.TurretColor then ESP.TurretColor = Color3.new(data.TurretColor[1], data.TurretColor[2], data.TurretColor[3]) end
             ESP.FillTransparency = data.FillTransparency or 0.5
             ESP.OutlineTransparency = data.OutlineTransparency or 0.2
-            
             Mark.Enabled = data.MarkEnabled or false
             Mark.Distance = data.MarkDistance or 1000
             Mark.DecalID = data.MarkDecalID or "11552476728"
             Mark.OffsetY = data.MarkOffsetY or 50
             Mark.Size = data.MarkSize or 25
             Mark.UpdateInterval = data.MarkUpdateInterval or 0.016
-            
             Other.RemoveFog = data.RemoveFog or false
             Other.PenView = data.PenView or false
-            
             HACKS.Penetration.active = data.PenetrationActive or false
             HACKS.Penetration.target = data.PenetrationTarget or 9999
             HACKS.Ricochet.active = data.RicochetActive or false
@@ -384,52 +277,43 @@ local function LoadConfig()
             HACKS.BulletGravity.target = data.BulletGravityTarget or 0
             HACKS.ShellSpeed.active = data.ShellSpeedActive or false
             HACKS.ShellSpeed.target = data.ShellSpeedTarget or 9999
-            
             Fly.Speed = data.FlySpeed or 70
             Timers.ScanInterval = data.ScanInterval or 0.5
             Graphics.Degradation = data.GraphicsDegradation or false
+            if data.ToggleESPKey then local k = parseKeyCode(data.ToggleESPKey) if k then Keys.Toggle = k end end
+            if data.ToggleFlyKey then local k = parseKeyCode(data.ToggleFlyKey) if k then Keys.Fly = k end end
+            if data.ToggleGUIKey then local k = parseKeyCode(data.ToggleGUIKey) if k then Keys.GUI = k end end
         end
     else
-        -- First run defaults to English
         Localization.CurrentLanguage = "EN"
     end
 end
 
+-- ════════════════════════════════════════
+-- PEN VIEW FUNCTIONS
+-- ════════════════════════════════════════
 local function PenView_CreateUI()
     for _, v in ipairs(LocalPlayer.PlayerGui:GetChildren()) do
         if v.Name == "PenViewport" then v:Destroy() end
     end
-    
     local sg = Instance.new("ScreenGui")
-    sg.ResetOnSpawn = false
-    sg.IgnoreGuiInset = true
-    sg.DisplayOrder = -100
-    sg.Name = "PenViewport"
-    sg.Parent = LocalPlayer.PlayerGui
-    
+    sg.ResetOnSpawn = false; sg.IgnoreGuiInset = true; sg.DisplayOrder = -100
+    sg.Name = "PenViewport"; sg.Parent = LocalPlayer.PlayerGui
     local vp = Instance.new("ViewportFrame", sg)
-    vp.Size = UDim2.new(1, 0, 1, 0)
-    vp.BackgroundTransparency = 1
-    vp.ImageTransparency = 0.25
-    vp.ZIndex = -100
-    
-    local cam = Instance.new("Camera")
-    vp.CurrentCamera = cam
+    vp.Size = UDim2.new(1,0,1,0); vp.BackgroundTransparency = 1
+    vp.ImageTransparency = 0.25; vp.ZIndex = -100
+    local cam = Instance.new("Camera"); vp.CurrentCamera = cam
     cam.CameraType = Enum.CameraType.Scriptable
-    
     return {viewport = vp, vpcam = cam}
 end
 
 local function PenView_GetPenetration()
     local vehicles = Services.Workspace:FindFirstChild("Vehicles")
     if not vehicles then return 200 end
-    
     local chassis = vehicles:FindFirstChild("Chassis" .. LocalPlayer.Name)
     if not chassis then return 200 end
-    
     local gunFolder = chassis:FindFirstChild("Gun")
     if not gunFolder then return 200 end
-    
     for _, gunWeapon in ipairs(gunFolder:GetChildren()) do
         local config = gunWeapon:FindFirstChild("Config")
         if config then
@@ -442,7 +326,6 @@ local function PenView_GetPenetration()
             end
         end
     end
-    
     return 200
 end
 
@@ -460,7 +343,6 @@ local function PenView_GetArmorThickness(hitPart, hitPos, direction, hitNormal)
     local params = RaycastParams.new()
     params.FilterType = Enum.RaycastFilterType.Whitelist
     params.FilterDescendantsInstances = {hitPart}
-    
     local result = Services.Workspace:Raycast(hitPos + direction * 4, -direction * 50, params)
     if result and result.Instance == hitPart then
         local thickness = (hitPos - result.Position).Magnitude / 0.00357
@@ -474,128 +356,67 @@ local function PenView_GetArmorThickness(hitPart, hitPos, direction, hitNormal)
 end
 
 local function PenView_UpdateViewport(ui, part, thickness, pen)
-    if not ui or not ui.viewport or not ui.viewport.Parent then
-        return
-    end
-    
+    if not ui or not ui.viewport or not ui.viewport.Parent then return end
     if not part or not part.Parent then
         if ui.viewport then ui.viewport:ClearAllChildren() end
-        PenView.LastPart = nil
-        return
+        PenView.LastPart = nil; return
     end
-    
     local mesh = ui.viewport:FindFirstChildWhichIsA("BasePart")
-    
     if PenView.LastPart ~= part or not mesh then
-        PenView.LastPart = part
-        ui.viewport:ClearAllChildren()
-        
+        PenView.LastPart = part; ui.viewport:ClearAllChildren()
         local clone = part:Clone()
-        clone.Transparency = 0.3
-        clone.CanCollide = false
-        clone.Anchored = true
-        clone.Parent = ui.viewport
-        
-        mesh = clone
+        clone.Transparency = 0.3; clone.CanCollide = false; clone.Anchored = true
+        clone.Parent = ui.viewport; mesh = clone
     end
-    
     if not mesh then return end
-    
-    local ok = pcall(function()
-        mesh.CFrame = part.CFrame
-    end)
-    if not ok then
-        ui.viewport:ClearAllChildren()
-        PenView.LastPart = nil
-        return
-    end
-    
+    local ok = pcall(function() mesh.CFrame = part.CFrame end)
+    if not ok then ui.viewport:ClearAllChildren(); PenView.LastPart = nil; return end
     ui.vpcam.CFrame = Services.Workspace.CurrentCamera.CFrame
     ui.vpcam.FieldOfView = Services.Workspace.CurrentCamera.FieldOfView
-    
     local color
-    if thickness <= 0.1 or pen <= 0 then
-        color = Color3.fromRGB(90, 90, 90)
-    elseif thickness <= pen * 0.5 then
-        color = Color3.fromRGB(0, 255, 0)
+    if thickness <= 0.1 or pen <= 0 then color = Color3.fromRGB(90,90,90)
+    elseif thickness <= pen * 0.5 then color = Color3.fromRGB(0,255,0)
     elseif thickness < pen then
-        local t = (thickness - pen * 0.5) / (pen * 0.5)
-        color = Color3.new(1, 1 - t, 0)
-    else
-        color = Color3.fromRGB(255, 0, 0)
-    end
+        local t = (thickness - pen*0.5) / (pen*0.5)
+        color = Color3.new(1, 1-t, 0)
+    else color = Color3.fromRGB(255,0,0) end
     mesh.Color = color
 end
 
 local function PenView_StartHeartbeat(ui)
     if PenView.HeartbeatConnection then PenView.HeartbeatConnection:Disconnect() end
     PenView.LastPart = nil
-    
     PenView.HeartbeatConnection = Services.RunService.Heartbeat:Connect(function()
         if not ui or not ui.viewport or not ui.viewport.Parent then
-            if PenView.HeartbeatConnection then 
-                PenView.HeartbeatConnection:Disconnect()
-                PenView.HeartbeatConnection = nil
-            end
-            return
+            if PenView.HeartbeatConnection then PenView.HeartbeatConnection:Disconnect(); PenView.HeartbeatConnection = nil end; return
         end
-        
         local vehicles = Services.Workspace:FindFirstChild("Vehicles")
-        if not vehicles or not ui then
-            if ui and ui.viewport then ui.viewport:ClearAllChildren() end
-            return
-        end
-        
+        if not vehicles then if ui.viewport then ui.viewport:ClearAllChildren() end; return end
         local chassis = vehicles:FindFirstChild("Chassis" .. LocalPlayer.Name)
-        if not chassis then
-            if ui.viewport then ui.viewport:ClearAllChildren() end
-            PenView.LastPart = nil
-            PenView.LastChassisName = nil
-            return
-        end
-        
-        if chassis.Name ~= PenView.LastChassisName then
-            PenView.LastChassisName = chassis.Name
-            PenView.LastPart = nil
-        end
-        
+        if not chassis then if ui.viewport then ui.viewport:ClearAllChildren() end; PenView.LastPart = nil; PenView.LastChassisName = nil; return end
+        if chassis.Name ~= PenView.LastChassisName then PenView.LastChassisName = chassis.Name; PenView.LastPart = nil end
         local gunBrick = PenView_FindGunBrick(chassis)
         if not gunBrick then return end
-        
         local pen = PenView_GetPenetration()
         local origin = gunBrick.Position + gunBrick.CFrame.LookVector * 2
         local dir = gunBrick.CFrame.LookVector
-        
         local rayParams = RaycastParams.new()
         rayParams.FilterType = Enum.RaycastFilterType.Blacklist
         rayParams.FilterDescendantsInstances = {chassis, Services.Workspace:FindFirstChild("Projectiles")}
         rayParams.IgnoreWater = true
-        rayParams.CollisionGroup = "Default"
-        
         local result = Services.Workspace:Raycast(origin, dir * 3000, rayParams)
-        
         if result and result.Instance and table.find(PenView.ArmorTypes, result.Instance.Name) and result.Instance.CanCollide then
-            if not ui.viewport:FindFirstChildWhichIsA("BasePart") then
-                PenView.LastPart = nil
-            end
-            
             local thickness = PenView_GetArmorThickness(result.Instance, result.Position, dir, result.Normal)
             PenView_UpdateViewport(ui, result.Instance, thickness, pen)
         else
-            if ui.viewport then ui.viewport:ClearAllChildren() end
-            PenView.LastPart = nil
+            if ui.viewport then ui.viewport:ClearAllChildren() end; PenView.LastPart = nil
         end
     end)
 end
 
 local function PenView_Reset()
-    if PenView.HeartbeatConnection then
-        PenView.HeartbeatConnection:Disconnect()
-        PenView.HeartbeatConnection = nil
-    end
-    PenView.LastPart = nil
-    PenView.LastChassisName = nil
-
+    if PenView.HeartbeatConnection then PenView.HeartbeatConnection:Disconnect(); PenView.HeartbeatConnection = nil end
+    PenView.LastPart = nil; PenView.LastChassisName = nil
     PenView.UI = PenView_CreateUI()
     PenView_StartHeartbeat(PenView.UI)
 end
@@ -605,163 +426,69 @@ local function PenView_Monitor()
         while Other.PenView do
             local vehicles = Services.Workspace:FindFirstChild("Vehicles")
             local chassis = vehicles and vehicles:FindFirstChild("Chassis" .. LocalPlayer.Name)
-            
-            if chassis and not PenView.HeartbeatConnection then
-                PenView_Reset()
+            if chassis and not PenView.HeartbeatConnection then PenView_Reset()
             elseif not chassis and PenView.HeartbeatConnection then
-                if PenView.UI and PenView.UI.viewport then
-                    PenView.UI.viewport:ClearAllChildren()
-                end
+                if PenView.UI and PenView.UI.viewport then PenView.UI.viewport:ClearAllChildren() end
             end
             task.wait(0.5)
         end
     end)
 end
 
-local PenView_VehiclesAddedConn
-local PenView_VehiclesRemovedConn
+local PenView_VehiclesAddedConn, PenView_VehiclesRemovedConn
 
 local function PenView_Start()
-    PenView_Reset()
-    PenView_Monitor()
-    
+    PenView_Reset(); PenView_Monitor()
     local vehiclesFolder = Services.Workspace:FindFirstChild("Vehicles")
     if vehiclesFolder then
         PenView_VehiclesAddedConn = vehiclesFolder.ChildAdded:Connect(function(child)
-            if child.Name == "Vehicles" then
-                task.wait(0.8)
-                PenView_Reset()
-            end
+            if child.Name == "Vehicles" then task.wait(0.8); PenView_Reset() end
         end)
-        
         PenView_VehiclesRemovedConn = vehiclesFolder.ChildRemoved:Connect(function(child)
             if child.Name == "Vehicles" then
-                if PenView.UI and PenView.UI.viewport then
-                    PenView.UI.viewport:ClearAllChildren()
-                end
+                if PenView.UI and PenView.UI.viewport then PenView.UI.viewport:ClearAllChildren() end
             end
         end)
     end
 end
 
 local function PenView_Stop()
-    if PenView.HeartbeatConnection then
-        PenView.HeartbeatConnection:Disconnect()
-        PenView.HeartbeatConnection = nil
-    end
-    
-    if PenView_VehiclesAddedConn then
-        PenView_VehiclesAddedConn:Disconnect()
-        PenView_VehiclesAddedConn = nil
-    end
-    
-    if PenView_VehiclesRemovedConn then
-        PenView_VehiclesRemovedConn:Disconnect()
-        PenView_VehiclesRemovedConn = nil
-    end
-    
-    local pg = LocalPlayer.PlayerGui
-    local vp = pg:FindFirstChild("PenViewport")
+    if PenView.HeartbeatConnection then PenView.HeartbeatConnection:Disconnect(); PenView.HeartbeatConnection = nil end
+    if PenView_VehiclesAddedConn then PenView_VehiclesAddedConn:Disconnect(); PenView_VehiclesAddedConn = nil end
+    if PenView_VehiclesRemovedConn then PenView_VehiclesRemovedConn:Disconnect(); PenView_VehiclesRemovedConn = nil end
+    local vp = LocalPlayer.PlayerGui:FindFirstChild("PenViewport")
     if vp then vp:Destroy() end
-    
-    PenView.UI = nil
-    PenView.LastPart = nil
-    PenView.LastChassisName = nil
+    PenView.UI = nil; PenView.LastPart = nil; PenView.LastChassisName = nil
 end
 
+-- ════════════════════════════════════════
+-- ESP
+-- ════════════════════════════════════════
 local ESPFolder = Instance.new("Folder")
-ESPFolder.Name = "PerfData"
-ESPFolder.Parent = Services.CoreGui
+ESPFolder.Name = "PerfData"; ESPFolder.Parent = Services.CoreGui
 
 local MarkScreenGui = Instance.new("ScreenGui")
-MarkScreenGui.Name = "MarkDisplay"
-MarkScreenGui.ResetOnSpawn = false
+MarkScreenGui.Name = "MarkDisplay"; MarkScreenGui.ResetOnSpawn = false
 MarkScreenGui.Parent = Services.CoreGui
-
-local function parseKeyCode(str)
-    if not str or str == "" then return nil end
-    local name = str:match("KeyCode%.(.+)") or str
-    for _, item in ipairs(Enum.KeyCode:GetEnumItems()) do
-        if item.Name == name then return item end
-    end
-    return nil
-end
-
-local bv = Instance.new("BodyVelocity")
-bv.Name = "TankFlyVelocity"
-bv.MaxForce = Vector3.new(500000, 500000, 500000)
-
-local bg = Instance.new("BodyGyro")
-bg.Name = "TankFlyGyro"
-bg.MaxTorque = Vector3.new(500000, 500000, 500000)
-bg.D = 120
-
-local function findFlyPart(model)
-    local candidates = {}
-    for _, part in ipairs(model:GetDescendants()) do
-        if part:IsA("BasePart") and not part:IsA("VehicleSeat") then
-            table.insert(candidates, part)
-        end
-    end
-    for _, part in ipairs(candidates) do
-        if part.Name:lower():find("hull") then return part end
-    end
-    if #candidates > 0 then
-        table.sort(candidates, function(a, b)
-            return (a.Size.X*a.Size.Y*a.Size.Z) > (b.Size.X*b.Size.Y*b.Size.Z)
-        end)
-        return candidates[1]
-    end
-    return nil
-end
-
-local function initFlyRoot()
-    local vehicles = workspace:FindFirstChild("Vehicles")
-    if not vehicles then return end
-    local tankModel = vehicles:FindFirstChild("Chassis" .. LocalPlayer.Name)
-    if not tankModel then return end
-    Fly.Root = findFlyPart(tankModel)
-end
-
-local function startFly()
-    if Fly.Active then return end
-    initFlyRoot()
-    Fly.Active = true
-    if Fly.Root then
-        bv.Parent = Fly.Root
-        bg.Parent = Fly.Root
-    end
-end
-
-local function stopFly()
-    if not Fly.Active then return end
-    Fly.Active = false
-    bv.Parent = nil
-    bg.Parent = nil
-end
 
 local function UpdateESPInstance(espData)
     if not espData.Instance then return end
-    
     espData.Instance.FillColor = ESP.EnableFill and espData.Color or Color3.new(0,0,0)
     espData.Instance.FillTransparency = ESP.EnableFill and ESP.FillTransparency or 1
     espData.Instance.OutlineColor = ESP.EnableOutline and espData.Color or Color3.new(0,0,0)
     espData.Instance.OutlineTransparency = ESP.EnableOutline and ESP.OutlineTransparency or 1
     espData.Instance.Enabled = ESP.Enabled
-
     if espData.DistanceBillboard then
         espData.DistanceBillboard.Enabled = ESP.Enabled and ESP.ShowDistance and espData.IsHull
     end
 end
 
 local function UpdateAllESPInstances()
-    for _, espData in pairs(ESP.Instances) do
-        UpdateESPInstance(espData)
-    end
+    for _, espData in pairs(ESP.Instances) do UpdateESPInstance(espData) end
 end
 
 local function ClearAllESP()
-    for obj, espData in pairs(ESP.Instances) do
+    for _, espData in pairs(ESP.Instances) do
         if espData.Instance then espData.Instance:Destroy() end
         if espData.DistanceBillboard then espData.DistanceBillboard:Destroy() end
         if espData.MarkBillboard then espData.MarkBillboard:Destroy() end
@@ -769,170 +496,59 @@ local function ClearAllESP()
     ESP.Instances = {}
 end
 
-local function ScanVehicles()
-    local vehiclesFolder = workspace:FindFirstChild("Vehicles")
-    if not vehiclesFolder then return end
-    for _, chassis in ipairs(vehiclesFolder:GetChildren()) do
-        ProcessChassis(chassis)
-    end
-end
-
--- Graphics Degradation implementation
-local function DegradeInstance(v)
-    if v:IsA("BasePart") then
-        if not Graphics.OriginalMaterials[v] then
-            Graphics.OriginalMaterials[v] = v.Material
-        end
-        v.Material = Enum.Material.SmoothPlastic
-    elseif v:IsA("Decal") or v:IsA("Texture") then
-        if not Graphics.OriginalDecals[v] then
-            Graphics.OriginalDecals[v] = v.Transparency
-        end
-        v.Transparency = 1
-    elseif v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Smoke") or v:IsA("Fire") or v:IsA("Sparkles") then
-        if not Graphics.OriginalDecals[v] then
-            Graphics.OriginalDecals[v] = v.Enabled
-        end
-        v.Enabled = false
-    end
-end
-
-local function SetGraphicsDegradation(Value)
-    Graphics.Degradation = Value
-    if Value then
-        Graphics.OriginalShadows = Services.Lighting.GlobalShadows
-        Services.Lighting.GlobalShadows = false
-        
-        for _, v in ipairs(Services.Workspace:GetDescendants()) do
-            DegradeInstance(v)
-        end
-        
-        if not Graphics.AddedConnection then
-            Graphics.AddedConnection = Services.Workspace.DescendantAdded:Connect(function(v)
-                DegradeInstance(v)
-            end)
-        end
-    else
-        if Graphics.AddedConnection then
-            Graphics.AddedConnection:Disconnect()
-            Graphics.AddedConnection = nil
-        end
-        
-        Services.Lighting.GlobalShadows = Graphics.OriginalShadows
-        
-        for part, mat in pairs(Graphics.OriginalMaterials) do
-            if part and part.Parent then
-                part.Material = mat
-            end
-        end
-        table.clear(Graphics.OriginalMaterials)
-        
-        for obj, val in pairs(Graphics.OriginalDecals) do
-            if obj and obj.Parent then
-                if obj:IsA("Decal") or obj:IsA("Texture") then
-                    obj.Transparency = val
-                else
-                    obj.Enabled = val
-                end
-            end
-        end
-        table.clear(Graphics.OriginalDecals)
-    end
-end
-
 local function GetModelPosition(model)
-    if model:IsA("BasePart") then
-        return model.Position
-    end
-    if model.PrimaryPart then
-        return model.PrimaryPart.Position
-    end
-    local cf, size = model:GetBoundingBox()
-    return cf.Position
+    if model:IsA("BasePart") then return model.Position end
+    if model.PrimaryPart then return model.PrimaryPart.Position end
+    local cf, _ = model:GetBoundingBox(); return cf.Position
 end
 
 local function CreateESP(targetObject, color, isHull)
     if ESP.Instances[targetObject] then return ESP.Instances[targetObject] end
-    
     local highlight = Instance.new("Highlight")
     highlight.FillColor = ESP.EnableFill and color or Color3.new(0,0,0)
     highlight.FillTransparency = ESP.EnableFill and ESP.FillTransparency or 1
     highlight.OutlineColor = ESP.EnableOutline and color or Color3.new(0,0,0)
     highlight.OutlineTransparency = ESP.EnableOutline and ESP.OutlineTransparency or 1
     highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-    highlight.Adornee = targetObject
-    highlight.Parent = ESPFolder
-    
+    highlight.Adornee = targetObject; highlight.Parent = ESPFolder
     local distanceBillboard, distanceLabel, markBillboard, turretAdornee
-    
     if isHull then
         distanceBillboard = Instance.new("BillboardGui")
-        distanceBillboard.Name = "DistanceDisplay"
-        distanceBillboard.Adornee = targetObject
-        distanceBillboard.Size = UDim2.new(0,200,0,50)
-        distanceBillboard.StudsOffset = Vector3.new(0,-3,0)
+        distanceBillboard.Name = "DistanceDisplay"; distanceBillboard.Adornee = targetObject
+        distanceBillboard.Size = UDim2.new(0,200,0,50); distanceBillboard.StudsOffset = Vector3.new(0,-3,0)
         distanceBillboard.AlwaysOnTop = true
         distanceBillboard.Enabled = ESP.Enabled and ESP.ShowDistance
         distanceBillboard.Parent = ESPFolder
-        
         distanceLabel = Instance.new("TextLabel")
-        distanceLabel.Name = "DistanceText"
-        distanceLabel.BackgroundTransparency = 1
-        distanceLabel.Size = UDim2.new(1,0,1,0)
-        distanceLabel.Font = Enum.Font.SourceSansBold
-        distanceLabel.TextSize = 18
-        distanceLabel.TextColor3 = color
-        distanceLabel.TextStrokeTransparency = 0
-        distanceLabel.TextStrokeColor3 = Color3.new(0,0,0)
-        distanceLabel.Text = "0 m"
+        distanceLabel.BackgroundTransparency = 1; distanceLabel.Size = UDim2.new(1,0,1,0)
+        distanceLabel.Font = Enum.Font.SourceSansBold; distanceLabel.TextSize = 18
+        distanceLabel.TextColor3 = color; distanceLabel.TextStrokeTransparency = 0
+        distanceLabel.TextStrokeColor3 = Color3.new(0,0,0); distanceLabel.Text = "0 m"
         distanceLabel.Parent = distanceBillboard
-        
         local chassis = targetObject.Parent and targetObject.Parent.Parent
         if chassis then
             local turret = chassis:FindFirstChild("Turret")
-            if turret then
-                for _, obj in ipairs(turret:GetChildren()) do
-                    if obj:IsA("Model") then turretAdornee = obj break end
-                end
-            end
+            if turret then for _, obj in ipairs(turret:GetChildren()) do if obj:IsA("Model") then turretAdornee = obj; break end end end
         end
-        
         markBillboard = Instance.new("Frame")
-        markBillboard.Name = "MarkDisplay"
-        markBillboard.Size = UDim2.new(0, Mark.Size, 0, Mark.Size)
-        markBillboard.Position = UDim2.new(0,0,0,0)
-        markBillboard.BackgroundTransparency = 1
-        markBillboard.Visible = false
-        markBillboard.Parent = MarkScreenGui
-        
+        markBillboard.Name = "MarkDisplay"; markBillboard.Size = UDim2.new(0, Mark.Size, 0, Mark.Size)
+        markBillboard.Position = UDim2.new(0,0,0,0); markBillboard.BackgroundTransparency = 1
+        markBillboard.Visible = false; markBillboard.Parent = MarkScreenGui
         local img = Instance.new("ImageLabel")
-        img.Name = "MarkImage"
-        img.BackgroundTransparency = 1
-        img.Size = UDim2.new(1,0,1,0)
-        img.Image = "rbxassetid://" .. tostring(Mark.DecalID)
-        img.Parent = markBillboard
+        img.BackgroundTransparency = 1; img.Size = UDim2.new(1,0,1,0)
+        img.Image = "rbxassetid://" .. tostring(Mark.DecalID); img.Parent = markBillboard
     end
-    
     ESP.Instances[targetObject] = {
-        Instance = highlight,
-        DistanceLabel = distanceLabel,
-        DistanceBillboard = distanceBillboard,
-        MarkBillboard = markBillboard,
-        TurretAdornee = turretAdornee,
-        Target = targetObject,
-        Color = color,
-        IsHull = isHull,
+        Instance = highlight, DistanceLabel = distanceLabel, DistanceBillboard = distanceBillboard,
+        MarkBillboard = markBillboard, TurretAdornee = turretAdornee,
+        Target = targetObject, Color = color, IsHull = isHull,
     }
     return ESP.Instances[targetObject]
 end
 
 local function UpdateMarkPositions()
-    if not Camera then return end
-    if not Mark.Enabled then return end
-    
-    local camPos = Camera.CFrame.Position
-    local vpSize = Camera.ViewportSize
-    
+    if not Camera then return end; if not Mark.Enabled then return end
+    local camPos = Camera.CFrame.Position; local vpSize = Camera.ViewportSize
     for _, espData in pairs(ESP.Instances) do
         if espData.MarkBillboard and espData.IsHull then
             local target = espData.TurretAdornee or espData.Target
@@ -945,16 +561,10 @@ local function UpdateMarkPositions()
                         local x = math.clamp(sp.X - Mark.Size/2, 0, vpSize.X - Mark.Size)
                         local y = math.clamp(sp.Y - Mark.OffsetY - Mark.Size/2, 0, vpSize.Y - Mark.Size)
                         espData.MarkBillboard.Position = UDim2.new(0, x, 0, y)
-                        espData.MarkBillboard.Visible  = true
-                    else
-                        espData.MarkBillboard.Visible = false
-                    end
-                else
-                    espData.MarkBillboard.Visible = false
-                end
-            else
-                espData.MarkBillboard.Visible = false
-            end
+                        espData.MarkBillboard.Visible = true
+                    else espData.MarkBillboard.Visible = false end
+                else espData.MarkBillboard.Visible = false end
+            else espData.MarkBillboard.Visible = false end
         end
     end
 end
@@ -965,10 +575,7 @@ local function UpdateDistanceLabels()
     for _, espData in pairs(ESP.Instances) do
         if espData.IsHull and espData.DistanceLabel and espData.Target and espData.Target.Parent then
             local ok, pos = pcall(GetModelPosition, espData.Target)
-            if ok then
-                local dist = math.floor((pos - camPos).Magnitude / 3)
-                espData.DistanceLabel.Text = dist .. " m"
-            end
+            if ok then espData.DistanceLabel.Text = math.floor((pos-camPos).Magnitude/3) .. " m" end
         end
     end
 end
@@ -988,49 +595,116 @@ end
 
 function ProcessChassis(chassis)
     if not chassis:IsA("Model") or not chassis.Name:match("^Chassis") then return end
-    
     local playerName = chassis.Name:match("^Chassis(.+)$")
     if not playerName or playerName == "" then return end
-    
     if playerName == LocalPlayer.Name then return end
-    
     if ESP.TeamCheck then
         local targetPlayer = Services.Players:FindFirstChild(playerName)
         if not targetPlayer then return end
-        
-        local localTeam  = LocalPlayer.Team
-        local targetTeam = targetPlayer.Team
+        local localTeam = LocalPlayer.Team; local targetTeam = targetPlayer.Team
         if localTeam and targetTeam and localTeam == targetTeam then return end
     end
-    
     local hull = chassis:FindFirstChild("Hull")
-    if hull then
-        for _, obj in ipairs(hull:GetChildren()) do
-            if obj:IsA("Model") then CreateESP(obj, ESP.HullColor, true) break end
-        end
-    end
+    if hull then for _, obj in ipairs(hull:GetChildren()) do if obj:IsA("Model") then CreateESP(obj, ESP.HullColor, true); break end end end
     local turret = chassis:FindFirstChild("Turret")
-    if turret then
-        for _, obj in ipairs(turret:GetChildren()) do
-            if obj:IsA("Model") then CreateESP(obj, ESP.TurretColor, false) break end
-        end
+    if turret then for _, obj in ipairs(turret:GetChildren()) do if obj:IsA("Model") then CreateESP(obj, ESP.TurretColor, false); break end end end
+end
+
+local function ScanVehicles()
+    local vehiclesFolder = workspace:FindFirstChild("Vehicles")
+    if not vehiclesFolder then return end
+    for _, chassis in ipairs(vehiclesFolder:GetChildren()) do ProcessChassis(chassis) end
+end
+
+-- ════════════════════════════════════════
+-- GRAPHICS
+-- ════════════════════════════════════════
+local function DegradeInstance(v)
+    if v:IsA("BasePart") then
+        if not Graphics.OriginalMaterials[v] then Graphics.OriginalMaterials[v] = v.Material end
+        v.Material = Enum.Material.SmoothPlastic
+    elseif v:IsA("Decal") or v:IsA("Texture") then
+        if not Graphics.OriginalDecals[v] then Graphics.OriginalDecals[v] = v.Transparency end
+        v.Transparency = 1
+    elseif v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Smoke") or v:IsA("Fire") or v:IsA("Sparkles") then
+        if not Graphics.OriginalDecals[v] then Graphics.OriginalDecals[v] = v.Enabled end
+        v.Enabled = false
     end
 end
 
+local function SetGraphicsDegradation(Value)
+    Graphics.Degradation = Value
+    if Value then
+        Graphics.OriginalShadows = Services.Lighting.GlobalShadows
+        Services.Lighting.GlobalShadows = false
+        for _, v in ipairs(Services.Workspace:GetDescendants()) do DegradeInstance(v) end
+        if not Graphics.AddedConnection then
+            Graphics.AddedConnection = Services.Workspace.DescendantAdded:Connect(function(v) DegradeInstance(v) end)
+        end
+    else
+        if Graphics.AddedConnection then Graphics.AddedConnection:Disconnect(); Graphics.AddedConnection = nil end
+        Services.Lighting.GlobalShadows = Graphics.OriginalShadows
+        for part, mat in pairs(Graphics.OriginalMaterials) do if part and part.Parent then part.Material = mat end end
+        table.clear(Graphics.OriginalMaterials)
+        for obj, val in pairs(Graphics.OriginalDecals) do
+            if obj and obj.Parent then
+                if obj:IsA("Decal") or obj:IsA("Texture") then obj.Transparency = val
+                else obj.Enabled = val end
+            end
+        end
+        table.clear(Graphics.OriginalDecals)
+    end
+end
+
+-- ════════════════════════════════════════
+-- FLY
+-- ════════════════════════════════════════
+local bv = Instance.new("BodyVelocity")
+bv.Name = "TankFlyVelocity"; bv.MaxForce = Vector3.new(500000,500000,500000)
+local bg = Instance.new("BodyGyro")
+bg.Name = "TankFlyGyro"; bg.MaxTorque = Vector3.new(500000,500000,500000); bg.D = 120
+
+local function findFlyPart(model)
+    local candidates = {}
+    for _, part in ipairs(model:GetDescendants()) do
+        if part:IsA("BasePart") and not part:IsA("VehicleSeat") then table.insert(candidates, part) end
+    end
+    for _, part in ipairs(candidates) do if part.Name:lower():find("hull") then return part end end
+    if #candidates > 0 then
+        table.sort(candidates, function(a, b) return (a.Size.X*a.Size.Y*a.Size.Z) > (b.Size.X*b.Size.Y*b.Size.Z) end)
+        return candidates[1]
+    end
+    return nil
+end
+
+local function initFlyRoot()
+    local vehicles = workspace:FindFirstChild("Vehicles"); if not vehicles then return end
+    local tankModel = vehicles:FindFirstChild("Chassis" .. LocalPlayer.Name); if not tankModel then return end
+    Fly.Root = findFlyPart(tankModel)
+end
+
+local function startFly()
+    if Fly.Active then return end; initFlyRoot(); Fly.Active = true
+    if Fly.Root then bv.Parent = Fly.Root; bg.Parent = Fly.Root end
+end
+
+local function stopFly()
+    if not Fly.Active then return end; Fly.Active = false; bv.Parent = nil; bg.Parent = nil
+    MobileFly.Touch = nil; MobileFly.Delta = Vector2.new(0,0)
+end
+
+-- ════════════════════════════════════════
+-- WEAPON HACKS
+-- ════════════════════════════════════════
 local function GetOwnChassis()
-    local vehicles = Services.Workspace:FindFirstChild("Vehicles")
-    if not vehicles then return nil end
+    local vehicles = Services.Workspace:FindFirstChild("Vehicles"); if not vehicles then return nil end
     return vehicles:FindFirstChild("Chassis" .. LocalPlayer.Name)
 end
 
 local function ForceValue(obj, hack)
-    if not hack.patched[obj] then
-        hack.patched[obj] = obj.Value
-    end
+    if not hack.patched[obj] then hack.patched[obj] = obj.Value end
     if obj:GetAttribute("Orig") ~= nil then
-        if not hack.origPatched[obj] then
-            hack.origPatched[obj] = obj:GetAttribute("Orig")
-        end
+        if not hack.origPatched[obj] then hack.origPatched[obj] = obj:GetAttribute("Orig") end
         obj:SetAttribute("Orig", hack.target)
     end
     obj.Value = hack.target
@@ -1043,9 +717,7 @@ local function WatchWeaponObject(obj)
                 if obj.Name == name then
                     ForceValue(obj, hack)
                     WeaponConnections[obj] = obj:GetPropertyChangedSignal("Value"):Connect(function()
-                        if obj.Value ~= hack.target then
-                            ForceValue(obj, hack)
-                        end
+                        if obj.Value ~= hack.target then ForceValue(obj, hack) end
                     end)
                     return
                 end
@@ -1060,558 +732,741 @@ local function ClearWeaponConnections()
 end
 
 local function SetupWeaponChassis(chassis)
-    if ChassisDescendantConn then
-        ChassisDescendantConn:Disconnect()
-        ChassisDescendantConn = nil
-    end
+    if ChassisDescendantConn then ChassisDescendantConn:Disconnect(); ChassisDescendantConn = nil end
     ClearWeaponConnections()
     for _, obj in ipairs(chassis:GetDescendants()) do
-        if obj:IsA("IntValue") or obj:IsA("NumberValue") then
-            WatchWeaponObject(obj)
-        end
+        if obj:IsA("IntValue") or obj:IsA("NumberValue") then WatchWeaponObject(obj) end
     end
     ChassisDescendantConn = chassis.DescendantAdded:Connect(function(obj)
-        if obj:IsA("IntValue") or obj:IsA("NumberValue") then
-            WatchWeaponObject(obj)
-        end
+        if obj:IsA("IntValue") or obj:IsA("NumberValue") then WatchWeaponObject(obj) end
     end)
 end
 
 local function InitWeapon()
-    local chassis = GetOwnChassis()
-    if chassis then SetupWeaponChassis(chassis) end
+    local chassis = GetOwnChassis(); if chassis then SetupWeaponChassis(chassis) end
 end
 
--- GUI Builder
-local Window
-local function BuildGUI()
-    local t = Localization[Localization.CurrentLanguage]
-    
-    Window = Rayfield:CreateWindow({
-        Name = t.WindowTitle,
-        LoadingTitle = t.LoadingTitle,
-        LoadingSubtitle = t.LoadingSubtitle,
-        ConfigurationSaving = { Enabled = false }, -- disabled Rayfield's config, using our manual JSON saving
-        Discord = false,
-        KeySystem = false,
-    })
-    
-    Rayfield:Notify({
-        Title = t.LoadedTitle,
-        Content = t.LoadedContent,
-        Duration = 5,
-        Image = 4483362458,
-    })
-    
-    local MainTab = Window:CreateTab(t.MainTab, 4483362458)
-    local VisualTab = Window:CreateTab(t.VisualTab, 4483362458)
-    local WeaponTab = Window:CreateTab(t.WeaponTab, 4483362458)
-    local FlyTab = Window:CreateTab(t.FlyTab, 4483362458)
-    local SettingsTab = Window:CreateTab(t.SettingsTab, 4483362458)
-    
-    -- MainTab
-    MainTab:CreateSection(t.ControlSection)
-    MainTab:CreateLabel(t.HideShowLabel)
-    
-    MainTab:CreateToggle({
-        Name = t.EnableESP, CurrentValue = ESP.Enabled, Flag = "ESPToggle",
-        Callback = function(Value)
-            if IsRebuildingUI then return end
-            ESP.Enabled = Value
-            UpdateAllESPInstances()
-            SaveConfig()
-        end,
-    })
-    
-    MainTab:CreateToggle({
-        Name = t.TeamCheck, CurrentValue = ESP.TeamCheck, Flag = "TeamCheckFlag",
-        Callback = function(Value)
-            if IsRebuildingUI then return end
-            ESP.TeamCheck = Value
-            task.defer(function()
-                ClearAllESP()
-                ScanVehicles()
-            end)
-            SaveConfig()
-        end,
-    })
-    
-    MainTab:CreateToggle({
-        Name = t.ShowDistance, CurrentValue = ESP.ShowDistance, Flag = "ShowDistanceFlag",
-        Callback = function(Value)
-            if IsRebuildingUI then return end
-            ESP.ShowDistance = Value
-            UpdateAllESPInstances()
-            SaveConfig()
-        end,
-    })
-    
-    MainTab:CreateSection(t.MarkSettingsSection)
-    
-    MainTab:CreateToggle({
-        Name = t.EnableMark, CurrentValue = Mark.Enabled, Flag = "EnableMarkFlag",
-        Callback = function(Value)
-            if IsRebuildingUI then return end
-            Mark.Enabled = Value
-            for _, espData in pairs(ESP.Instances) do
-                if espData.MarkBillboard and espData.IsHull then
-                    espData.MarkBillboard.Visible = false
-                    espData.MarkBillboard.Position = UDim2.new(0, 0, 0, 0)
-                end
-            end
-            SaveConfig()
-        end,
-    })
-    
-    MainTab:CreateLabel(t.DistanceToShowMark)
-    MainTab:CreateSlider({
-        Name = t.MarkDistance, Range = {0,5000}, Increment = 50,
-        Suffix = " studs", CurrentValue = Mark.Distance, Flag = "MarkDistanceFlag",
-        Callback = function(Value)
-            if IsRebuildingUI then return end
-            Mark.Distance = Value
-            SaveConfig()
-        end,
-    })
-    
-    MainTab:CreateLabel(t.MarkAppearance)
-    MainTab:CreateInput({
-        Name = t.MarkDecalID, PlaceholderText = "11552476728",
-        RemoveTextAfterFocusLost = false, CurrentValue = Mark.DecalID, Flag = "MarkDecalIDFlag",
-        Callback = function(Value)
-            if IsRebuildingUI then return end
-            local id = tonumber(Value)
-            if id and id > 0 then
-                Mark.DecalID = tostring(id)
-                local textureId = "rbxassetid://" .. Mark.DecalID
-                for _, espData in pairs(ESP.Instances) do
-                    if espData.MarkBillboard then
-                        local img = espData.MarkBillboard:FindFirstChild("MarkImage")
-                        if img then img.Image = textureId end
-                    end
-                end
-                Rayfield:Notify({ Title = t.MarkUpdatedTitle, Content = t.MarkUpdatedContent..Mark.DecalID, Duration = 2, Image = 4483362458 })
-                SaveConfig()
-            else
-                Rayfield:Notify({ Title = t.InvalidIDTitle, Content = t.InvalidIDContent, Duration = 3, Image = 4483362458 })
-            end
-        end,
-    })
-    
-    MainTab:CreateSlider({
-        Name = t.MarkOffsetY, Range = {0,200}, Increment = 5,
-        Suffix = " px", CurrentValue = Mark.OffsetY, Flag = "MarkOffsetYFlag",
-        Callback = function(Value)
-            if IsRebuildingUI then return end
-            Mark.OffsetY = Value
-            SaveConfig()
-        end,
-    })
-    
-    MainTab:CreateSlider({
-        Name = t.MarkSize, Range = {5,50}, Increment = 5,
-        Suffix = " px", CurrentValue = Mark.Size, Flag = "MarkSizeFlag",
-        Callback = function(Value)
-            if IsRebuildingUI then return end
-            Mark.Size = Value
-            for _, espData in pairs(ESP.Instances) do
-                if espData.MarkBillboard then
-                    espData.MarkBillboard.Size = UDim2.new(0, Value, 0, Value)
-                end
-            end
-            SaveConfig()
-        end,
-    })
-    
-    -- VisualTab
-    VisualTab:CreateSection(t.FogSection)
-    VisualTab:CreateToggle({
-        Name = t.RemoveFog, CurrentValue = Other.RemoveFog, Flag = "RemoveFogFlag",
-        Callback = function(Value)
-            if IsRebuildingUI then return end
-            Other.RemoveFog = Value
-            for _, child in ipairs(Services.Lighting:GetChildren()) do
-                if child:IsA("Atmosphere") then
-                    if Value then
-                        child.Density = 0
-                        child.Haze = 0
-                    end
-                end
-            end
-            SaveConfig()
-        end,
-    })
-    
-    VisualTab:CreateSection(t.PenViewSection)
-    VisualTab:CreateToggle({
-        Name = t.EnablePenView, CurrentValue = Other.PenView, Flag = "PenViewFlag",
-        Callback = function(Value)
-            if IsRebuildingUI then return end
-            Other.PenView = Value
-            if Value then
-                PenView_Start()
-            else
-                PenView_Stop()
-            end
-            SaveConfig()
-        end,
-    })
-    
-    VisualTab:CreateSection(t.ColorsSection)
-    VisualTab:CreateColorPicker({
-        Name = t.HullColor, Color = ESP.HullColor, Flag = "HullColorFlag",
-        Callback = function(Value)
-            if IsRebuildingUI then return end
-            ESP.HullColor = Value
-            SaveConfig()
-        end,
-    })
-    
-    VisualTab:CreateColorPicker({
-        Name = t.TurretColor, Color = ESP.TurretColor, Flag = "TurretColorFlag",
-        Callback = function(Value)
-            if IsRebuildingUI then return end
-            ESP.TurretColor = Value
-            SaveConfig()
-        end,
-    })
-    
-    VisualTab:CreateSection(t.HighlightSettingsSection)
-    VisualTab:CreateSlider({
-        Name = t.FillTransparency, Range = {0,1}, Increment = 0.01,
-        CurrentValue = ESP.FillTransparency, Flag = "FillTransparencyFlag",
-        Callback = function(Value)
-            if IsRebuildingUI then return end
-            ESP.FillTransparency = Value
-            UpdateAllESPInstances()
-            SaveConfig()
-        end,
-    })
-    
-    VisualTab:CreateSlider({
-        Name = t.OutlineTransparency, Range = {0,1}, Increment = 0.01,
-        CurrentValue = ESP.OutlineTransparency, Flag = "OutlineTransparencyFlag",
-        Callback = function(Value)
-            if IsRebuildingUI then return end
-            ESP.OutlineTransparency = Value
-            UpdateAllESPInstances()
-            SaveConfig()
-        end,
-    })
-    
-    VisualTab:CreateToggle({
-        Name = t.EnableFill, CurrentValue = ESP.EnableFill, Flag = "EnableFillFlag",
-        Callback = function(Value)
-            if IsRebuildingUI then return end
-            ESP.EnableFill = Value
-            UpdateAllESPInstances()
-            SaveConfig()
-        end,
-    })
-    
-    VisualTab:CreateToggle({
-        Name = t.EnableOutline, CurrentValue = ESP.EnableOutline, Flag = "EnableOutlineFlag",
-        Callback = function(Value)
-            if IsRebuildingUI then return end
-            ESP.EnableOutline = Value
-            UpdateAllESPInstances()
-            SaveConfig()
-        end,
-    })
-    
-    -- WeaponTab
-    WeaponTab:CreateSection(t.WeaponSection)
-    WeaponTab:CreateSection("Penetration")
-    WeaponTab:CreateToggle({
-        Name = t.PenetrationHack, CurrentValue = HACKS.Penetration.active, Flag = "HackPenetrationFlag",
-        Callback = function(Value)
-            if IsRebuildingUI then return end
-            HACKS.Penetration.active = Value
-            task.defer(InitWeapon)
-            SaveConfig()
-        end,
-    })
-    WeaponTab:CreateSlider({
-        Name = t.PenetrationVal, Range = {0, 9999}, Increment = 1,
-        CurrentValue = HACKS.Penetration.target, Flag = "PenetrationValueFlag",
-        Callback = function(Value)
-            if IsRebuildingUI then return end
-            HACKS.Penetration.target = Value
-            if HACKS.Penetration.active then task.defer(InitWeapon) end
-            SaveConfig()
-        end,
-    })
-    
-    WeaponTab:CreateSection("Ricochet Angle")
-    WeaponTab:CreateToggle({
-        Name = t.RicochetHack, CurrentValue = HACKS.Ricochet.active, Flag = "HackRicochetFlag",
-        Callback = function(Value)
-            if IsRebuildingUI then return end
-            HACKS.Ricochet.active = Value
-            task.defer(InitWeapon)
-            SaveConfig()
-        end,
-    })
-    WeaponTab:CreateSlider({
-        Name = t.RicochetVal, Range = {0, 9999}, Increment = 1,
-        CurrentValue = HACKS.Ricochet.target, Flag = "RicochetValueFlag",
-        Callback = function(Value)
-            if IsRebuildingUI then return end
-            HACKS.Ricochet.target = Value
-            if HACKS.Ricochet.active then task.defer(InitWeapon) end
-            SaveConfig()
-        end,
-    })
-    
-    WeaponTab:CreateSection("Bullet Gravity")
-    WeaponTab:CreateToggle({
-        Name = t.BulletGravHack, CurrentValue = HACKS.BulletGravity.active, Flag = "HackBulletGravityFlag",
-        Callback = function(Value)
-            if IsRebuildingUI then return end
-            HACKS.BulletGravity.active = Value
-            task.defer(InitWeapon)
-            SaveConfig()
-        end,
-    })
-    WeaponTab:CreateSlider({
-        Name = t.BulletGravVal, Range = {-500, 500}, Increment = 1,
-        CurrentValue = HACKS.BulletGravity.target, Flag = "BulletGravityValueFlag",
-        Callback = function(Value)
-            if IsRebuildingUI then return end
-            HACKS.BulletGravity.target = Value
-            if HACKS.BulletGravity.active then task.defer(InitWeapon) end
-            SaveConfig()
-        end,
-    })
-    
-    WeaponTab:CreateSection("Shell Speed")
-    WeaponTab:CreateToggle({
-        Name = t.ShellSpeedHack, CurrentValue = HACKS.ShellSpeed.active, Flag = "HackShellSpeedFlag",
-        Callback = function(Value)
-            if IsRebuildingUI then return end
-            HACKS.ShellSpeed.active = Value
-            task.defer(InitWeapon)
-            SaveConfig()
-        end,
-    })
-    WeaponTab:CreateSlider({
-        Name = t.ShellSpeedVal, Range = {0, 9999}, Increment = 1,
-        CurrentValue = HACKS.ShellSpeed.target, Flag = "ShellSpeedValueFlag",
-        Callback = function(Value)
-            if IsRebuildingUI then return end
-            HACKS.ShellSpeed.target = Value
-            if HACKS.ShellSpeed.active then task.defer(InitWeapon) end
-            SaveConfig()
-        end,
-    })
-    
-    -- FlyTab
-    FlyTab:CreateSection(t.FlightControlSection)
-    do
-        local isMobile = Services.UserInput.TouchEnabled and not Services.UserInput.KeyboardEnabled
-        FlyTab:CreateLabel(isMobile and t.FlightControlLabelMobile or t.FlightControlLabel)
+-- ════════════════════════════════════════
+-- CUSTOM GUI LIBRARY
+-- ════════════════════════════════════════
+local TweenService = game:GetService("TweenService")
+local UserInputSvc = Services.UserInput
+local isMobile = UserInputSvc.TouchEnabled and not UserInputSvc.KeyboardEnabled
+
+local T = {
+    BG      = Color3.fromRGB(14, 14, 20),
+    Sidebar = Color3.fromRGB(18, 18, 26),
+    Card    = Color3.fromRGB(24, 24, 34),
+    Stroke  = Color3.fromRGB(50, 50, 66),
+    Accent  = Color3.fromRGB(110, 75, 250),
+    Text    = Color3.fromRGB(235, 235, 245),
+    Sub     = Color3.fromRGB(148, 148, 164),
+    Hover   = Color3.fromRGB(34, 34, 48),
+    Red     = Color3.fromRGB(218, 68, 68),
+}
+
+local function mkCorner(p, r)
+    local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, r or 8); c.Parent = p; return c
+end
+local function mkStroke(p, col, th)
+    local s = Instance.new("UIStroke"); s.Color = col or T.Stroke; s.Thickness = th or 1; s.Parent = p; return s
+end
+local function mkDrag(frame, handle)
+    local dragging, ds, fp = false, nil, nil
+    handle.InputBegan:Connect(function(inp)
+        if inp.UserInputType ~= Enum.UserInputType.MouseButton1 and inp.UserInputType ~= Enum.UserInputType.Touch then return end
+        dragging = true; ds = inp.Position; fp = frame.Position
+        inp.Changed:Connect(function() if inp.UserInputState == Enum.UserInputState.End then dragging = false end end)
+    end)
+    UserInputSvc.InputChanged:Connect(function(inp)
+        if not dragging then return end
+        if inp.UserInputType ~= Enum.UserInputType.MouseMovement and inp.UserInputType ~= Enum.UserInputType.Touch then return end
+        local d = inp.Position - ds
+        frame.Position = UDim2.new(fp.X.Scale, fp.X.Offset + d.X, fp.Y.Scale, fp.Y.Offset + d.Y)
+    end)
+end
+
+Rayfield.ScreenGui = nil
+local ESPToggle = nil
+
+function Rayfield:Destroy()
+    if self.ScreenGui and self.ScreenGui.Parent then self.ScreenGui:Destroy() end
+    self.ScreenGui = nil
+    ESPToggle = nil
+end
+
+function Rayfield:Notify(data)
+    if not (self.ScreenGui and self.ScreenGui.Parent) then return end
+    local sg = self.ScreenGui
+    local nh = sg:FindFirstChild("__Notifs")
+    if not nh then
+        nh = Instance.new("Frame"); nh.Name = "__Notifs"; nh.AnchorPoint = Vector2.new(1,1)
+        nh.Size = UDim2.new(0, 270, 1, -20); nh.Position = UDim2.new(1,-15,1,-10)
+        nh.BackgroundTransparency = 1; nh.Parent = sg
+        local lyt = Instance.new("UIListLayout"); lyt.HorizontalAlignment = Enum.HorizontalAlignment.Right
+        lyt.VerticalAlignment = Enum.VerticalAlignment.Bottom; lyt.Padding = UDim.new(0,8); lyt.Parent = nh
     end
-    FlyTab:CreateButton({
-        Name = t.ToggleFly,
-        Callback = function()
-            if Fly.Active then
-                stopFly()
-                Rayfield:Notify({ Title = "Fly", Content = t.FlyDisabled, Duration = 2, Image = 4483362458 })
-            else
-                startFly()
-                Rayfield:Notify({ Title = "Fly", Content = t.FlyEnabled, Duration = 2, Image = 4483362458 })
+    local card = Instance.new("Frame"); card.Size = UDim2.new(1,0,0,66)
+    card.BackgroundColor3 = T.Card; card.BackgroundTransparency = 1; card.BorderSizePixel = 0; card.Parent = nh
+    mkCorner(card, 8); local cs = mkStroke(card, T.Accent, 1); cs.Transparency = 1
+    local lbl = Instance.new("TextLabel"); lbl.Size = UDim2.new(1,-16,0,22); lbl.Position = UDim2.new(0,10,0,5)
+    lbl.BackgroundTransparency = 1; lbl.Font = Enum.Font.GothamBold; lbl.TextSize = 13
+    lbl.TextColor3 = T.Accent; lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.Text = data.Title or ""; lbl.TextTransparency = 1; lbl.Parent = card
+    local body = Instance.new("TextLabel"); body.Size = UDim2.new(1,-16,0,34); body.Position = UDim2.new(0,10,0,26)
+    body.BackgroundTransparency = 1; body.Font = Enum.Font.Gotham; body.TextSize = 12
+    body.TextColor3 = T.Text; body.TextXAlignment = Enum.TextXAlignment.Left
+    body.TextYAlignment = Enum.TextYAlignment.Top; body.TextWrapped = true
+    body.Text = data.Content or ""; body.TextTransparency = 1; body.Parent = card
+    local ti = TweenInfo.new(0.3, Enum.EasingStyle.Quad)
+    TweenService:Create(card, ti, {BackgroundTransparency = 0.12}):Play()
+    TweenService:Create(lbl, ti, {TextTransparency = 0}):Play()
+    TweenService:Create(body, ti, {TextTransparency = 0}):Play()
+    TweenService:Create(cs, ti, {Transparency = 0.5}):Play()
+    task.delay(data.Duration or 3, function()
+        if not card.Parent then return end
+        local f = TweenService:Create(card, ti, {BackgroundTransparency = 1})
+        TweenService:Create(lbl, ti, {TextTransparency = 1}):Play()
+        TweenService:Create(body, ti, {TextTransparency = 1}):Play()
+        TweenService:Create(cs, ti, {Transparency = 1}):Play()
+        f:Play(); f.Completed:Wait(); if card.Parent then card:Destroy() end
+    end)
+end
+
+function Rayfield:CreateWindow(cfg)
+    self:Destroy()
+    local sg = Instance.new("ScreenGui"); sg.Name = "KolyanchikGUI"
+    sg.ResetOnSpawn = false; sg.IgnoreGuiInset = true
+    sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling; sg.Parent = Services.CoreGui
+    self.ScreenGui = sg
+
+    local vpW = Camera and Camera.ViewportSize.X or 800
+    local vpH = Camera and Camera.ViewportSize.Y or 600
+    if vpW < 100 then vpW = 800 end
+    if vpH < 100 then vpH = 600 end
+
+    local W = math.min(math.clamp(math.floor(vpW * 0.82), 380, 640), vpW - 20)
+    local H = math.min(math.clamp(math.floor(vpH * 0.76), 260, 430), vpH - 20)
+    local SW = 115  -- sidebar width
+
+    -- Main window
+    local win = Instance.new("Frame"); win.Name = "Window"
+    win.AnchorPoint = Vector2.new(0.5, 0.5)
+    win.Size = UDim2.new(0, W, 0, H); win.Position = UDim2.new(0.5, 0, 0.5, 0)
+    win.BackgroundColor3 = T.BG; win.BorderSizePixel = 0; win.Parent = sg
+    mkCorner(win, 12); mkStroke(win, T.Stroke, 1)
+
+    -- Title bar (drag handle)
+    local bar = Instance.new("Frame"); bar.Size = UDim2.new(1,0,0,40)
+    bar.BackgroundTransparency = 1; bar.Parent = win
+    local titleLbl = Instance.new("TextLabel"); titleLbl.Size = UDim2.new(1,-90,1,0)
+    titleLbl.Position = UDim2.new(0, SW+12, 0, 0); titleLbl.BackgroundTransparency = 1
+    titleLbl.Font = Enum.Font.GothamBold; titleLbl.TextSize = 15; titleLbl.TextColor3 = T.Text
+    titleLbl.TextXAlignment = Enum.TextXAlignment.Left; titleLbl.Text = cfg.Name or "kolyanchik script"
+    titleLbl.Parent = bar
+    local xBtn = Instance.new("TextButton"); xBtn.Size = UDim2.new(0,26,0,26)
+    xBtn.Position = UDim2.new(1,-36,0.5,-13); xBtn.BackgroundColor3 = Color3.fromRGB(36,22,42)
+    xBtn.Font = Enum.Font.GothamBold; xBtn.TextSize = 13; xBtn.TextColor3 = T.Red
+    xBtn.Text = "✕"; xBtn.Parent = bar; mkCorner(xBtn, 7); mkStroke(xBtn, T.Stroke, 1)
+    xBtn.MouseButton1Click:Connect(function() win.Visible = false end)
+    mkDrag(win, bar)
+
+    -- Divider under title bar (only in content area)
+    local barLine = Instance.new("Frame"); barLine.Size = UDim2.new(1,-SW,0,1)
+    barLine.Position = UDim2.new(0,SW,0,40); barLine.BackgroundColor3 = T.Stroke
+    barLine.BorderSizePixel = 0; barLine.Parent = win
+
+    -- Sidebar panel
+    local sidePanel = Instance.new("Frame"); sidePanel.Name = "Sidebar"
+    sidePanel.Size = UDim2.new(0,SW,1,0); sidePanel.BackgroundColor3 = T.Sidebar
+    sidePanel.BorderSizePixel = 0; sidePanel.Parent = win
+    mkCorner(sidePanel, 12)
+    -- Square off the right side of sidebar corners
+    local sfix = Instance.new("Frame"); sfix.Size = UDim2.new(0,12,1,0)
+    sfix.Position = UDim2.new(1,-12,0,0); sfix.BackgroundColor3 = T.Sidebar
+    sfix.BorderSizePixel = 0; sfix.Parent = sidePanel
+    -- Vertical divider line
+    local sdiv = Instance.new("Frame"); sdiv.Size = UDim2.new(0,1,1,0)
+    sdiv.Position = UDim2.new(1,-1,0,0); sdiv.BackgroundColor3 = T.Stroke
+    sdiv.BorderSizePixel = 0; sdiv.Parent = sidePanel
+
+    -- "MENU" header in sidebar
+    local menuHdr = Instance.new("TextLabel"); menuHdr.Size = UDim2.new(1,0,0,40)
+    menuHdr.BackgroundTransparency = 1; menuHdr.Font = Enum.Font.GothamBold
+    menuHdr.TextSize = 11; menuHdr.TextColor3 = T.Accent; menuHdr.Text = "MENU"; menuHdr.Parent = sidePanel
+
+    -- TabList: inner frame that holds ONLY tab buttons (no separator)
+    local tabList = Instance.new("Frame"); tabList.Name = "TabList"
+    tabList.Size = UDim2.new(1,0,1,-44); tabList.Position = UDim2.new(0,0,0,44)
+    tabList.BackgroundTransparency = 1; tabList.Parent = sidePanel
+    local tabLayout = Instance.new("UIListLayout"); tabLayout.Padding = UDim.new(0,4)
+    tabLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center; tabLayout.Parent = tabList
+    local tabPad = Instance.new("UIPadding"); tabPad.PaddingLeft = UDim.new(0,8)
+    tabPad.PaddingRight = UDim.new(0,8); tabPad.Parent = tabList
+
+    -- Content area (right side)
+    local contentArea = Instance.new("Frame"); contentArea.Name = "Content"
+    contentArea.Size = UDim2.new(1,-SW,1,-41); contentArea.Position = UDim2.new(0,SW,0,41)
+    contentArea.BackgroundTransparency = 1; contentArea.ClipsDescendants = true; contentArea.Parent = win
+
+    -- Floating toggle button
+    local floatBtn = Instance.new("TextButton"); floatBtn.Name = "FloatToggle"
+    floatBtn.Size = UDim2.new(0,44,0,44); floatBtn.AnchorPoint = Vector2.new(0.5, 0.5)
+    floatBtn.Position = UDim2.new(0.5,0,0,32)
+    floatBtn.BackgroundColor3 = T.BG; floatBtn.BackgroundTransparency = 0.1
+    floatBtn.Font = Enum.Font.GothamBold; floatBtn.TextSize = 18; floatBtn.TextColor3 = T.Accent
+    floatBtn.Text = "☰"; floatBtn.Parent = sg; mkCorner(floatBtn, 22); mkStroke(floatBtn, T.Accent, 1.5)
+    floatBtn.MouseButton1Click:Connect(function() win.Visible = not win.Visible end)
+    mkDrag(floatBtn, floatBtn)
+
+    -- Window object
+    local winObj = { Tabs = {}, ActiveTab = nil }
+
+    function winObj:CreateTab(name)
+        -- Content scroll
+        local scroll = Instance.new("ScrollingFrame"); scroll.Name = name.."_Scroll"
+        scroll.Size = UDim2.new(1,0,1,0); scroll.BackgroundTransparency = 1
+        scroll.ScrollBarThickness = 5; scroll.ScrollBarImageColor3 = T.Accent
+        scroll.CanvasSize = UDim2.new(0,0,0,0); scroll.Visible = false; scroll.Parent = contentArea
+        local sLayout = Instance.new("UIListLayout"); sLayout.Padding = UDim.new(0,7)
+        sLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center; sLayout.Parent = scroll
+        local sPad = Instance.new("UIPadding"); sPad.PaddingTop = UDim.new(0,10)
+        sPad.PaddingBottom = UDim.new(0,14); sPad.PaddingLeft = UDim.new(0,10); sPad.PaddingRight = UDim.new(0,10)
+        sPad.Parent = scroll
+
+        sLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+            scroll.CanvasSize = UDim2.new(0, 0, 0, sLayout.AbsoluteContentSize.Y + sPad.PaddingTop.Offset + sPad.PaddingBottom.Offset)
+        end)
+
+        -- Sidebar button
+        local btn = Instance.new("TextButton"); btn.Name = name.."_Btn"
+        btn.Size = UDim2.new(1,0,0,32); btn.BackgroundColor3 = T.Accent; btn.BackgroundTransparency = 1
+        btn.Font = Enum.Font.GothamMedium; btn.TextSize = 13; btn.TextColor3 = T.Sub
+        btn.TextXAlignment = Enum.TextXAlignment.Left; btn.Text = "  "..name; btn.Parent = tabList
+        mkCorner(btn, 7)
+        local indicator = Instance.new("Frame"); indicator.Size = UDim2.new(0,3,0.55,0)
+        indicator.Position = UDim2.new(0,3,0.225,0); indicator.BackgroundColor3 = T.Accent
+        indicator.BorderSizePixel = 0; indicator.Visible = false; indicator.Parent = btn; mkCorner(indicator, 2)
+
+        local tabObj = { scroll = scroll, btn = btn, indicator = indicator }
+        table.insert(winObj.Tabs, tabObj)
+
+        local function activate()
+            if winObj.ActiveTab == tabObj then return end
+            if winObj.ActiveTab then
+                winObj.ActiveTab.scroll.Visible = false
+                winObj.ActiveTab.btn.TextColor3 = T.Sub; winObj.ActiveTab.btn.BackgroundTransparency = 1
+                winObj.ActiveTab.indicator.Visible = false
             end
-        end,
-    })
-    FlyTab:CreateSlider({
-        Name = t.FlySpeed, Range = {10,300}, Increment = 10,
-        Suffix = " studs/s", CurrentValue = Fly.Speed, Flag = "FlySpeedFlag",
-        Callback = function(Value)
-            if IsRebuildingUI then return end
-            Fly.Speed = Value
-            SaveConfig()
-        end,
-    })
-    FlyTab:CreateSection(t.KeybindSection)
-    FlyTab:CreateKeybind({
-        Name = t.ToggleFlyKey, CurrentKeybind = "M", HoldToInteract = false, Flag = "FlyKeyFlag",
-        Callback = function(Value)
-            local key = parseKeyCode(Value)
-            if key then
-                if key ~= Keys.Fly then
-                    -- Key is actually changing — block InputBegan briefly so the new
-                    -- key press doesn't also fire the toggle immediately
-                    Fly.IsRebinding = true
-                    Fly.LastRebindTime = tick()
-                    task.delay(0.5, function() Fly.IsRebinding = false end)
-                end
-                Keys.Fly = key
+            winObj.ActiveTab = tabObj; scroll.Visible = true
+            btn.TextColor3 = T.Text; btn.BackgroundTransparency = 0.83; indicator.Visible = true
+        end
+        btn.MouseButton1Click:Connect(activate)
+        if #winObj.Tabs == 1 then activate() end
+
+        function tabObj:CreateSection(secName)
+            local f = Instance.new("Frame"); f.Size = UDim2.new(1,0,0,22)
+            f.BackgroundTransparency = 1; f.Parent = scroll
+            local lbl = Instance.new("TextLabel"); lbl.Size = UDim2.new(1,0,0,16)
+            lbl.BackgroundTransparency = 1; lbl.Font = Enum.Font.GothamBold; lbl.TextSize = 10
+            lbl.TextColor3 = T.Accent; lbl.TextXAlignment = Enum.TextXAlignment.Left
+            lbl.Text = secName:upper(); lbl.Parent = f
+            local line = Instance.new("Frame"); line.Size = UDim2.new(1,0,0,1)
+            line.Position = UDim2.new(0,0,1,-1); line.BackgroundColor3 = T.Stroke
+            line.BorderSizePixel = 0; line.Parent = f
+        end
+
+        function tabObj:CreateLabel(text)
+            local lbl = Instance.new("TextLabel"); lbl.Size = UDim2.new(1,0,0,20)
+            lbl.BackgroundTransparency = 1; lbl.Font = Enum.Font.Gotham; lbl.TextSize = 12
+            lbl.TextColor3 = T.Sub; lbl.TextXAlignment = Enum.TextXAlignment.Left
+            lbl.TextWrapped = true; lbl.Text = text; lbl.Parent = scroll
+        end
+
+        function tabObj:CreateButton(data)
+            local b = Instance.new("TextButton"); b.Size = UDim2.new(1,0,0,36)
+            b.BackgroundColor3 = T.Card; b.BorderSizePixel = 0; b.Font = Enum.Font.GothamMedium
+            b.TextSize = 13; b.TextColor3 = T.Text; b.Text = data.Name or "Button"; b.Parent = scroll
+            mkCorner(b, 7); mkStroke(b, T.Stroke, 1)
+            b.MouseEnter:Connect(function() TweenService:Create(b, TweenInfo.new(0.14), {BackgroundColor3 = T.Hover}):Play() end)
+            b.MouseLeave:Connect(function() TweenService:Create(b, TweenInfo.new(0.14), {BackgroundColor3 = T.Card}):Play() end)
+            b.MouseButton1Click:Connect(function() if data.Callback then data.Callback() end end)
+        end
+
+        function tabObj:CreateToggle(data)
+            local flag = data.Flag; local val = data.CurrentValue == true
+            local card = Instance.new("Frame"); card.Size = UDim2.new(1,0,0,36)
+            card.BackgroundColor3 = T.Card; card.BorderSizePixel = 0; card.Parent = scroll
+            mkCorner(card, 7); mkStroke(card, T.Stroke, 1)
+            local lbl = Instance.new("TextLabel"); lbl.Size = UDim2.new(1,-60,1,0)
+            lbl.Position = UDim2.new(0,12,0,0); lbl.BackgroundTransparency = 1
+            lbl.Font = Enum.Font.GothamMedium; lbl.TextSize = 13; lbl.TextColor3 = T.Text
+            lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.TextWrapped = true
+            lbl.Text = data.Name or "Toggle"; lbl.Parent = card
+            local track = Instance.new("Frame"); track.Size = UDim2.new(0,38,0,20)
+            track.Position = UDim2.new(1,-50,0.5,-10)
+            track.BackgroundColor3 = val and T.Accent or Color3.fromRGB(48,48,62)
+            track.BorderSizePixel = 0; track.Parent = card; mkCorner(track, 10)
+            local knob = Instance.new("Frame"); knob.Size = UDim2.new(0,16,0,16)
+            knob.Position = val and UDim2.new(1,-18,0.5,-8) or UDim2.new(0,2,0.5,-8)
+            knob.BackgroundColor3 = Color3.fromRGB(234,234,244); knob.BorderSizePixel = 0
+            knob.Parent = track; mkCorner(knob, 8)
+            if flag then Rayfield.Flags[flag] = val end
+            local function setVal(v)
+                val = v; if flag then Rayfield.Flags[flag] = val end
+                local ti = TweenInfo.new(0.18, Enum.EasingStyle.Quad)
+                TweenService:Create(track, ti, {BackgroundColor3 = v and T.Accent or Color3.fromRGB(48,48,62)}):Play()
+                TweenService:Create(knob,  ti, {Position = v and UDim2.new(1,-18,0.5,-8) or UDim2.new(0,2,0.5,-8)}):Play()
+                if data.Callback then data.Callback(val) end
             end
-        end,
-    })
-    
-    -- SettingsTab
-    SettingsTab:CreateSection(t.PerformanceSection)
-    SettingsTab:CreateSlider({
-        Name = t.MarkUpdateRate, Range = {0.016,0.1}, Increment = 0.016,
-        Suffix = "s", CurrentValue = Mark.UpdateInterval, Flag = "MarkUpdateIntervalFlag",
-        Callback = function(Value)
-            if IsRebuildingUI then return end
-            Mark.UpdateInterval = Value
-            SaveConfig()
-        end,
-    })
-    SettingsTab:CreateSlider({
-        Name = t.ScanInterval, Range = {0.1,2.0}, Increment = 0.1,
-        Suffix = "s", CurrentValue = Timers.ScanInterval, Flag = "ScanIntervalFlag",
-        Callback = function(Value)
-            if IsRebuildingUI then return end
-            Timers.ScanInterval = Value
-            SaveConfig()
-        end,
-    })
-    
-    SettingsTab:CreateSection(t.GraphicsDegradation)
-    SettingsTab:CreateToggle({
-        Name = t.GraphicsDegradation, CurrentValue = Graphics.Degradation, Flag = "GraphicsDegradationFlag",
-        Callback = function(Value)
-            if IsRebuildingUI then return end
-            SetGraphicsDegradation(Value)
-            SaveConfig()
-        end,
-    })
-    
-    SettingsTab:CreateSection(t.ControlsSection)
-    SettingsTab:CreateKeybind({
-        Name = t.ToggleESPKey, CurrentKeybind = "F", HoldToInteract = false, Flag = "ToggleKeyFlag",
-        Callback = function(Value)
-            local key = parseKeyCode(Value)
-            if key then
-                if key ~= Keys.Toggle then
-                    Fly.IsRebinding = true
-                    Fly.LastRebindTime = tick()
-                    task.delay(0.5, function() Fly.IsRebinding = false end)
-                end
-                Keys.Toggle = key
+            local hit = Instance.new("TextButton"); hit.Size = UDim2.new(1,0,1,0)
+            hit.BackgroundTransparency = 1; hit.Text = ""; hit.Parent = card
+            hit.MouseButton1Click:Connect(function() setVal(not val) end)
+        end
+
+        function tabObj:CreateSlider(data)
+            local flag = data.Flag; local sMin = data.Range[1]; local sMax = data.Range[2]
+            local sInc = data.Increment or 1; local suf = data.Suffix or ""
+            local val = math.clamp(data.CurrentValue or sMin, sMin, sMax)
+            local card = Instance.new("Frame"); card.Size = UDim2.new(1,0,0,52)
+            card.BackgroundColor3 = T.Card; card.BorderSizePixel = 0; card.Parent = scroll
+            mkCorner(card, 7); mkStroke(card, T.Stroke, 1)
+            local nameLbl = Instance.new("TextLabel"); nameLbl.Size = UDim2.new(0.6,0,0,24)
+            nameLbl.Position = UDim2.new(0,12,0,2); nameLbl.BackgroundTransparency = 1
+            nameLbl.Font = Enum.Font.GothamMedium; nameLbl.TextSize = 13; nameLbl.TextColor3 = T.Text
+            nameLbl.TextXAlignment = Enum.TextXAlignment.Left; nameLbl.Text = data.Name or "Slider"; nameLbl.Parent = card
+            local valLbl = Instance.new("TextLabel"); valLbl.Size = UDim2.new(0.38,0,0,24)
+            valLbl.Position = UDim2.new(0.62,0,0,2); valLbl.BackgroundTransparency = 1
+            valLbl.Font = Enum.Font.Gotham; valLbl.TextSize = 12; valLbl.TextColor3 = T.Accent
+            valLbl.TextXAlignment = Enum.TextXAlignment.Right
+            local displayVal = (sInc % 1 == 0 and tostring(val) or string.format("%.3f", val):gsub("%.?0+$", ""))
+            valLbl.Text = displayVal..suf; valLbl.Parent = card
+            local track = Instance.new("Frame"); track.Size = UDim2.new(1,-24,0,6)
+            track.Position = UDim2.new(0,12,0,36); track.BackgroundColor3 = Color3.fromRGB(44,44,58)
+            track.BorderSizePixel = 0; track.Parent = card; mkCorner(track, 3)
+            local fill = Instance.new("Frame"); fill.Size = UDim2.new((val-sMin)/math.max(sMax-sMin,0.0001),0,1,0)
+            fill.BackgroundColor3 = T.Accent; fill.BorderSizePixel = 0; fill.Parent = track; mkCorner(fill, 3)
+            local knob = Instance.new("Frame"); knob.Size = UDim2.new(0,14,0,14)
+            knob.Position = UDim2.new(1,-7,0.5,-7); knob.BackgroundColor3 = Color3.fromRGB(234,234,244)
+            knob.BorderSizePixel = 0; knob.Parent = fill; mkCorner(knob, 7)
+            if flag then Rayfield.Flags[flag] = val end
+            local aInp = nil
+            local function upd(px)
+                local pct = math.clamp((px - track.AbsolutePosition.X) / math.max(track.AbsoluteSize.X,1), 0, 1)
+                local rounded = math.clamp(sMin + math.round((sMin + (sMax-sMin)*pct - sMin)/sInc)*sInc, sMin, sMax)
+                val = rounded; if flag then Rayfield.Flags[flag] = val end
+                local displayVal = (sInc % 1 == 0 and tostring(val) or string.format("%.3f", val):gsub("%.?0+$", ""))
+                valLbl.Text = displayVal..suf
+                fill.Size = UDim2.new((val-sMin)/math.max(sMax-sMin,0.0001),0,1,0)
+                if data.Callback then data.Callback(val) end
             end
-        end,
-    })
-    
-    SettingsTab:CreateSection(t.Language)
-    SettingsTab:CreateDropdown({
-        Name = t.Language,
-        Options = {"English", "Русский"},
-        CurrentOption = {Localization.CurrentLanguage == "EN" and "English" or "Русский"},
-        MultipleOptions = false,
-        Flag = "LanguageDropdownFlag",
-        Callback = function(Option)
-            if IsRebuildingUI then return end
-            if not Option or type(Option) ~= "table" or not Option[1] then return end
-            local selected = Option[1]
-            local newLang = (selected == "English") and "EN" or "RU"
-            if Localization.CurrentLanguage ~= newLang then
-                Localization.CurrentLanguage = newLang
-                SaveConfig()
-                
-                -- Spawn the rebuild process
-                task.spawn(function()
-                    IsRebuildingUI = true
-                    
-                    -- Safe destruction of the old Rayfield Window
-                    pcall(function()
-                        Rayfield:Destroy()
-                    end)
-                    
-                    task.wait(0.5)
-                    
-                    -- Fetch and initialize a completely fresh instance of Rayfield
-                    local success, freshRayfield = pcall(function()
-                        return loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
-                    end)
-                    
-                    if success and freshRayfield then
-                        Rayfield = freshRayfield
+            local hit = Instance.new("TextButton"); hit.Size = UDim2.new(1,0,1.8,0)
+            hit.Position = UDim2.new(0,0,-0.4,0); hit.BackgroundTransparency = 1; hit.Text = ""; hit.Parent = track
+            hit.InputBegan:Connect(function(inp)
+                if inp.UserInputType == Enum.UserInputType.MouseButton1
+                or inp.UserInputType == Enum.UserInputType.Touch then aInp = inp; upd(inp.Position.X) end
+            end)
+            UserInputSvc.InputChanged:Connect(function(inp) if inp == aInp then upd(inp.Position.X) end end)
+            UserInputSvc.InputEnded:Connect(function(inp) if inp == aInp then aInp = nil end end)
+        end
+
+        function tabObj:CreateInput(data)
+            local flag = data.Flag; local val = data.CurrentValue or ""
+            local card = Instance.new("Frame"); card.Size = UDim2.new(1,0,0,36)
+            card.BackgroundColor3 = T.Card; card.BorderSizePixel = 0; card.Parent = scroll
+            mkCorner(card, 7); mkStroke(card, T.Stroke, 1)
+            local lbl = Instance.new("TextLabel"); lbl.Size = UDim2.new(1,-148,1,0)
+            lbl.Position = UDim2.new(0,12,0,0); lbl.BackgroundTransparency = 1
+            lbl.Font = Enum.Font.GothamMedium; lbl.TextSize = 13; lbl.TextColor3 = T.Text
+            lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.Text = data.Name or "Input"; lbl.Parent = card
+            local box = Instance.new("TextBox"); box.Size = UDim2.new(0,128,0,24)
+            box.Position = UDim2.new(1,-140,0.5,-12); box.BackgroundColor3 = Color3.fromRGB(30,30,44)
+            box.BorderSizePixel = 0; box.Font = Enum.Font.Gotham; box.TextSize = 12; box.TextColor3 = T.Text
+            box.PlaceholderText = data.PlaceholderText or "..."; box.PlaceholderColor3 = T.Sub
+            box.Text = val; box.ClearTextOnFocus = false; box.Parent = card; mkCorner(box, 5); mkStroke(box, T.Stroke, 1)
+            if flag then Rayfield.Flags[flag] = val end
+            box.FocusLost:Connect(function()
+                if flag then Rayfield.Flags[flag] = box.Text end
+                if data.Callback then data.Callback(box.Text) end
+                if data.RemoveTextAfterFocusLost then box.Text = "" end
+            end)
+        end
+
+        function tabObj:CreateDropdown(data)
+            local flag = data.Flag; local opts = data.Options or {}
+            local cur = (data.CurrentOption and data.CurrentOption[1]) or opts[1] or ""; local open = false
+            local card = Instance.new("Frame"); card.Size = UDim2.new(1,0,0,36)
+            card.BackgroundColor3 = T.Card; card.BorderSizePixel = 0
+            card.ClipsDescendants = true; card.Parent = scroll; mkCorner(card, 7); mkStroke(card, T.Stroke, 1)
+            local lbl = Instance.new("TextLabel"); lbl.Size = UDim2.new(1,-148,0,36)
+            lbl.Position = UDim2.new(0,12,0,0); lbl.BackgroundTransparency = 1
+            lbl.Font = Enum.Font.GothamMedium; lbl.TextSize = 13; lbl.TextColor3 = T.Text
+            lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.Text = data.Name or "Dropdown"; lbl.Parent = card
+            local selBtn = Instance.new("TextButton"); selBtn.Size = UDim2.new(0,128,0,24)
+            selBtn.Position = UDim2.new(1,-140,0,6); selBtn.BackgroundColor3 = Color3.fromRGB(30,30,44)
+            selBtn.Font = Enum.Font.Gotham; selBtn.TextSize = 11; selBtn.TextColor3 = T.Text
+            selBtn.Text = cur.." ▾"; selBtn.Parent = card; mkCorner(selBtn, 5); mkStroke(selBtn, T.Stroke, 1)
+            local listFrame = Instance.new("Frame"); listFrame.Size = UDim2.new(1,-22,0,#opts*29)
+            listFrame.Position = UDim2.new(0,11,0,40); listFrame.BackgroundTransparency = 1
+            listFrame.Visible = false; listFrame.Parent = card
+            local ll = Instance.new("UIListLayout"); ll.Padding = UDim.new(0,3); ll.Parent = listFrame
+            if flag then Rayfield.Flags[flag] = {cur} end
+            local function toggleDD()
+                open = not open; listFrame.Visible = open
+                local h = open and (36 + #opts*32 + 6) or 36
+                TweenService:Create(card, TweenInfo.new(0.18, Enum.EasingStyle.Quad), {Size = UDim2.new(1,0,0,h)}):Play()
+                selBtn.Text = cur .. (open and " ▴" or " ▾")
+            end
+            selBtn.MouseButton1Click:Connect(toggleDD)
+            for _, opt in ipairs(opts) do
+                local ob = Instance.new("TextButton"); ob.Size = UDim2.new(1,0,0,29)
+                ob.BackgroundColor3 = Color3.fromRGB(26,26,40); ob.BorderSizePixel = 0
+                ob.Font = Enum.Font.Gotham; ob.TextSize = 12
+                ob.TextColor3 = (opt == cur) and T.Accent or T.Text
+                ob.Text = "  "..opt; ob.TextXAlignment = Enum.TextXAlignment.Left; ob.Parent = listFrame; mkCorner(ob, 5)
+                ob.MouseButton1Click:Connect(function()
+                    cur = opt; selBtn.Text = cur.." ▾"
+                    for _, ch in ipairs(listFrame:GetChildren()) do
+                        if ch:IsA("TextButton") then ch.TextColor3 = (ch.Text == "  "..opt) and T.Accent or T.Text end
                     end
-                    
-                    IsRebuildingUI = false
-                    BuildGUI()
+                    if flag then Rayfield.Flags[flag] = {cur} end
+                    if data.Callback then data.Callback({cur}) end
+                    toggleDD()
                 end)
             end
-        end,
-    })
-    
-    SettingsTab:CreateSection(t.ProjectSection)
-    SettingsTab:CreateButton({
-        Name = t.CopyGitHub,
-        Callback = function()
-            setclipboard("https://github.com/qwiix21/Cursed-Tank-Simulator-Script")
-            Rayfield:Notify({ Title = t.CopiedTitle, Content = t.CopiedContent, Duration = 3, Image = 4483362458 })
-        end,
-    })
-    SettingsTab:CreateButton({
-        Name = t.CopyDiscord,
-        Callback = function()
-            setclipboard("https://discord.gg/gHg5g7eDC4")
-            Rayfield:Notify({ Title = t.CopiedTitle, Content = t.CopiedContent, Duration = 3, Image = 4483362458 })
-        end,
-    })
-    
-    do
-        local tf = Rayfield.Flags and Rayfield.Flags["ToggleKeyFlag"]
-        if tf and tf.CurrentKeybind then
-            local k = parseKeyCode(tf.CurrentKeybind)
-            if k then Keys.Toggle = k end
         end
-        local ff = Rayfield.Flags and Rayfield.Flags["FlyKeyFlag"]
-        if ff and ff.CurrentKeybind then
-            local k = parseKeyCode(ff.CurrentKeybind)
-            if k then Keys.Fly = k end
+
+        function tabObj:CreateColorPicker(data)
+            local flag = data.Flag; local curColor = data.Color or Color3.fromRGB(200,200,200)
+            local sv = {R = math.round(curColor.R*255), G = math.round(curColor.G*255), B = math.round(curColor.B*255)}
+            local expanded = false
+            local card = Instance.new("Frame"); card.Size = UDim2.new(1,0,0,36)
+            card.BackgroundColor3 = T.Card; card.BorderSizePixel = 0
+            card.ClipsDescendants = true; card.Parent = scroll; mkCorner(card, 7); mkStroke(card, T.Stroke, 1)
+            local lbl = Instance.new("TextLabel"); lbl.Size = UDim2.new(1,-58,0,36)
+            lbl.Position = UDim2.new(0,12,0,0); lbl.BackgroundTransparency = 1
+            lbl.Font = Enum.Font.GothamMedium; lbl.TextSize = 13; lbl.TextColor3 = T.Text
+            lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.Text = data.Name or "Color"; lbl.Parent = card
+            local preview = Instance.new("TextButton"); preview.Size = UDim2.new(0,34,0,22)
+            preview.Position = UDim2.new(1,-46,0,7); preview.BackgroundColor3 = curColor
+            preview.BorderSizePixel = 0; preview.Text = ""; preview.Parent = card; mkCorner(preview, 5); mkStroke(preview, T.Stroke, 1)
+            local panel = Instance.new("Frame"); panel.Size = UDim2.new(1,-22,0,82)
+            panel.Position = UDim2.new(0,11,0,38); panel.BackgroundTransparency = 1
+            panel.Visible = false; panel.Parent = card
+            if flag then Rayfield.Flags[flag] = curColor end
+            local function updateColor()
+                curColor = Color3.fromRGB(sv.R, sv.G, sv.B); preview.BackgroundColor3 = curColor
+                if flag then Rayfield.Flags[flag] = curColor end
+                if data.Callback then data.Callback(curColor) end
+            end
+            local chanColors = {R=Color3.fromRGB(238,78,78), G=Color3.fromRGB(78,218,78), B=Color3.fromRGB(78,118,238)}
+            for idx, chan in ipairs({"R","G","B"}) do
+                local row = Instance.new("Frame"); row.Size = UDim2.new(1,0,0,22)
+                row.Position = UDim2.new(0,0,0,(idx-1)*27); row.BackgroundTransparency = 1; row.Parent = panel
+                local cLbl = Instance.new("TextLabel"); cLbl.Size = UDim2.new(0,14,1,0)
+                cLbl.BackgroundTransparency = 1; cLbl.Font = Enum.Font.GothamBold; cLbl.TextSize = 11
+                cLbl.TextColor3 = chanColors[chan]; cLbl.Text = chan; cLbl.Parent = row
+                local bar = Instance.new("Frame"); bar.Size = UDim2.new(1,-52,0,5)
+                bar.Position = UDim2.new(0,18,0.5,-2); bar.BackgroundColor3 = Color3.fromRGB(42,42,56)
+                bar.BorderSizePixel = 0; bar.Parent = row; mkCorner(bar, 2)
+                local fillC = Instance.new("Frame"); fillC.Size = UDim2.new(sv[chan]/255,0,1,0)
+                fillC.BackgroundColor3 = chanColors[chan]; fillC.BorderSizePixel = 0; fillC.Parent = bar; mkCorner(fillC, 2)
+                local vLbl = Instance.new("TextLabel"); vLbl.Size = UDim2.new(0,28,1,0)
+                vLbl.Position = UDim2.new(1,-28,0,0); vLbl.BackgroundTransparency = 1
+                vLbl.Font = Enum.Font.SourceSans; vLbl.TextSize = 12; vLbl.TextColor3 = T.Sub
+                vLbl.Text = tostring(sv[chan]); vLbl.Parent = row
+                local aI = nil
+                local function upd(px)
+                    local pct = math.clamp((px-bar.AbsolutePosition.X)/math.max(bar.AbsoluteSize.X,1),0,1)
+                    sv[chan] = math.round(pct*255); fillC.Size = UDim2.new(pct,0,1,0)
+                    vLbl.Text = tostring(sv[chan]); updateColor()
+                end
+                local hit = Instance.new("TextButton"); hit.Size = UDim2.new(1,0,1.5,0)
+                hit.Position = UDim2.new(0,0,-0.25,0); hit.BackgroundTransparency = 1; hit.Text = ""; hit.Parent = bar
+                hit.InputBegan:Connect(function(inp)
+                    if inp.UserInputType == Enum.UserInputType.MouseButton1
+                    or inp.UserInputType == Enum.UserInputType.Touch then aI = inp; upd(inp.Position.X) end
+                end)
+                UserInputSvc.InputChanged:Connect(function(inp) if inp == aI then upd(inp.Position.X) end end)
+                UserInputSvc.InputEnded:Connect(function(inp) if inp == aI then aI = nil end end)
+            end
+            preview.MouseButton1Click:Connect(function()
+                expanded = not expanded; panel.Visible = expanded
+                local h = expanded and 128 or 36
+                TweenService:Create(card, TweenInfo.new(0.18, Enum.EasingStyle.Quad), {Size = UDim2.new(1,0,0,h)}):Play()
+            end)
         end
+
+        function tabObj:CreateKeybind(data)
+            local flag = data.Flag; local key = data.CurrentKeybind or "None"
+            if isMobile then if flag then Rayfield.Flags[flag] = {CurrentKeybind = key} end; return end
+            local card = Instance.new("Frame"); card.Size = UDim2.new(1,0,0,36)
+            card.BackgroundColor3 = T.Card; card.BorderSizePixel = 0; card.Parent = scroll; mkCorner(card, 7); mkStroke(card, T.Stroke, 1)
+            local lbl = Instance.new("TextLabel"); lbl.Size = UDim2.new(1,-108,1,0)
+            lbl.Position = UDim2.new(0,12,0,0); lbl.BackgroundTransparency = 1
+            lbl.Font = Enum.Font.GothamMedium; lbl.TextSize = 13; lbl.TextColor3 = T.Text
+            lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.Text = data.Name or "Keybind"; lbl.Parent = card
+            local bindBtn = Instance.new("TextButton"); bindBtn.Size = UDim2.new(0,90,0,24)
+            bindBtn.Position = UDim2.new(1,-100,0.5,-12); bindBtn.BackgroundColor3 = Color3.fromRGB(30,30,44)
+            bindBtn.Font = Enum.Font.Gotham; bindBtn.TextSize = 11; bindBtn.TextColor3 = T.Text
+            bindBtn.Text = "[ "..key.." ]"; bindBtn.Parent = card; mkCorner(bindBtn, 5); mkStroke(bindBtn, T.Stroke, 1)
+            if flag then Rayfield.Flags[flag] = {CurrentKeybind = key} end
+            local listening = false; local conn = nil
+            bindBtn.MouseButton1Click:Connect(function()
+                if listening then return end; listening = true
+                bindBtn.Text = "[ ... ]"; bindBtn.TextColor3 = T.Accent
+                conn = UserInputSvc.InputBegan:Connect(function(inp)
+                    if inp.UserInputType ~= Enum.UserInputType.Keyboard then return end
+                    local n = inp.KeyCode.Name; if n == "Unknown" then return end
+                    conn:Disconnect(); conn = nil; listening = false; key = n
+                    bindBtn.Text = "[ "..key.." ]"; bindBtn.TextColor3 = T.Text
+                    if flag then Rayfield.Flags[flag] = {CurrentKeybind = key} end
+                    if data.Callback then data.Callback(key) end
+                end)
+            end)
+        end
+
+        return tabObj
     end
+
+    return winObj
 end
 
-Services.UserInput.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    if Fly.IsRebinding or (tick() - Fly.LastRebindTime) < 0.5 then return end
-    if input.KeyCode == Keys.Toggle then
-        ESP.Enabled = not ESP.Enabled
-        UpdateAllESPInstances()
-    end
-    if input.KeyCode == Keys.Fly then
-        if Fly.Active then stopFly() else startFly() end
+-- GUI Key toggle (PC)
+UserInputSvc.InputBegan:Connect(function(inp, gp)
+    if gp then return end
+    if inp.KeyCode == Keys.GUI then
+        local sg = Rayfield.ScreenGui
+        if sg then local w = sg:FindFirstChild("Window"); if w then w.Visible = not w.Visible end end
     end
 end)
 
--- Mobile joystick tracking (left half of screen = joystick area)
+-- ════════════════════════════════════════
+-- BUILD GUI
+-- ════════════════════════════════════════
+local Window
+local function BuildGUI()
+    local t = Localization[Localization.CurrentLanguage]
+
+    Window = Rayfield:CreateWindow({ Name = t.WindowTitle })
+
+    Rayfield:Notify({ Title = t.LoadedTitle, Content = t.LoadedContent, Duration = 5 })
+
+    local MainTab     = Window:CreateTab(t.MainTab)
+    local VisualTab   = Window:CreateTab(t.VisualTab)
+    local WeaponTab   = Window:CreateTab(t.WeaponTab)
+    local FlyTab      = Window:CreateTab(t.FlyTab)
+    local SettingsTab = Window:CreateTab(t.SettingsTab)
+
+    -- ── Main Tab ──────────────────────────────────────────────
+    MainTab:CreateSection(t.ControlSection)
+    MainTab:CreateLabel(t.HideShowLabel)
+    ESPToggle = MainTab:CreateToggle({ Name = t.EnableESP, CurrentValue = ESP.Enabled, Flag = "ESPToggle",
+        Callback = function(v) if IsRebuildingUI then return end; ESP.Enabled = v; UpdateAllESPInstances(); SaveConfig() end })
+    MainTab:CreateToggle({ Name = t.TeamCheck, CurrentValue = ESP.TeamCheck, Flag = "TeamCheckFlag",
+        Callback = function(v) if IsRebuildingUI then return end; ESP.TeamCheck = v; task.defer(function() ClearAllESP(); ScanVehicles() end); SaveConfig() end })
+    MainTab:CreateToggle({ Name = t.ShowDistance, CurrentValue = ESP.ShowDistance, Flag = "ShowDistanceFlag",
+        Callback = function(v) if IsRebuildingUI then return end; ESP.ShowDistance = v; UpdateAllESPInstances(); SaveConfig() end })
+    MainTab:CreateSection(t.MarkSettingsSection)
+    MainTab:CreateToggle({ Name = t.EnableMark, CurrentValue = Mark.Enabled, Flag = "EnableMarkFlag",
+        Callback = function(v) if IsRebuildingUI then return end; Mark.Enabled = v
+            for _, ed in pairs(ESP.Instances) do if ed.MarkBillboard and ed.IsHull then ed.MarkBillboard.Visible = false end end
+            SaveConfig() end })
+    MainTab:CreateLabel(t.DistanceToShowMark)
+    MainTab:CreateSlider({ Name = t.MarkDistance, Range = {0,5000}, Increment = 50,
+        Suffix = " studs", CurrentValue = Mark.Distance, Flag = "MarkDistanceFlag",
+        Callback = function(v) if IsRebuildingUI then return end; Mark.Distance = v; SaveConfig() end })
+    MainTab:CreateLabel(t.MarkAppearance)
+    MainTab:CreateInput({ Name = t.MarkDecalID, PlaceholderText = "11552476728",
+        RemoveTextAfterFocusLost = false, CurrentValue = Mark.DecalID, Flag = "MarkDecalIDFlag",
+        Callback = function(v) if IsRebuildingUI then return end
+            local id = tonumber(v)
+            if id and id > 0 then
+                Mark.DecalID = tostring(id)
+                local tid = "rbxassetid://"..Mark.DecalID
+                for _, ed in pairs(ESP.Instances) do if ed.MarkBillboard then local img = ed.MarkBillboard:FindFirstChild("MarkImage"); if img then img.Image = tid end end end
+                Rayfield:Notify({ Title = t.MarkUpdatedTitle, Content = t.MarkUpdatedContent..Mark.DecalID, Duration = 2 }); SaveConfig()
+            else Rayfield:Notify({ Title = t.InvalidIDTitle, Content = t.InvalidIDContent, Duration = 3 }) end end })
+    MainTab:CreateSlider({ Name = t.MarkOffsetY, Range = {0,200}, Increment = 5, Suffix = " px",
+        CurrentValue = Mark.OffsetY, Flag = "MarkOffsetYFlag",
+        Callback = function(v) if IsRebuildingUI then return end; Mark.OffsetY = v; SaveConfig() end })
+    MainTab:CreateSlider({ Name = t.MarkSize, Range = {5,50}, Increment = 5, Suffix = " px",
+        CurrentValue = Mark.Size, Flag = "MarkSizeFlag",
+        Callback = function(v) if IsRebuildingUI then return end; Mark.Size = v
+            for _, ed in pairs(ESP.Instances) do if ed.MarkBillboard then ed.MarkBillboard.Size = UDim2.new(0,v,0,v) end end
+            SaveConfig() end })
+
+    -- ── Visual Tab ────────────────────────────────────────────
+    VisualTab:CreateSection(t.FogSection)
+    VisualTab:CreateToggle({ Name = t.RemoveFog, CurrentValue = Other.RemoveFog, Flag = "RemoveFogFlag",
+        Callback = function(v) if IsRebuildingUI then return end; Other.RemoveFog = v
+            for _, child in ipairs(Services.Lighting:GetChildren()) do
+                if child:IsA("Atmosphere") then if v then child.Density = 0; child.Haze = 0 end end
+            end; SaveConfig() end })
+    VisualTab:CreateSection(t.PenViewSection)
+    VisualTab:CreateToggle({ Name = t.EnablePenView, CurrentValue = Other.PenView, Flag = "PenViewFlag",
+        Callback = function(v) if IsRebuildingUI then return end; Other.PenView = v
+            if v then PenView_Start() else PenView_Stop() end; SaveConfig() end })
+    VisualTab:CreateSection(t.ColorsSection)
+    VisualTab:CreateColorPicker({ Name = t.HullColor, Color = ESP.HullColor, Flag = "HullColorFlag",
+        Callback = function(v) if IsRebuildingUI then return end; ESP.HullColor = v; SaveConfig() end })
+    VisualTab:CreateColorPicker({ Name = t.TurretColor, Color = ESP.TurretColor, Flag = "TurretColorFlag",
+        Callback = function(v) if IsRebuildingUI then return end; ESP.TurretColor = v; SaveConfig() end })
+    VisualTab:CreateSection(t.HighlightSettingsSection)
+    VisualTab:CreateSlider({ Name = t.FillTransparency, Range = {0,1}, Increment = 0.01,
+        CurrentValue = ESP.FillTransparency, Flag = "FillTransparencyFlag",
+        Callback = function(v) if IsRebuildingUI then return end; ESP.FillTransparency = v; UpdateAllESPInstances(); SaveConfig() end })
+    VisualTab:CreateSlider({ Name = t.OutlineTransparency, Range = {0,1}, Increment = 0.01,
+        CurrentValue = ESP.OutlineTransparency, Flag = "OutlineTransparencyFlag",
+        Callback = function(v) if IsRebuildingUI then return end; ESP.OutlineTransparency = v; UpdateAllESPInstances(); SaveConfig() end })
+    VisualTab:CreateToggle({ Name = t.EnableFill, CurrentValue = ESP.EnableFill, Flag = "EnableFillFlag",
+        Callback = function(v) if IsRebuildingUI then return end; ESP.EnableFill = v; UpdateAllESPInstances(); SaveConfig() end })
+    VisualTab:CreateToggle({ Name = t.EnableOutline, CurrentValue = ESP.EnableOutline, Flag = "EnableOutlineFlag",
+        Callback = function(v) if IsRebuildingUI then return end; ESP.EnableOutline = v; UpdateAllESPInstances(); SaveConfig() end })
+
+    -- ── Weapon Tab ────────────────────────────────────────────
+    WeaponTab:CreateSection(t.WeaponSection)
+    WeaponTab:CreateSection("Penetration")
+    WeaponTab:CreateToggle({ Name = t.PenetrationHack, CurrentValue = HACKS.Penetration.active, Flag = "HackPenetrationFlag",
+        Callback = function(v) if IsRebuildingUI then return end; HACKS.Penetration.active = v; task.defer(InitWeapon); SaveConfig() end })
+    WeaponTab:CreateSlider({ Name = t.PenetrationVal, Range = {0,9999}, Increment = 1,
+        CurrentValue = HACKS.Penetration.target, Flag = "PenetrationValueFlag",
+        Callback = function(v) if IsRebuildingUI then return end; HACKS.Penetration.target = v; if HACKS.Penetration.active then task.defer(InitWeapon) end; SaveConfig() end })
+    WeaponTab:CreateSection("Ricochet Angle")
+    WeaponTab:CreateToggle({ Name = t.RicochetHack, CurrentValue = HACKS.Ricochet.active, Flag = "HackRicochetFlag",
+        Callback = function(v) if IsRebuildingUI then return end; HACKS.Ricochet.active = v; task.defer(InitWeapon); SaveConfig() end })
+    WeaponTab:CreateSlider({ Name = t.RicochetVal, Range = {0,9999}, Increment = 1,
+        CurrentValue = HACKS.Ricochet.target, Flag = "RicochetValueFlag",
+        Callback = function(v) if IsRebuildingUI then return end; HACKS.Ricochet.target = v; if HACKS.Ricochet.active then task.defer(InitWeapon) end; SaveConfig() end })
+    WeaponTab:CreateSection("Bullet Gravity")
+    WeaponTab:CreateToggle({ Name = t.BulletGravHack, CurrentValue = HACKS.BulletGravity.active, Flag = "HackBulletGravityFlag",
+        Callback = function(v) if IsRebuildingUI then return end; HACKS.BulletGravity.active = v; task.defer(InitWeapon); SaveConfig() end })
+    WeaponTab:CreateSlider({ Name = t.BulletGravVal, Range = {-500,500}, Increment = 1,
+        CurrentValue = HACKS.BulletGravity.target, Flag = "BulletGravityValueFlag",
+        Callback = function(v) if IsRebuildingUI then return end; HACKS.BulletGravity.target = v; if HACKS.BulletGravity.active then task.defer(InitWeapon) end; SaveConfig() end })
+    WeaponTab:CreateSection("Shell Speed")
+    WeaponTab:CreateToggle({ Name = t.ShellSpeedHack, CurrentValue = HACKS.ShellSpeed.active, Flag = "HackShellSpeedFlag",
+        Callback = function(v) if IsRebuildingUI then return end; HACKS.ShellSpeed.active = v; task.defer(InitWeapon); SaveConfig() end })
+    WeaponTab:CreateSlider({ Name = t.ShellSpeedVal, Range = {0,9999}, Increment = 1,
+        CurrentValue = HACKS.ShellSpeed.target, Flag = "ShellSpeedValueFlag",
+        Callback = function(v) if IsRebuildingUI then return end; HACKS.ShellSpeed.target = v; if HACKS.ShellSpeed.active then task.defer(InitWeapon) end; SaveConfig() end })
+
+    -- ── Fly Tab ───────────────────────────────────────────────
+    FlyTab:CreateSection(t.FlightControlSection)
+    do
+        local mob = Services.UserInput.TouchEnabled and not Services.UserInput.KeyboardEnabled
+        FlyTab:CreateLabel(mob and t.FlightControlLabelMobile or t.FlightControlLabel)
+    end
+    FlyTab:CreateButton({ Name = t.ToggleFly,
+        Callback = function()
+            if Fly.Active then stopFly(); Rayfield:Notify({ Title = "Fly", Content = t.FlyDisabled, Duration = 2 })
+            else startFly(); Rayfield:Notify({ Title = "Fly", Content = t.FlyEnabled, Duration = 2 }) end
+        end })
+    FlyTab:CreateSlider({ Name = t.FlySpeed, Range = {10,300}, Increment = 10,
+        Suffix = " studs/s", CurrentValue = Fly.Speed, Flag = "FlySpeedFlag",
+        Callback = function(v) if IsRebuildingUI then return end; Fly.Speed = v; SaveConfig() end })
+    FlyTab:CreateSection(t.KeybindSection)
+    FlyTab:CreateKeybind({ Name = t.ToggleFlyKey, CurrentKeybind = Keys.Fly.Name, HoldToInteract = false, Flag = "FlyKeyFlag",
+        Callback = function(v) local key = parseKeyCode(v); if key then
+            Fly.IsRebinding = true; Fly.LastRebindTime = tick()
+            task.delay(0.5, function() Fly.IsRebinding = false end); Keys.Fly = key; SaveConfig() end end })
+
+    -- ── Settings Tab ──────────────────────────────────────────
+    SettingsTab:CreateSection(t.PerformanceSection)
+    SettingsTab:CreateSlider({ Name = t.MarkUpdateRate, Range = {0.016,0.1}, Increment = 0.016,
+        Suffix = "s", CurrentValue = Mark.UpdateInterval, Flag = "MarkUpdateIntervalFlag",
+        Callback = function(v) if IsRebuildingUI then return end; Mark.UpdateInterval = v; SaveConfig() end })
+    SettingsTab:CreateSlider({ Name = t.ScanInterval, Range = {0.1,2.0}, Increment = 0.1,
+        Suffix = "s", CurrentValue = Timers.ScanInterval, Flag = "ScanIntervalFlag",
+        Callback = function(v) if IsRebuildingUI then return end; Timers.ScanInterval = v; SaveConfig() end })
+    SettingsTab:CreateSection(t.GraphicsDegradation)
+    SettingsTab:CreateToggle({ Name = t.GraphicsDegradation, CurrentValue = Graphics.Degradation, Flag = "GraphicsDegradationFlag",
+        Callback = function(v) if IsRebuildingUI then return end; SetGraphicsDegradation(v); SaveConfig() end })
+    SettingsTab:CreateSection(t.ControlsSection)
+    SettingsTab:CreateKeybind({ Name = t.ToggleESPKey, CurrentKeybind = Keys.Toggle.Name, HoldToInteract = false, Flag = "ToggleKeyFlag",
+        Callback = function(v) local key = parseKeyCode(v); if key then
+            Fly.IsRebinding = true; Fly.LastRebindTime = tick()
+            task.delay(0.5, function() Fly.IsRebinding = false end); Keys.Toggle = key; SaveConfig() end end })
+    SettingsTab:CreateKeybind({ Name = t.ToggleGUIKey, CurrentKeybind = Keys.GUI.Name, HoldToInteract = false, Flag = "GUIKeyFlag",
+        Callback = function(v) local key = parseKeyCode(v); if key then Keys.GUI = key; SaveConfig() end end })
+    SettingsTab:CreateSection(t.Language)
+    SettingsTab:CreateDropdown({ Name = t.Language, Options = {"English","Русский"},
+        CurrentOption = {Localization.CurrentLanguage == "EN" and "English" or "Русский"},
+        MultipleOptions = false, Flag = "LanguageDropdownFlag",
+        Callback = function(opt)
+            if IsRebuildingUI then return end
+            if not opt or type(opt) ~= "table" or not opt[1] then return end
+            local newLang = (opt[1] == "English") and "EN" or "RU"
+            if Localization.CurrentLanguage ~= newLang then
+                Localization.CurrentLanguage = newLang; SaveConfig()
+                task.spawn(function()
+                    IsRebuildingUI = true; task.wait(0.3); IsRebuildingUI = false; BuildGUI()
+                end)
+            end
+        end })
+    SettingsTab:CreateSection(t.ProjectSection)
+    SettingsTab:CreateButton({ Name = t.CopyGitHub,
+        Callback = function() setclipboard("https://github.com/qwiix21/Cursed-Tank-Simulator-Script")
+            Rayfield:Notify({ Title = t.CopiedTitle, Content = t.CopiedContent, Duration = 3 }) end })
+    SettingsTab:CreateButton({ Name = t.CopyDiscord,
+        Callback = function() setclipboard("https://discord.gg/gHg5g7eDC4")
+            Rayfield:Notify({ Title = t.CopiedTitle, Content = t.CopiedContent, Duration = 3 }) end })
+end
+
+-- ════════════════════════════════════════
+-- INPUT EVENTS
+-- ════════════════════════════════════════
+Services.UserInput.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if Fly.IsRebinding or (tick() - Fly.LastRebindTime) < 0.5 then return end
+    local t = Localization[Localization.CurrentLanguage]
+    if input.KeyCode == Keys.Toggle then
+        if ESPToggle then
+            ESPToggle:Set(not ESP.Enabled)
+        else
+            ESP.Enabled = not ESP.Enabled; UpdateAllESPInstances(); SaveConfig()
+        end
+        Rayfield:Notify({
+            Title = "ESP",
+            Content = ESP.Enabled and (t.ESPEnabled or "ESP Enabled") or (t.ESPDisabled or "ESP Disabled"),
+            Duration = 2
+        })
+    end
+    if input.KeyCode == Keys.Fly then
+        if Fly.Active then
+            stopFly()
+            Rayfield:Notify({ Title = "Fly", Content = t.FlyDisabled, Duration = 2 })
+        else
+            startFly()
+            Rayfield:Notify({ Title = "Fly", Content = t.FlyEnabled, Duration = 2 })
+        end
+    end
+end)
+
+-- Mobile joystick (left half of screen)
 if Services.UserInput.TouchEnabled then
     Services.UserInput.TouchStarted:Connect(function(touch, gameProcessed)
-        if MobileFly.Touch then return end -- already tracking a finger
+        if not Fly.Active then return end
+        if MobileFly.Touch then return end
         local cam = Services.Workspace.CurrentCamera
         local screenW = cam and cam.ViewportSize.X or 1920
-        -- Only grab touches on the LEFT half of the screen
         if touch.Position.X < screenW * 0.5 then
             MobileFly.Touch = touch
             MobileFly.StartPos = Vector2.new(touch.Position.X, touch.Position.Y)
             MobileFly.Delta = Vector2.new(0, 0)
         end
     end)
-
     Services.UserInput.TouchMoved:Connect(function(touch, gameProcessed)
+        if not Fly.Active then return end
         if touch ~= MobileFly.Touch then return end
         local dx = touch.Position.X - MobileFly.StartPos.X
         local dy = touch.Position.Y - MobileFly.StartPos.Y
         local raw = Vector2.new(dx, dy)
-        if raw.Magnitude > MobileFly.MaxRadius then
-            raw = raw.Unit * MobileFly.MaxRadius
-        end
-        MobileFly.Delta = raw / MobileFly.MaxRadius -- -1..1 each axis
+        if raw.Magnitude > MobileFly.MaxRadius then raw = raw.Unit * MobileFly.MaxRadius end
+        MobileFly.Delta = raw / MobileFly.MaxRadius
     end)
-
     Services.UserInput.TouchEnded:Connect(function(touch, gameProcessed)
-        if touch == MobileFly.Touch then
-            MobileFly.Touch = nil
-            MobileFly.Delta = Vector2.new(0, 0)
-        end
+        if touch == MobileFly.Touch then MobileFly.Touch = nil; MobileFly.Delta = Vector2.new(0,0) end
     end)
 end
 
@@ -1619,105 +1474,61 @@ workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
     Camera = Services.Workspace.CurrentCamera
 end)
 
+-- ════════════════════════════════════════
+-- MAIN LOOPS
+-- ════════════════════════════════════════
 Services.RunService.Heartbeat:Connect(function(dt)
     Timers.VehicleScan += dt
-    if Timers.VehicleScan >= Timers.ScanInterval then
-        Timers.VehicleScan = 0
-        ScanVehicles()
-    end
-    
+    if Timers.VehicleScan >= Timers.ScanInterval then Timers.VehicleScan = 0; ScanVehicles() end
     Timers.Cleanup += dt
-    if Timers.Cleanup >= Timers.CleanupInterval then
-        Timers.Cleanup = 0
-        CleanupESP()
-    end
-    
+    if Timers.Cleanup >= Timers.CleanupInterval then Timers.Cleanup = 0; CleanupESP() end
     UpdateDistanceLabels()
 end)
 
 Services.RunService.RenderStepped:Connect(function(dt)
     Mark.TimeSinceUpdate += dt
-    if Mark.TimeSinceUpdate >= Mark.UpdateInterval then
-        Mark.TimeSinceUpdate = 0
-        UpdateMarkPositions()
-    end
-    
-    if Fly.Active then
-        if Fly.Root and Fly.Root.Parent then
-            local cam  = Services.Workspace.CurrentCamera
-            local move = Vector3.zero
-
-            -- PC keyboard controls
-            if Services.UserInput:IsKeyDown(Enum.KeyCode.W) then move += cam.CFrame.LookVector end
-            if Services.UserInput:IsKeyDown(Enum.KeyCode.S) then move -= cam.CFrame.LookVector end
-            if Services.UserInput:IsKeyDown(Enum.KeyCode.A) then move -= cam.CFrame.RightVector end
-            if Services.UserInput:IsKeyDown(Enum.KeyCode.D) then move += cam.CFrame.RightVector end
-            if Services.UserInput:IsKeyDown(Enum.KeyCode.Space) then move += Vector3.new(0,1,0) end
-            if Services.UserInput:IsKeyDown(Enum.KeyCode.LeftControl) then move -= Vector3.new(0,1,0) end
-
-            -- Mobile virtual joystick (left-thumb touch)
-            if Services.UserInput.TouchEnabled then
-                local jx = MobileFly.Delta.X          -- left/right  (-1..1)
-                local jy = -MobileFly.Delta.Y          -- up = negative Y on screen, invert to get forward
-                if math.abs(jx) > 0.1 or math.abs(jy) > 0.1 then
-                    local flatLook  = Vector3.new(cam.CFrame.LookVector.X,  0, cam.CFrame.LookVector.Z)
-                    local flatRight = Vector3.new(cam.CFrame.RightVector.X, 0, cam.CFrame.RightVector.Z)
-                    if flatLook.Magnitude  > 0 then flatLook  = flatLook.Unit  end
-                    if flatRight.Magnitude > 0 then flatRight = flatRight.Unit end
-                    move += flatLook  * jy
-                    move += flatRight * jx
-                end
+    if Mark.TimeSinceUpdate >= Mark.UpdateInterval then Mark.TimeSinceUpdate = 0; UpdateMarkPositions() end
+    if Fly.Active and Fly.Root and Fly.Root.Parent then
+        local cam = Services.Workspace.CurrentCamera
+        local move = Vector3.zero
+        if Services.UserInput:IsKeyDown(Enum.KeyCode.W) then move += cam.CFrame.LookVector end
+        if Services.UserInput:IsKeyDown(Enum.KeyCode.S) then move -= cam.CFrame.LookVector end
+        if Services.UserInput:IsKeyDown(Enum.KeyCode.A) then move -= cam.CFrame.RightVector end
+        if Services.UserInput:IsKeyDown(Enum.KeyCode.D) then move += cam.CFrame.RightVector end
+        if Services.UserInput:IsKeyDown(Enum.KeyCode.Space) then move += Vector3.new(0,1,0) end
+        if Services.UserInput:IsKeyDown(Enum.KeyCode.LeftControl) then move -= Vector3.new(0,1,0) end
+        if Services.UserInput.TouchEnabled then
+            local jx = MobileFly.Delta.X; local jy = -MobileFly.Delta.Y
+            if math.abs(jx) > 0.1 or math.abs(jy) > 0.1 then
+                local fl = cam.CFrame.LookVector
+                local fr = cam.CFrame.RightVector
+                move += fl*jy + fr*jx
             end
-
-            bv.Velocity = move.Magnitude > 0 and move.Unit * Fly.Speed or Vector3.zero
-            bg.CFrame   = cam.CFrame
         end
+        bv.Velocity = move.Magnitude > 0 and move.Unit * Fly.Speed or Vector3.zero
+        bg.CFrame = cam.CFrame
     end
 end)
 
-ScanVehicles()
-
-local function ProcessAtmosphere(atmosphere)
-    if Other.RemoveFog then
-        atmosphere.Density = 0
-        atmosphere.Haze = 0
-    end
+-- Fog watcher
+local function ProcessAtmosphere(atm) if Other.RemoveFog then atm.Density = 0; atm.Haze = 0 end end
+local function WatchAtmosphere(atm)
+    ProcessAtmosphere(atm)
+    atm.Changed:Connect(function(p) if (p == "Density" or p == "Haze") then ProcessAtmosphere(atm) end end)
 end
+Services.Lighting.ChildAdded:Connect(function(child) if child:IsA("Atmosphere") then WatchAtmosphere(child) end end)
+for _, child in ipairs(Services.Lighting:GetChildren()) do if child:IsA("Atmosphere") then WatchAtmosphere(child) end end
 
-local function WatchAtmosphere(atmosphere)
-    ProcessAtmosphere(atmosphere)
-    atmosphere.Changed:Connect(function(property)
-        if property == "Density" or property == "Haze" then
-            ProcessAtmosphere(atmosphere)
-        end
-    end)
-end
-
-Services.Lighting.ChildAdded:Connect(function(child)
-    if child:IsA("Atmosphere") then WatchAtmosphere(child) end
-end)
-
-for _, child in ipairs(Services.Lighting:GetChildren()) do
-    if child:IsA("Atmosphere") then WatchAtmosphere(child) end
-end
-
-local function InitWeaponWorkspaceWatcher()
-    -- Use a timeout so WaitForChild never hangs forever
-    -- (on mobile the Vehicles folder may not exist yet when the script runs)
+-- Weapon watcher (background thread to avoid blocking GUI)
+task.spawn(function()
     local vehiclesFolder = Services.Workspace:WaitForChild("Vehicles", 60)
-    if not vehiclesFolder then return end -- game has no Vehicles folder
-
+    if not vehiclesFolder then return end
     vehiclesFolder.ChildAdded:Connect(function(obj)
-        if obj.Name == ("Chassis" .. LocalPlayer.Name) then
-            for _, hack in pairs(HACKS) do
-                hack.patched = {}
-                hack.origPatched = {}
-            end
-            task.wait(1)
-            SetupWeaponChassis(obj)
+        if obj.Name == ("Chassis"..LocalPlayer.Name) then
+            for _, hack in pairs(HACKS) do hack.patched = {}; hack.origPatched = {} end
+            task.wait(1); SetupWeaponChassis(obj)
         end
     end)
-
     vehiclesFolder.ChildRemoved:Connect(function(obj)
         if not obj:IsA("Model") then return end
         local toRemove = {}
@@ -1729,27 +1540,18 @@ local function InitWeaponWorkspaceWatcher()
                 if espData.MarkBillboard then espData.MarkBillboard:Destroy() end
             end
         end
-        for _, t in ipairs(toRemove) do ESP.Instances[t] = nil end
+        for _, tgt in ipairs(toRemove) do ESP.Instances[tgt] = nil end
     end)
-end
+end)
 
--- Run the watcher in a separate thread so it NEVER blocks BuildGUI()
-task.spawn(InitWeaponWorkspaceWatcher)
-
--- Load settings from executor's workspace config file
+-- ════════════════════════════════════════
+-- STARTUP
+-- ════════════════════════════════════════
 LoadConfig()
-
--- Apply settings that were loaded
-if Other.PenView then
-    task.spawn(PenView_Start)
-end
-if Graphics.Degradation then
-    task.spawn(function()
-        SetGraphicsDegradation(true)
-    end)
-end
-
+ScanVehicles()
+if Other.PenView then task.spawn(PenView_Start) end
+if Graphics.Degradation then task.spawn(function() SetGraphicsDegradation(true) end) end
 InitWeapon()
-
--- Build and initialize GUI
 BuildGUI()
+
+print("kolyanchik script loaded!")
