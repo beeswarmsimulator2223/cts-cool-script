@@ -1702,7 +1702,12 @@ for _, child in ipairs(Services.Lighting:GetChildren()) do
 end
 
 local function InitWeaponWorkspaceWatcher()
-    Services.Workspace:WaitForChild("Vehicles").ChildAdded:Connect(function(obj)
+    -- Use a timeout so WaitForChild never hangs forever
+    -- (on mobile the Vehicles folder may not exist yet when the script runs)
+    local vehiclesFolder = Services.Workspace:WaitForChild("Vehicles", 60)
+    if not vehiclesFolder then return end -- game has no Vehicles folder
+
+    vehiclesFolder.ChildAdded:Connect(function(obj)
         if obj.Name == ("Chassis" .. LocalPlayer.Name) then
             for _, hack in pairs(HACKS) do
                 hack.patched = {}
@@ -1713,7 +1718,7 @@ local function InitWeaponWorkspaceWatcher()
         end
     end)
 
-    Services.Workspace:WaitForChild("Vehicles").ChildRemoved:Connect(function(obj)
+    vehiclesFolder.ChildRemoved:Connect(function(obj)
         if not obj:IsA("Model") then return end
         local toRemove = {}
         for target, espData in pairs(ESP.Instances) do
@@ -1728,7 +1733,8 @@ local function InitWeaponWorkspaceWatcher()
     end)
 end
 
-InitWeaponWorkspaceWatcher()
+-- Run the watcher in a separate thread so it NEVER blocks BuildGUI()
+task.spawn(InitWeaponWorkspaceWatcher)
 
 -- Load settings from executor's workspace config file
 LoadConfig()
