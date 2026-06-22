@@ -121,6 +121,13 @@ local GraphicsLevelsDisplayName = {
     RU = { ["None"] = "Отсутствует", ["Low"] = "Низкая", ["Medium"] = "Средняя", ["High"] = "Высокая" }
 }
 
+local AntiLag = {
+    NoSmoke = false,
+    NoDeathEffect = false,
+    TerrainConnection = nil,
+    VehiclesConnection = nil
+}
+
 -- ════════════════════════════════════════
 -- LOCALIZATION
 -- ════════════════════════════════════════
@@ -164,6 +171,7 @@ local Localization = {
         PerformanceSection = "Performance",
         MarkUpdateRate = "Mark Update Rate", ScanInterval = "Scan Interval",
         GraphicsDegradation = "Graphics Degradation",
+        AntiLagSection = "Anti Lag", NoSmoke = "Disable All Smoke", NoDeathEffect = "Disable Death Effects",
         ThemeSection = "Theme",
         ThemeBGColor = "Background Color",
         ThemeStrokeColor = "Border Color",
@@ -220,6 +228,7 @@ local Localization = {
         PerformanceSection = "Производительность",
         MarkUpdateRate = "Частота обновления метки", ScanInterval = "Интервал сканирования",
         GraphicsDegradation = "Деградация графики",
+        AntiLagSection = "Анти-лаг", NoSmoke = "Отключить весь дым", NoDeathEffect = "Отключить эффекты смерти",
         ThemeSection = "Внешний вид GUI",
         PresetThemesOption = "Готовая тема",
         CustomBackgroundOption = "ID картинки фона",
@@ -335,6 +344,8 @@ local function SaveConfig()
         ShellSpeedActive = HACKS.ShellSpeed.active, ShellSpeedTarget = HACKS.ShellSpeed.target,
         FlySpeed = Fly.Speed, ScanInterval = Timers.ScanInterval,
         GraphicsDegradationLevel = Graphics.DegradationLevel,
+        NoSmoke = AntiLag.NoSmoke,
+        NoDeathEffect = AntiLag.NoDeathEffect,
         ToggleESPKey = Keys.Toggle.Name, ToggleFlyKey = Keys.Fly.Name, ToggleGUIKey = Keys.GUI.Name,
         CrewEnabled = ESP.CrewEnabled, ModulesEnabled = ESP.ModulesEnabled,
         CrewColor = {ESP.CrewColor.R, ESP.CrewColor.G, ESP.CrewColor.B},
@@ -382,6 +393,8 @@ local function LoadConfig()
             HACKS.ShellSpeed.target = data.ShellSpeedTarget or 9999
             Fly.Speed = data.FlySpeed or 70
             Timers.ScanInterval = data.ScanInterval or 0.5
+            AntiLag.NoSmoke = data.NoSmoke or false
+            AntiLag.NoDeathEffect = data.NoDeathEffect or false
             if data.GraphicsDegradationLevel then
                 Graphics.DegradationLevel = data.GraphicsDegradationLevel
             elseif data.GraphicsDegradation ~= nil then
@@ -643,6 +656,18 @@ local function findChassis(obj)
     return nil
 end
 
+local function findAdorneePart(object)
+    if not object then return nil end
+    if object:IsA("BasePart") then return object end
+    if object:IsA("Model") and object.PrimaryPart then return object.PrimaryPart end
+    for _, desc in ipairs(object:GetDescendants()) do
+        if desc:IsA("BasePart") then
+            return desc
+        end
+    end
+    return nil
+end
+
 local function CreateESP(targetObject, color, isHull)
     if ESP.Instances[targetObject] then return ESP.Instances[targetObject] end
     local highlight = Instance.new("Highlight")
@@ -657,9 +682,10 @@ local function CreateESP(targetObject, color, isHull)
     highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
     highlight.Adornee = targetObject; highlight.Parent = ESPFolder
     local distanceBillboard, distanceLabel, markBillboard, turretAdornee
+    local adorneePart = findAdorneePart(targetObject)
     if isHull then
         distanceBillboard = Instance.new("BillboardGui")
-        distanceBillboard.Name = "DistanceDisplay"; distanceBillboard.Adornee = targetObject
+        distanceBillboard.Name = "DistanceDisplay"; distanceBillboard.Adornee = adorneePart or targetObject
         distanceBillboard.Size = UDim2.new(0,200,0,50); distanceBillboard.StudsOffset = Vector3.new(0,-3,0)
         distanceBillboard.AlwaysOnTop = true
         distanceBillboard.Enabled = ESP.Enabled and ESP.ShowDistance
@@ -684,10 +710,11 @@ local function CreateESP(targetObject, color, isHull)
         img.BackgroundTransparency = 1; img.Size = UDim2.new(1,0,1,0)
         img.Image = "rbxassetid://" .. tostring(Mark.DecalID); img.Parent = markBillboard
     end
+    local turretPart = findAdorneePart(turretAdornee)
     ESP.Instances[targetObject] = {
         Instance = highlight, DistanceLabel = distanceLabel, DistanceBillboard = distanceBillboard,
-        MarkBillboard = markBillboard, TurretAdornee = turretAdornee,
-        Target = targetObject, Color = color, IsHull = isHull,
+        MarkBillboard = markBillboard, TurretAdornee = turretPart or turretAdornee,
+        Target = targetObject, Color = color, IsHull = isHull, AdorneePart = adorneePart
     }
     return ESP.Instances[targetObject]
 end
@@ -697,10 +724,13 @@ local function UpdateMarkPositions()
     local camPos = Camera.CFrame.Position; local vpSize = Camera.ViewportSize
     for _, espData in pairs(ESP.Instances) do
         if espData.MarkBillboard and espData.IsHull then
-            local target = espData.TurretAdornee or espData.Target
+            local target = espData.TurretAdornee or espData.AdorneePart or espData.Target
             if target and target.Parent then
                 local ok, pos = pcall(GetModelPosition, target)
-                if not ok then pos = espData.Target.Position end
+                if not ok or not pos then
+                    local fallback = espData.AdorneePart or espData.Target
+                    pos = fallback:IsA("BasePart") and fallback.Position or (fallback:IsA("Model") and fallback:GetBoundingBox().Position) or fallback.Position
+                end
                 if (pos - camPos).Magnitude >= Mark.Distance then
                     local sp, onScreen = Camera:WorldToViewportPoint(pos)
                     if onScreen and sp.Z > 0 then
@@ -720,8 +750,14 @@ local function UpdateDistanceLabels()
     local camPos = Camera.CFrame.Position
     for _, espData in pairs(ESP.Instances) do
         if espData.IsHull and espData.DistanceLabel and espData.Target and espData.Target.Parent then
-            local ok, pos = pcall(GetModelPosition, espData.Target)
-            if ok then espData.DistanceLabel.Text = math.floor((pos-camPos).Magnitude/3) .. " m" end
+            local target = espData.AdorneePart or espData.Target
+            if target and target.Parent then
+                local ok, pos = pcall(GetModelPosition, target)
+                if not ok or not pos then
+                    pos = target:IsA("BasePart") and target.Position or (target:IsA("Model") and target:GetBoundingBox().Position) or target.Position
+                end
+                espData.DistanceLabel.Text = math.floor((pos-camPos).Magnitude/3) .. " m"
+            end
         end
     end
 end
@@ -945,6 +981,82 @@ local function SetGraphicsDegradation(level)
     end)
 end
 
+local function ProcessTerrainSmoke(desc)
+    if AntiLag.NoSmoke then
+        pcall(function()
+            if desc:IsA("ParticleEmitter") then
+                local lname = desc.Name:lower()
+                if lname == "smoke" or lname:find("smoke") then
+                    desc.Enabled = false
+                    desc.Rate = 0
+                    desc.Lifetime = NumberRange.new(0)
+                    desc.Speed = NumberRange.new(0)
+                    desc.Transparency = NumberSequence.new(1)
+                end
+            elseif desc:IsA("Smoke") then
+                desc.Enabled = false
+                desc.Opacity = 0
+                desc.Size = 0
+            end
+        end)
+    end
+end
+
+local function SetNoSmoke(value)
+    AntiLag.NoSmoke = value
+    if value then
+        for _, desc in ipairs(Services.Workspace:GetDescendants()) do
+            ProcessTerrainSmoke(desc)
+        end
+        if not AntiLag.TerrainConnection then
+            AntiLag.TerrainConnection = Services.Workspace.DescendantAdded:Connect(function(desc)
+                ProcessTerrainSmoke(desc)
+            end)
+        end
+    else
+        if AntiLag.TerrainConnection then
+            AntiLag.TerrainConnection:Disconnect()
+            AntiLag.TerrainConnection = nil
+        end
+    end
+end
+
+local function ProcessDeathEffect(desc)
+    if AntiLag.NoDeathEffect then
+        pcall(function()
+            if desc:IsA("ParticleEmitter") then
+                local lname = desc.Name:lower()
+                if lname:find("^death") or lname:find("death$") then
+                    desc.Enabled = false
+                    desc.Rate = 0
+                    desc.Lifetime = NumberRange.new(0)
+                    desc.Speed = NumberRange.new(0)
+                    desc.Transparency = NumberSequence.new(1)
+                end
+            end
+        end)
+    end
+end
+
+local function SetNoDeathEffect(value)
+    AntiLag.NoDeathEffect = value
+    if value then
+        for _, desc in ipairs(Services.Workspace:GetDescendants()) do
+            ProcessDeathEffect(desc)
+        end
+        if not AntiLag.VehiclesConnection then
+            AntiLag.VehiclesConnection = Services.Workspace.DescendantAdded:Connect(function(desc)
+                ProcessDeathEffect(desc)
+            end)
+        end
+    else
+        if AntiLag.VehiclesConnection then
+            AntiLag.VehiclesConnection:Disconnect()
+            AntiLag.VehiclesConnection = nil
+        end
+    end
+end
+
 -- ════════════════════════════════════════
 -- FLY
 -- ════════════════════════════════════════
@@ -1141,7 +1253,9 @@ local function ApplyTheme()
                 inst.BackgroundTransparency = 0
             elseif bgType == "Accent" then
                 inst.BackgroundColor3 = T.Accent
-                inst.BackgroundTransparency = 0
+                if not inst:GetAttribute("IgnoreThemeTrans") then
+                    inst.BackgroundTransparency = 0
+                end
             end
         end
         if textType then
@@ -1524,6 +1638,7 @@ function Rayfield:CreateWindow(cfg)
         btn.Font = Enum.Font.GothamMedium; btn.TextSize = 12; btn.TextColor3 = T.Sub
         btn.TextXAlignment = Enum.TextXAlignment.Left; btn.Text = "  "..name; btn.Parent = tabList
         theme(btn, "Accent", "Sub")
+        btn:SetAttribute("IgnoreThemeTrans", true)
         mkCorner(btn, 7)
         local indicator = Instance.new("Frame"); indicator.Size = UDim2.new(0,3,0.55,0)
         indicator.Position = UDim2.new(0,3,0.225,0); indicator.BackgroundColor3 = T.Accent
@@ -2058,14 +2173,7 @@ local function BuildGUI()
 
     -- ── Settings Tab ──────────────────────────────────────────
 
-    SettingsTab:CreateSection(t.PerformanceSection)
-    SettingsTab:CreateSlider({ Name = t.MarkUpdateRate, Range = {0.016,0.1}, Increment = 0.016,
-        Suffix = "s", CurrentValue = Mark.UpdateInterval, Flag = "MarkUpdateIntervalFlag",
-        Callback = function(v) if IsRebuildingUI then return end; Mark.UpdateInterval = v; SaveConfig() end })
-    SettingsTab:CreateSlider({ Name = t.ScanInterval, Range = {0.1,2.0}, Increment = 0.1,
-        Suffix = "s", CurrentValue = Timers.ScanInterval, Flag = "ScanIntervalFlag",
-        Callback = function(v) if IsRebuildingUI then return end; Timers.ScanInterval = v; SaveConfig() end })
-    SettingsTab:CreateSection(t.GraphicsDegradation)
+    SettingsTab:CreateSection(t.AntiLagSection)
     local lang = Localization.CurrentLanguage
     local displayNames = GraphicsLevelsDisplayName[lang] or GraphicsLevelsDisplayName.EN
     local currentDisp = displayNames[Graphics.DegradationLevel] or displayNames["None"]
@@ -2091,6 +2199,16 @@ local function BuildGUI()
             SaveConfig()
         end
     })
+    SettingsTab:CreateToggle({ Name = t.NoSmoke, CurrentValue = AntiLag.NoSmoke, Flag = "NoSmokeFlag",
+        Callback = function(v) if IsRebuildingUI then return end; SetNoSmoke(v); SaveConfig() end })
+    SettingsTab:CreateToggle({ Name = t.NoDeathEffect, CurrentValue = AntiLag.NoDeathEffect, Flag = "NoDeathEffectFlag",
+        Callback = function(v) if IsRebuildingUI then return end; SetNoDeathEffect(v); SaveConfig() end })
+    SettingsTab:CreateSlider({ Name = t.MarkUpdateRate, Range = {0.016,0.1}, Increment = 0.016,
+        Suffix = "s", CurrentValue = Mark.UpdateInterval, Flag = "MarkUpdateIntervalFlag",
+        Callback = function(v) if IsRebuildingUI then return end; Mark.UpdateInterval = v; SaveConfig() end })
+    SettingsTab:CreateSlider({ Name = t.ScanInterval, Range = {0.1,2.0}, Increment = 0.1,
+        Suffix = "s", CurrentValue = Timers.ScanInterval, Flag = "ScanIntervalFlag",
+        Callback = function(v) if IsRebuildingUI then return end; Timers.ScanInterval = v; SaveConfig() end })
     SettingsTab:CreateSection(t.ControlsSection)
     SettingsTab:CreateKeybind({ Name = t.ToggleESPKey, CurrentKeybind = Keys.Toggle.Name, HoldToInteract = false, Flag = "ToggleKeyFlag",
         Callback = function(v) local key = parseKeyCode(v); if key then
@@ -2303,6 +2421,8 @@ local function CleanUpScript()
     stopFly()
     PenView_Stop()
     SetGraphicsDegradation("None")
+    SetNoSmoke(false)
+    SetNoDeathEffect(false)
     ClearWeaponConnections()
     if ChassisDescendantConn then ChassisDescendantConn:Disconnect(); ChassisDescendantConn = nil end
     ClearAllESP()
@@ -2334,6 +2454,8 @@ local function RunStartup()
         ScanVehicles()
         if Other.PenView then task.spawn(PenView_Start) end
         if Graphics.DegradationLevel ~= "None" then task.spawn(function() SetGraphicsDegradation(Graphics.DegradationLevel) end) end
+        if AntiLag.NoSmoke then task.spawn(function() SetNoSmoke(true) end) end
+        if AntiLag.NoDeathEffect then task.spawn(function() SetNoDeathEffect(true) end) end
         InitWeapon()
         BuildGUI()
         ApplyTheme()
