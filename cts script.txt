@@ -47,8 +47,29 @@ local ESP = {
     HullColor = Color3.new(0.8, 0.2, 0.9),
     TurretColor = Color3.new(0.2, 0.9, 0.4),
     FillTransparency = 0.5,
-    OutlineTransparency = 0.2
+    OutlineTransparency = 0.2,
+    CrewEnabled = false,
+    ModulesEnabled = false,
+    CrewColor = Color3.fromRGB(255, 230, 50),
+    ModuleColor = Color3.fromRGB(255, 75, 75),
+    InternalInstances = {}
 }
+
+local function matchPart(name)
+    if not name or type(name) ~= "string" then return nil end
+    local lname = name:lower():gsub("%s+", "")
+    if lname:find("seat") then return nil end
+
+    if lname:find("driver") or lname:find("loader") or lname:find("gunner") or lname:find("commander") then
+        return "Crew", ESP.CrewColor
+    end
+
+    if lname:find("ammu") or lname:find("amui") or lname:find("ammo") or lname:find("engine") or lname:find("fuel") or lname:find("transmission") or lname:find("radiator") then
+        return "Module", ESP.ModuleColor
+    end
+
+    return nil
+end
 
 local Mark = {
     Enabled = false,
@@ -88,11 +109,16 @@ local Other = {
 }
 
 local Graphics = {
-    Degradation = false,
+    DegradationLevel = "None",
     OriginalMaterials = setmetatable({}, { __mode = "k" }),
     OriginalDecals = setmetatable({}, { __mode = "k" }),
-    OriginalShadows = true,
+    OriginalShadows = Services.Lighting.GlobalShadows,
     AddedConnection = nil
+}
+
+local GraphicsLevelsDisplayName = {
+    EN = { ["None"] = "None", ["Low"] = "Low", ["Medium"] = "Medium", ["High"] = "High" },
+    RU = { ["None"] = "Отсутствует", ["Low"] = "Низкая", ["Medium"] = "Средняя", ["High"] = "Высокая" }
 }
 
 -- ════════════════════════════════════════
@@ -141,7 +167,9 @@ local Localization = {
         ThemeSection = "Theme",
         ThemeBGColor = "Background Color",
         ThemeStrokeColor = "Border Color",
-        ThemeTextColor = "Text Color",
+        ThemeSection = "GUI Appearance",
+        PresetThemesOption = "Preset Theme",
+        CustomBackgroundOption = "Custom Background Image ID",
         ControlsSection = "Controls", ToggleESPKey = "Toggle ESP Key",
         ProjectSection = "Project", CopyGitHub = "Copy GitHub Link", CopyDiscord = "Copy Discord Link",
         Language = "Language / Язык",
@@ -150,6 +178,9 @@ local Localization = {
         FlyEnabled = "Flight enabled", FlyDisabled = "Flight disabled",
         ESPEnabled = "ESP Enabled", ESPDisabled = "ESP Disabled",
         CopiedTitle = "Copied", CopiedContent = "Link copied to clipboard!",
+        CrewSection = "Crew ESP", EnableCrewESP = "Enable Crew ESP",
+        ModulesSection = "Modules ESP", EnableModulesESP = "Enable Modules ESP",
+        CrewColor = "Crew Color", ModuleColor = "Module Color",
     },
     RU = {
         WindowTitle = "kolyanchik script",
@@ -188,11 +219,10 @@ local Localization = {
         KeybindSection = "Клавиша активации", ToggleFlyKey = "Клавиша полёта", ToggleGUIKey = "Клавиша GUI",
         PerformanceSection = "Производительность",
         MarkUpdateRate = "Частота обновления метки", ScanInterval = "Интервал сканирования",
-        GraphicsDegradation = "Ухудшение графики",
-        ThemeSection = "Тема",
-        ThemeBGColor = "Цвет фона",
-        ThemeStrokeColor = "Цвет рамок",
-        ThemeTextColor = "Цвет текста",
+        GraphicsDegradation = "Деградация графики",
+        ThemeSection = "Внешний вид GUI",
+        PresetThemesOption = "Готовая тема",
+        CustomBackgroundOption = "ID картинки фона",
         ControlsSection = "Клавиши управления", ToggleESPKey = "Клавиша ESP",
         ProjectSection = "Проект", CopyGitHub = "Скопировать ссылку GitHub", CopyDiscord = "Скопировать ссылку Discord",
         Language = "Язык / Language",
@@ -201,6 +231,9 @@ local Localization = {
         FlyEnabled = "Полёт включен", FlyDisabled = "Полёт выключен",
         ESPEnabled = "ESP Включен", ESPDisabled = "ESP Выключен",
         CopiedTitle = "Скопировано", CopiedContent = "Ссылка скопирована в буфер обмена!",
+        CrewSection = "ESP Экипажа", EnableCrewESP = "Включить ESP Экипажа",
+        ModulesSection = "ESP Модулей", EnableModulesESP = "Включить ESP Модулей",
+        CrewColor = "Цвет экипажа", ModuleColor = "Цвет модулей",
     }
 }
 
@@ -232,6 +265,42 @@ local PenView = {
 
 local Camera = Services.Workspace.CurrentCamera
 local IsRebuildingUI = false
+
+local SelectedTheme = "Dark Mode"
+local CustomBgImage = ""
+
+local PresetThemes = {
+    ["Dark Mode"] = {
+        BG = Color3.fromRGB(14, 14, 20), Sidebar = Color3.fromRGB(18, 18, 26), Card = Color3.fromRGB(24, 24, 34),
+        Stroke = Color3.fromRGB(50, 50, 66), Accent = Color3.fromRGB(110, 75, 250), Text = Color3.fromRGB(235, 235, 245),
+        Sub = Color3.fromRGB(148, 148, 164), Hover = Color3.fromRGB(34, 34, 48)
+    },
+    ["White-Black"] = {
+        BG = Color3.fromRGB(245, 245, 247), Sidebar = Color3.fromRGB(235, 235, 238), Card = Color3.fromRGB(255, 255, 255),
+        Stroke = Color3.fromRGB(200, 200, 205), Accent = Color3.fromRGB(20, 20, 20), Text = Color3.fromRGB(20, 20, 20),
+        Sub = Color3.fromRGB(110, 110, 115), Hover = Color3.fromRGB(220, 220, 225)
+    },
+    ["White-Gold"] = {
+        BG = Color3.fromRGB(248, 247, 244), Sidebar = Color3.fromRGB(240, 238, 232), Card = Color3.fromRGB(255, 255, 255),
+        Stroke = Color3.fromRGB(225, 220, 205), Accent = Color3.fromRGB(212, 175, 55), Text = Color3.fromRGB(35, 30, 20),
+        Sub = Color3.fromRGB(135, 125, 110), Hover = Color3.fromRGB(245, 240, 225)
+    },
+    ["Purple-Black"] = {
+        BG = Color3.fromRGB(10, 8, 18), Sidebar = Color3.fromRGB(14, 11, 26), Card = Color3.fromRGB(20, 16, 36),
+        Stroke = Color3.fromRGB(56, 44, 88), Accent = Color3.fromRGB(155, 80, 255), Text = Color3.fromRGB(240, 235, 250),
+        Sub = Color3.fromRGB(160, 150, 180), Hover = Color3.fromRGB(32, 26, 56)
+    },
+    ["Purple-White"] = {
+        BG = Color3.fromRGB(250, 247, 255), Sidebar = Color3.fromRGB(240, 232, 252), Card = Color3.fromRGB(255, 255, 255),
+        Stroke = Color3.fromRGB(218, 200, 245), Accent = Color3.fromRGB(130, 50, 220), Text = Color3.fromRGB(40, 20, 70),
+        Sub = Color3.fromRGB(125, 100, 160), Hover = Color3.fromRGB(243, 233, 255)
+    },
+    ["Baby Blue-Black"] = {
+        BG = Color3.fromRGB(10, 14, 18), Sidebar = Color3.fromRGB(14, 20, 26), Card = Color3.fromRGB(20, 28, 36),
+        Stroke = Color3.fromRGB(46, 64, 82), Accent = Color3.fromRGB(137, 207, 240), Text = Color3.fromRGB(230, 242, 250),
+        Sub = Color3.fromRGB(150, 172, 190), Hover = Color3.fromRGB(28, 40, 52)
+    }
+}
 
 -- ════════════════════════════════════════
 -- CONFIG SAVE / LOAD
@@ -265,8 +334,13 @@ local function SaveConfig()
         BulletGravityActive = HACKS.BulletGravity.active, BulletGravityTarget = HACKS.BulletGravity.target,
         ShellSpeedActive = HACKS.ShellSpeed.active, ShellSpeedTarget = HACKS.ShellSpeed.target,
         FlySpeed = Fly.Speed, ScanInterval = Timers.ScanInterval,
-        GraphicsDegradation = Graphics.Degradation,
-        ToggleESPKey = Keys.Toggle.Name, ToggleFlyKey = Keys.Fly.Name, ToggleGUIKey = Keys.GUI.Name
+        GraphicsDegradationLevel = Graphics.DegradationLevel,
+        ToggleESPKey = Keys.Toggle.Name, ToggleFlyKey = Keys.Fly.Name, ToggleGUIKey = Keys.GUI.Name,
+        CrewEnabled = ESP.CrewEnabled, ModulesEnabled = ESP.ModulesEnabled,
+        CrewColor = {ESP.CrewColor.R, ESP.CrewColor.G, ESP.CrewColor.B},
+        ModuleColor = {ESP.ModuleColor.R, ESP.ModuleColor.G, ESP.ModuleColor.B},
+        SelectedTheme = SelectedTheme,
+        CustomBgImage = CustomBgImage
     }
     pcall(function()
         if writefile then writefile(CONFIG_FILE, HttpService:JSONEncode(data)) end
@@ -308,10 +382,28 @@ local function LoadConfig()
             HACKS.ShellSpeed.target = data.ShellSpeedTarget or 9999
             Fly.Speed = data.FlySpeed or 70
             Timers.ScanInterval = data.ScanInterval or 0.5
-            Graphics.Degradation = data.GraphicsDegradation or false
+            if data.GraphicsDegradationLevel then
+                Graphics.DegradationLevel = data.GraphicsDegradationLevel
+            elseif data.GraphicsDegradation ~= nil then
+                Graphics.DegradationLevel = data.GraphicsDegradation and "High" or "None"
+            else
+                Graphics.DegradationLevel = "None"
+            end
             if data.ToggleESPKey then local k = parseKeyCode(data.ToggleESPKey) if k then Keys.Toggle = k end end
             if data.ToggleFlyKey then local k = parseKeyCode(data.ToggleFlyKey) if k then Keys.Fly = k end end
             if data.ToggleGUIKey then local k = parseKeyCode(data.ToggleGUIKey) if k then Keys.GUI = k end end
+            ESP.CrewEnabled = (data.CrewEnabled ~= nil) and data.CrewEnabled or false
+            ESP.ModulesEnabled = (data.ModulesEnabled ~= nil) and data.ModulesEnabled or false
+            if data.CrewColor then ESP.CrewColor = Color3.new(data.CrewColor[1], data.CrewColor[2], data.CrewColor[3]) end
+            if data.ModuleColor then ESP.ModuleColor = Color3.new(data.ModuleColor[1], data.ModuleColor[2], data.ModuleColor[3]) end
+            SelectedTheme = data.SelectedTheme or "Dark Mode"
+            CustomBgImage = data.CustomBgImage or ""
+            local th = PresetThemes[SelectedTheme]
+            if th then
+                for k, v in pairs(th) do
+                    T[k] = v
+                end
+            end
         end
     else
         Localization.CurrentLanguage = "EN"
@@ -503,7 +595,11 @@ MarkScreenGui.Parent = Services.CoreGui
 local function UpdateESPInstance(espData)
     if not espData.Instance then return end
     espData.Instance.FillColor = ESP.EnableFill and espData.Color or Color3.new(0,0,0)
-    espData.Instance.FillTransparency = ESP.EnableFill and ESP.FillTransparency or 1
+    local fillTrans = ESP.FillTransparency
+    if ESP.CrewEnabled or ESP.ModulesEnabled then
+        fillTrans = 0.85
+    end
+    espData.Instance.FillTransparency = ESP.EnableFill and fillTrans or 1
     espData.Instance.OutlineColor = ESP.EnableOutline and espData.Color or Color3.new(0,0,0)
     espData.Instance.OutlineTransparency = ESP.EnableOutline and ESP.OutlineTransparency or 1
     espData.Instance.Enabled = ESP.Enabled
@@ -523,6 +619,11 @@ local function ClearAllESP()
         if espData.MarkBillboard then espData.MarkBillboard:Destroy() end
     end
     ESP.Instances = {}
+    -- Clear internal (crew/module) ESP
+    for _, iData in pairs(ESP.InternalInstances) do
+        if iData.Highlight and iData.Highlight.Parent then iData.Highlight:Destroy() end
+    end
+    ESP.InternalInstances = {}
 end
 
 local function GetModelPosition(model)
@@ -531,11 +632,26 @@ local function GetModelPosition(model)
     local cf, _ = model:GetBoundingBox(); return cf.Position
 end
 
+local function findChassis(obj)
+    local cur = obj
+    while cur and cur ~= workspace do
+        if cur:IsA("Model") and cur.Name:match("^Chassis") then
+            return cur
+        end
+        cur = cur.Parent
+    end
+    return nil
+end
+
 local function CreateESP(targetObject, color, isHull)
     if ESP.Instances[targetObject] then return ESP.Instances[targetObject] end
     local highlight = Instance.new("Highlight")
     highlight.FillColor = ESP.EnableFill and color or Color3.new(0,0,0)
-    highlight.FillTransparency = ESP.EnableFill and ESP.FillTransparency or 1
+    local fillTrans = ESP.FillTransparency
+    if ESP.CrewEnabled or ESP.ModulesEnabled then
+        fillTrans = 0.85
+    end
+    highlight.FillTransparency = ESP.EnableFill and fillTrans or 1
     highlight.OutlineColor = ESP.EnableOutline and color or Color3.new(0,0,0)
     highlight.OutlineTransparency = ESP.EnableOutline and ESP.OutlineTransparency or 1
     highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
@@ -554,7 +670,7 @@ local function CreateESP(targetObject, color, isHull)
         distanceLabel.TextColor3 = color; distanceLabel.TextStrokeTransparency = 0
         distanceLabel.TextStrokeColor3 = Color3.new(0,0,0); distanceLabel.Text = "0 m"
         distanceLabel.Parent = distanceBillboard
-        local chassis = targetObject.Parent and targetObject.Parent.Parent
+        local chassis = findChassis(targetObject)
         if chassis then
             local turret = chassis:FindFirstChild("Turret")
             if turret then for _, obj in ipairs(turret:GetChildren()) do if obj:IsA("Model") then turretAdornee = obj; break end end end
@@ -621,6 +737,76 @@ local function CleanupESP()
         end
     end
     for _, obj in ipairs(toRemove) do ESP.Instances[obj] = nil end
+    local intRemove = {}
+    for obj, iData in pairs(ESP.InternalInstances) do
+        if not obj or not obj.Parent then
+            table.insert(intRemove, obj)
+            if iData.Highlight and iData.Highlight.Parent then iData.Highlight:Destroy() end
+        end
+    end
+    for _, obj in ipairs(intRemove) do ESP.InternalInstances[obj] = nil end
+end
+
+local function UpdateAllInternalESP()
+    for part, iData in pairs(ESP.InternalInstances) do
+        if part and part.Parent then
+            local isCrew = iData.IsCrew
+            local enabled = isCrew and ESP.CrewEnabled or ESP.ModulesEnabled
+            local color = isCrew and ESP.CrewColor or ESP.ModuleColor
+            if iData.Highlight then
+                iData.Highlight.Enabled = enabled and (part.Transparency < 1)
+                iData.Highlight.FillColor = color
+                iData.Highlight.OutlineColor = color
+                iData.Highlight.FillTransparency = 0.15
+                iData.Highlight.OutlineTransparency = 0.05
+            end
+        end
+    end
+end
+
+local function ProcessInternalParts(chassis)
+    -- Scan ALL descendants of this chassis; match using matchPart function
+    for _, part in ipairs(chassis:GetDescendants()) do
+        if part:IsA("BasePart") then
+            if part.Transparency < 1 then
+                local partType, color = matchPart(part.Name)
+                if partType then
+                    local isCrew = (partType == "Crew")
+                    if not ESP.InternalInstances[part] then
+                        local highlight = Instance.new("Highlight")
+                        highlight.FillColor = color
+                        highlight.FillTransparency = 0.15
+                        highlight.OutlineColor = color
+                        highlight.OutlineTransparency = 0.05
+                        highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                        highlight.Adornee = part
+                        highlight.Parent = ESPFolder
+
+                        local enabled = isCrew and ESP.CrewEnabled or ESP.ModulesEnabled
+                        highlight.Enabled = enabled and (part.Transparency < 1)
+
+                        ESP.InternalInstances[part] = {
+                            Highlight = highlight,
+                            Color = color, IsCrew = isCrew
+                        }
+                    end
+                end
+            end
+        end
+    end
+end
+
+local function findHighlightTarget(model)
+    if not model then return nil end
+    for _, child in ipairs(model:GetDescendants()) do
+        if child:IsA("Model") or child:IsA("Folder") then
+            local name = child.Name:lower()
+            if name == "armour" or name == "armor" then
+                return child
+            end
+        end
+    end
+    return model
 end
 
 function ProcessChassis(chassis)
@@ -637,15 +823,26 @@ function ProcessChassis(chassis)
     end
 
     if ESP.TeamCheck and isTeammate then
-        -- Remove existing ESP for this chassis if it became a teammate
+        -- Remove existing highlight ESP for this chassis if it became a teammate
         local function tryRemove(obj)
             if not obj then return end
             local ed = ESP.Instances[obj]
+            if not ed then
+                local armor = findHighlightTarget(obj)
+                if armor then ed = ESP.Instances[armor] end
+            end
             if ed then
                 if ed.Instance then ed.Instance:Destroy() end
                 if ed.DistanceBillboard then ed.DistanceBillboard:Destroy() end
                 if ed.MarkBillboard then ed.MarkBillboard:Destroy() end
-                ESP.Instances[obj] = nil
+                ESP.Instances[ed.Target] = nil
+            end
+        end
+        -- Remove internal (crew/module) ESP for this chassis
+        for part, iData in pairs(ESP.InternalInstances) do
+            if part and part:IsDescendantOf(chassis) then
+                if iData.Highlight then iData.Highlight:Destroy() end
+                ESP.InternalInstances[part] = nil
             end
         end
         local hull = chassis:FindFirstChild("Hull")
@@ -655,10 +852,30 @@ function ProcessChassis(chassis)
         return
     end
 
+    -- Highlight ESP (hull + turret)
     local hull = chassis:FindFirstChild("Hull")
-    if hull then for _, obj in ipairs(hull:GetChildren()) do if obj:IsA("Model") then CreateESP(obj, ESP.HullColor, true); break end end end
+    if hull then
+        for _, obj in ipairs(hull:GetChildren()) do
+            if obj:IsA("Model") then
+                CreateESP(findHighlightTarget(obj), ESP.HullColor, true)
+                break
+            end
+        end
+    end
     local turret = chassis:FindFirstChild("Turret")
-    if turret then for _, obj in ipairs(turret:GetChildren()) do if obj:IsA("Model") then CreateESP(obj, ESP.TurretColor, false); break end end end
+    if turret then
+        for _, obj in ipairs(turret:GetChildren()) do
+            if obj:IsA("Model") then
+                CreateESP(findHighlightTarget(obj), ESP.TurretColor, false)
+                break
+            end
+        end
+    end
+
+    -- Internal (crew/module) ESP — scan ALL descendants by name, regardless of path
+    if ESP.CrewEnabled or ESP.ModulesEnabled then
+        ProcessInternalParts(chassis)
+    end
 end
 
 local function ScanVehicles()
@@ -670,41 +887,62 @@ end
 -- ════════════════════════════════════════
 -- GRAPHICS
 -- ════════════════════════════════════════
-local function DegradeInstance(v)
-    if v:IsA("BasePart") then
-        if not Graphics.OriginalMaterials[v] then Graphics.OriginalMaterials[v] = v.Material end
-        v.Material = Enum.Material.SmoothPlastic
-    elseif v:IsA("Decal") or v:IsA("Texture") then
-        if not Graphics.OriginalDecals[v] then Graphics.OriginalDecals[v] = v.Transparency end
-        v.Transparency = 1
-    elseif v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Smoke") or v:IsA("Fire") or v:IsA("Sparkles") then
-        if not Graphics.OriginalDecals[v] then Graphics.OriginalDecals[v] = v.Enabled end
-        v.Enabled = false
+local function RestoreGraphics()
+    Services.Lighting.GlobalShadows = Graphics.OriginalShadows
+    for part, mat in pairs(Graphics.OriginalMaterials) do if part and part.Parent then part.Material = mat end end
+    table.clear(Graphics.OriginalMaterials)
+    for obj, val in pairs(Graphics.OriginalDecals) do
+        if obj and obj.Parent then
+            if obj:IsA("Decal") or obj:IsA("Texture") then obj.Transparency = val
+            else obj.Enabled = val end
+        end
+    end
+    table.clear(Graphics.OriginalDecals)
+end
+
+local function DegradeInstance(v, level)
+    if level == "Low" then
+        return
+    end
+    if level == "Medium" then
+        if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Smoke") or v:IsA("Fire") or v:IsA("Sparkles") then
+            if Graphics.OriginalDecals[v] == nil then Graphics.OriginalDecals[v] = v.Enabled end
+            v.Enabled = false
+        end
+        return
+    end
+    if level == "High" then
+        if v:IsA("BasePart") then
+            if not Graphics.OriginalMaterials[v] then Graphics.OriginalMaterials[v] = v.Material end
+            v.Material = Enum.Material.SmoothPlastic
+        elseif v:IsA("Decal") or v:IsA("Texture") then
+            if Graphics.OriginalDecals[v] == nil then Graphics.OriginalDecals[v] = v.Transparency end
+            v.Transparency = 1
+        elseif v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Smoke") or v:IsA("Fire") or v:IsA("Sparkles") then
+            if Graphics.OriginalDecals[v] == nil then Graphics.OriginalDecals[v] = v.Enabled end
+            v.Enabled = false
+        end
     end
 end
 
-local function SetGraphicsDegradation(Value)
-    Graphics.Degradation = Value
-    if Value then
+local function SetGraphicsDegradation(level)
+    if Graphics.DegradationLevel == "None" and level ~= "None" then
         Graphics.OriginalShadows = Services.Lighting.GlobalShadows
-        Services.Lighting.GlobalShadows = false
-        for _, v in ipairs(Services.Workspace:GetDescendants()) do DegradeInstance(v) end
-        if not Graphics.AddedConnection then
-            Graphics.AddedConnection = Services.Workspace.DescendantAdded:Connect(function(v) DegradeInstance(v) end)
-        end
-    else
-        if Graphics.AddedConnection then Graphics.AddedConnection:Disconnect(); Graphics.AddedConnection = nil end
-        Services.Lighting.GlobalShadows = Graphics.OriginalShadows
-        for part, mat in pairs(Graphics.OriginalMaterials) do if part and part.Parent then part.Material = mat end end
-        table.clear(Graphics.OriginalMaterials)
-        for obj, val in pairs(Graphics.OriginalDecals) do
-            if obj and obj.Parent then
-                if obj:IsA("Decal") or obj:IsA("Texture") then obj.Transparency = val
-                else obj.Enabled = val end
-            end
-        end
-        table.clear(Graphics.OriginalDecals)
     end
+    
+    Graphics.DegradationLevel = level
+    if Graphics.AddedConnection then Graphics.AddedConnection:Disconnect(); Graphics.AddedConnection = nil end
+    
+    RestoreGraphics()
+    
+    if level == "None" then return end
+    
+    Services.Lighting.GlobalShadows = false
+    for _, v in ipairs(Services.Workspace:GetDescendants()) do DegradeInstance(v, level) end
+    
+    Graphics.AddedConnection = Services.Workspace.DescendantAdded:Connect(function(v)
+        DegradeInstance(v, level)
+    end)
 end
 
 -- ════════════════════════════════════════
@@ -862,17 +1100,48 @@ end
 
 local function ApplyTheme()
     if not Rayfield.ScreenGui then return end
+    local win = Rayfield.ScreenGui:FindFirstChild("Window")
+    local hasImg = (CustomBgImage ~= "")
+    local trans = hasImg and 0.25 or 0
+    local sideTrans = hasImg and 0.4 or 0
+    local cardTrans = hasImg and 0.45 or 0
+
+    if win then
+        local bgImg = win:FindFirstChild("BgImage")
+        if bgImg then
+            if hasImg then
+                bgImg.Image = "rbxassetid://" .. tostring(CustomBgImage)
+                bgImg.ImageTransparency = 0.25
+            else
+                bgImg.Image = ""
+                bgImg.ImageTransparency = 1
+            end
+        end
+    end
+
     for _, inst in ipairs(Rayfield.ScreenGui:GetDescendants()) do
         local bgType = inst:GetAttribute("ThemeBG")
         local textType = inst:GetAttribute("ThemeText")
         local strokeType = inst:GetAttribute("ThemeStroke")
         if bgType then
-            if bgType == "BG" then inst.BackgroundColor3 = T.BG
-            elseif bgType == "Sidebar" then inst.BackgroundColor3 = T.Sidebar
-            elseif bgType == "Card" then inst.BackgroundColor3 = T.Card
-            elseif bgType == "Hover" then inst.BackgroundColor3 = T.Hover
-            elseif bgType == "Stroke" then inst.BackgroundColor3 = T.Stroke
-            elseif bgType == "Accent" then inst.BackgroundColor3 = T.Accent
+            if bgType == "BG" then
+                inst.BackgroundColor3 = T.BG
+                inst.BackgroundTransparency = trans
+            elseif bgType == "Sidebar" then
+                inst.BackgroundColor3 = T.Sidebar
+                inst.BackgroundTransparency = sideTrans
+            elseif bgType == "Card" then
+                inst.BackgroundColor3 = T.Card
+                inst.BackgroundTransparency = cardTrans
+            elseif bgType == "Hover" then
+                inst.BackgroundColor3 = T.Hover
+                inst.BackgroundTransparency = hasImg and 0.5 or 0
+            elseif bgType == "Stroke" then
+                inst.BackgroundColor3 = T.Stroke
+                inst.BackgroundTransparency = 0
+            elseif bgType == "Accent" then
+                inst.BackgroundColor3 = T.Accent
+                inst.BackgroundTransparency = 0
             end
         end
         if textType then
@@ -1104,6 +1373,18 @@ function Rayfield:CreateWindow(cfg)
     theme(win, "BG")
     mkCorner(win, 12); mkStroke(win, T.Stroke, 1)
 
+    -- Background Image (Glassmorphism support)
+    local winBgImage = Instance.new("ImageLabel")
+    winBgImage.Name = "BgImage"
+    winBgImage.Size = UDim2.new(1, 0, 1, 0)
+    winBgImage.Position = UDim2.new(0, 0, 0, 0)
+    winBgImage.BackgroundTransparency = 1
+    winBgImage.ImageTransparency = 1
+    winBgImage.ScaleType = Enum.ScaleType.Crop
+    winBgImage.ZIndex = 0
+    winBgImage.Parent = win
+    mkCorner(winBgImage, 12)
+
     -- Title bar (drag handle)
     local bar = Instance.new("Frame"); bar.Name = "TitleBar"
     bar.Size = UDim2.new(1,0,0,44)
@@ -1116,8 +1397,8 @@ function Rayfield:CreateWindow(cfg)
     barFix.BorderSizePixel = 0; barFix.Parent = bar
     theme(barFix, "Sidebar")
 
-    local titleLbl = Instance.new("TextLabel"); titleLbl.Size = UDim2.new(1,-60,1,0)
-    titleLbl.Position = UDim2.new(0, 14, 0, 0); titleLbl.BackgroundTransparency = 1
+    local titleLbl = Instance.new("TextLabel"); titleLbl.Size = UDim2.new(1, -SW - 60, 1, 0)
+    titleLbl.Position = UDim2.new(0, SW + 10, 0, 0); titleLbl.BackgroundTransparency = 1
     titleLbl.Font = Enum.Font.GothamBold; titleLbl.TextSize = 14; titleLbl.TextColor3 = T.Text
     titleLbl.TextXAlignment = Enum.TextXAlignment.Left; titleLbl.Text = cfg.Name or "kolyanchik script"
     titleLbl.Parent = bar
@@ -1691,6 +1972,32 @@ local function BuildGUI()
         CurrentValue = ESP.OutlineTransparency, Flag = "OutlineTransparencyFlag",
         Callback = function(v) if IsRebuildingUI then return end; ESP.OutlineTransparency = v; UpdateAllESPInstances(); SaveConfig() end })
 
+    -- ── Crew ESP ──
+    VisualTab:CreateSection(t.CrewSection)
+    VisualTab:CreateToggle({ Name = t.EnableCrewESP, CurrentValue = ESP.CrewEnabled, Flag = "CrewESPToggle",
+        Callback = function(v) if IsRebuildingUI then return end; ESP.CrewEnabled = v; UpdateAllInternalESP(); UpdateAllESPInstances()
+            if v then task.defer(function()
+                local folder = workspace:FindFirstChild("Vehicles")
+                if folder then for _, ch in ipairs(folder:GetChildren()) do if ch:IsA("Model") and ch.Name:match("^Chassis") then ProcessInternalParts(ch) end end end
+                for _, ch in ipairs(workspace:GetChildren()) do if ch:IsA("Model") and ch.Name:match("^Chassis") then ProcessInternalParts(ch) end end
+            end) end
+            SaveConfig() end })
+    VisualTab:CreateColorPicker({ Name = t.CrewColor, Color = ESP.CrewColor, Flag = "CrewColorFlag",
+        Callback = function(v) if IsRebuildingUI then return end; ESP.CrewColor = v; UpdateAllInternalESP(); SaveConfig() end })
+
+    -- ── Modules ESP ──
+    VisualTab:CreateSection(t.ModulesSection)
+    VisualTab:CreateToggle({ Name = t.EnableModulesESP, CurrentValue = ESP.ModulesEnabled, Flag = "ModulesESPToggle",
+        Callback = function(v) if IsRebuildingUI then return end; ESP.ModulesEnabled = v; UpdateAllInternalESP(); UpdateAllESPInstances()
+            if v then task.defer(function()
+                local folder = workspace:FindFirstChild("Vehicles")
+                if folder then for _, ch in ipairs(folder:GetChildren()) do if ch:IsA("Model") and ch.Name:match("^Chassis") then ProcessInternalParts(ch) end end end
+                for _, ch in ipairs(workspace:GetChildren()) do if ch:IsA("Model") and ch.Name:match("^Chassis") then ProcessInternalParts(ch) end end
+            end) end
+            SaveConfig() end })
+    VisualTab:CreateColorPicker({ Name = t.ModuleColor, Color = ESP.ModuleColor, Flag = "ModuleColorFlag",
+        Callback = function(v) if IsRebuildingUI then return end; ESP.ModuleColor = v; UpdateAllInternalESP(); SaveConfig() end })
+
     VisualTab:CreateSection(t.FogSection)
     VisualTab:CreateToggle({ Name = t.RemoveFog, CurrentValue = Other.RemoveFog, Flag = "RemoveFogFlag",
         Callback = function(v) if IsRebuildingUI then return end; Other.RemoveFog = v
@@ -1759,8 +2066,31 @@ local function BuildGUI()
         Suffix = "s", CurrentValue = Timers.ScanInterval, Flag = "ScanIntervalFlag",
         Callback = function(v) if IsRebuildingUI then return end; Timers.ScanInterval = v; SaveConfig() end })
     SettingsTab:CreateSection(t.GraphicsDegradation)
-    SettingsTab:CreateToggle({ Name = t.GraphicsDegradation, CurrentValue = Graphics.Degradation, Flag = "GraphicsDegradationFlag",
-        Callback = function(v) if IsRebuildingUI then return end; SetGraphicsDegradation(v); SaveConfig() end })
+    local lang = Localization.CurrentLanguage
+    local displayNames = GraphicsLevelsDisplayName[lang] or GraphicsLevelsDisplayName.EN
+    local currentDisp = displayNames[Graphics.DegradationLevel] or displayNames["None"]
+    SettingsTab:CreateDropdown({
+        Name = t.GraphicsDegradation,
+        Options = { displayNames["None"], displayNames["Low"], displayNames["Medium"], displayNames["High"] },
+        CurrentOption = { currentDisp },
+        CurrentValue = { currentDisp },
+        MultipleOptions = false,
+        Flag = "GraphicsDegradationDropdownFlag",
+        Callback = function(opt)
+            if IsRebuildingUI then return end
+            if not opt or type(opt) ~= "table" or not opt[1] then return end
+            local selectedDisp = opt[1]
+            local selectedLevel = "None"
+            for lvl, disp in pairs(displayNames) do
+                if disp == selectedDisp then
+                    selectedLevel = lvl
+                    break
+                end
+            end
+            SetGraphicsDegradation(selectedLevel)
+            SaveConfig()
+        end
+    })
     SettingsTab:CreateSection(t.ControlsSection)
     SettingsTab:CreateKeybind({ Name = t.ToggleESPKey, CurrentKeybind = Keys.Toggle.Name, HoldToInteract = false, Flag = "ToggleKeyFlag",
         Callback = function(v) local key = parseKeyCode(v); if key then
@@ -1783,6 +2113,43 @@ local function BuildGUI()
                 end)
             end
         end })
+
+    SettingsTab:CreateSection(t.ThemeSection)
+    SettingsTab:CreateDropdown({ Name = t.PresetThemesOption, Options = {"Dark Mode", "White-Black", "White-Gold", "Purple-Black", "Purple-White", "Baby Blue-Black"},
+        CurrentValue = {SelectedTheme}, MultipleOptions = false, Flag = "PresetThemesDropdownFlag",
+        Callback = function(opt)
+            if IsRebuildingUI then return end
+            if not opt or type(opt) ~= "table" or not opt[1] then return end
+            local th = PresetThemes[opt[1]]
+            if th then
+                SelectedTheme = opt[1]
+                for k, v in pairs(th) do
+                    T[k] = v
+                end
+                ApplyTheme()
+                SaveConfig()
+            end
+        end })
+    SettingsTab:CreateInput({ Name = t.CustomBackgroundOption, PlaceholderText = "Enter Image ID...",
+        CurrentValue = CustomBgImage, Flag = "CustomBgInputFlag",
+        Callback = function(val)
+            if IsRebuildingUI then return end
+            if val == "" then
+                CustomBgImage = ""
+                ApplyTheme()
+                SaveConfig()
+            else
+                local id = tonumber(val)
+                if id then
+                    CustomBgImage = tostring(id)
+                    ApplyTheme()
+                    SaveConfig()
+                else
+                    Rayfield:Notify({ Title = t.InvalidIDTitle, Content = t.InvalidIDContent, Duration = 3 })
+                end
+            end
+        end })
+
     SettingsTab:CreateSection(t.ProjectSection)
     SettingsTab:CreateButton({ Name = t.CopyGitHub,
         Callback = function() setclipboard("https://github.com/qwiix21/Cursed-Tank-Simulator-Script")
@@ -1856,7 +2223,11 @@ end)
 -- ════════════════════════════════════════
 safeConnect(Services.RunService.Heartbeat, function(dt)
     Timers.VehicleScan += dt
-    if Timers.VehicleScan >= Timers.ScanInterval then Timers.VehicleScan = 0; ScanVehicles() end
+    if Timers.VehicleScan >= Timers.ScanInterval then
+        Timers.VehicleScan = 0
+        ScanVehicles()
+        UpdateAllInternalESP()
+    end
     Timers.Cleanup += dt
     if Timers.Cleanup >= Timers.CleanupInterval then Timers.Cleanup = 0; CleanupESP() end
     UpdateDistanceLabels()
@@ -1931,7 +2302,7 @@ local function CleanUpScript()
 
     stopFly()
     PenView_Stop()
-    SetGraphicsDegradation(false)
+    SetGraphicsDegradation("None")
     ClearWeaponConnections()
     if ChassisDescendantConn then ChassisDescendantConn:Disconnect(); ChassisDescendantConn = nil end
     ClearAllESP()
@@ -1962,9 +2333,10 @@ local function RunStartup()
     ShowLoadingScreen(function()
         ScanVehicles()
         if Other.PenView then task.spawn(PenView_Start) end
-        if Graphics.Degradation then task.spawn(function() SetGraphicsDegradation(true) end) end
+        if Graphics.DegradationLevel ~= "None" then task.spawn(function() SetGraphicsDegradation(Graphics.DegradationLevel) end) end
         InitWeapon()
         BuildGUI()
+        ApplyTheme()
         print("kolyanchik script loaded!")
     end)
 end
