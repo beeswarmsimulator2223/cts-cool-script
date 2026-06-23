@@ -21,7 +21,7 @@ end
 
 local Keys = {
     Toggle = Enum.KeyCode.F,
-    Fly    = Enum.KeyCode.M,
+    Fly   = Enum.KeyCode.M,
     GUI    = Enum.KeyCode.K
 }
 
@@ -164,8 +164,8 @@ local Localization = {
         BulletGravHack = "Enable Bullet Gravity Hack", BulletGravVal = "Bullet Gravity Value",
         ShellSpeedHack = "Enable Shell Speed Hack", ShellSpeedVal = "Shell Speed Value",
         FlightControlSection = "Flight Control",
-        FlightControlLabel = "W/A/S/D — move  |  Space — up  |  LCtrl — down",
-        FlightControlLabelMobile = "Joystick — move  |  Up/Down not available on mobile",
+        FlightControlLabel = "W/A/S/D — move  | Space — up  |  LCtrl — down",
+        FlightControlLabelMobile = "Joystick — move  | Up/Down not available on mobile",
         ToggleFly = "Toggle Fly", FlySpeed = "Fly Speed",
         KeybindSection = "Keybind", ToggleFlyKey = "Toggle Fly Key", ToggleGUIKey = "Toggle GUI Key",
         PerformanceSection = "Performance",
@@ -221,8 +221,8 @@ local Localization = {
         BulletGravHack = "Включить хак гравитации пуль", BulletGravVal = "Значение гравитации пуль",
         ShellSpeedHack = "Включить хак скорости снаряда", ShellSpeedVal = "Значение скорости снаряда",
         FlightControlSection = "Управление полётом",
-        FlightControlLabel = "W/A/S/D — движение  |  Пробел — вверх  |  LControl — вниз",
-        FlightControlLabelMobile = "Джойстик — движение  |  Вверх/вниз недоступно на мобильном",
+        FlightControlLabel = "W/A/S/D — движение  | Пробел — вверх  |  LControl — вниз",
+        FlightControlLabelMobile = "Джойстик — движение  | Вверх/вниз недоступно на мобильном",
         ToggleFly = "Переключить полёт", FlySpeed = "Скорость полёта",
         KeybindSection = "Клавиша активации", ToggleFlyKey = "Клавиша полёта", ToggleGUIKey = "Клавиша GUI",
         PerformanceSection = "Производительность",
@@ -2009,7 +2009,8 @@ end)
 -- ════════════════════════════════════════
 local Window
 local function BuildGUI()
-    local t = Localization[Localization.CurrentLanguage]
+    -- Добавлен fallback на английский язык, если текущий язык не найден
+    local t = Localization[Localization.CurrentLanguage] or Localization.EN
 
     Window = Rayfield:CreateWindow({ Name = t.WindowTitle })
     Rayfield:Notify({ Title = t.LoadedTitle, Content = t.LoadedContent, Duration = 5 })
@@ -2283,7 +2284,10 @@ end
 safeConnect(Services.UserInput.InputBegan, function(input, gameProcessed)
     if gameProcessed then return end
     if Fly.IsRebinding or (tick() - Fly.LastRebindTime) < 0.5 then return end
-    local t = Localization[Localization.CurrentLanguage]
+    
+    -- Добавлен fallback на английский язык, чтобы не крашило, если язык не найден
+    local t = Localization[Localization.CurrentLanguage] or Localization.EN
+    
     if input.KeyCode == Keys.Toggle then
         ESP.Enabled = not ESP.Enabled; UpdateAllESPInstances(); SaveConfig()
         playSound(TOGGLE_SOUND_ID)
