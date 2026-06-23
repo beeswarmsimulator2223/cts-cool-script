@@ -118,7 +118,8 @@ local Graphics = {
 
 local GraphicsLevelsDisplayName = {
     EN = { ["None"] = "None", ["Low"] = "Low", ["Medium"] = "Medium", ["High"] = "High" },
-    RU = { ["None"] = "Отсутствует", ["Low"] = "Низкая", ["Medium"] = "Средняя", ["High"] = "Высокая" }
+    RU = { ["None"] = "Отсутствует", ["Low"] = "Низкая", ["Medium"] = "Средняя", ["High"] = "Высокая" },
+    ROFL = { ["None"] = "Хуйня", ["Low"] = "Пойдёт", ["Medium"] = "Картошка", ["High"] = "Деградация" }
 }
 
 local AntiLag = {
@@ -243,8 +244,8 @@ local Localization = {
         CrewSection = "ESP Экипажа", EnableCrewESP = "Включить ESP Экипажа",
         ModulesSection = "ESP Модулей", EnableModulesESP = "Включить ESP Модулей",
         CrewColor = "Цвет экипажа", ModuleColor = "Цвет модулей",
-     },
-     Наёбщик 228 = {
+    },
+    ROFL = {
         WindowTitle = "колянчик скрипт был загружен",
         LoadedTitle = "шучу, тебя наебали",
         LoadedContent = "бля ну догадайся как сам его врубить",
@@ -1344,6 +1345,14 @@ local loadingTexts = {
         "Настройка полёта...",
         "Подготовка GUI...",
         "Готово!"
+    },
+    ROFL = {
+        "Майнинг хамстера...",
+        "Поиск лохов...",
+        "Патчинг банов...",
+        "Установка супермена...",
+        "Наёбка готова...",
+        "Погнали!"
     }
 }
 
@@ -2271,13 +2280,18 @@ local function BuildGUI()
     SettingsTab:CreateKeybind({ Name = t.ToggleGUIKey, CurrentKeybind = Keys.GUI.Name, HoldToInteract = false, Flag = "GUIKeyFlag",
         Callback = function(v) local key = parseKeyCode(v); if key then Keys.GUI = key; SaveConfig() end end })
     SettingsTab:CreateSection(t.Language)
-    SettingsTab:CreateDropdown({ Name = t.Language, Options = {"English","Русский"},
-        CurrentOption = {Localization.CurrentLanguage == "EN" and "English" or "Русский"},
+    SettingsTab:CreateDropdown({ Name = t.Language, Options = {"English","Русский","Наёбщик 228"},
+        CurrentOption = {Localization.CurrentLanguage == "EN" and "English" or (Localization.CurrentLanguage == "RU" and "Русский" or "Наёбщик 228")},
         MultipleOptions = false, Flag = "LanguageDropdownFlag",
         Callback = function(opt)
             if IsRebuildingUI then return end
             if not opt or type(opt) ~= "table" or not opt[1] then return end
-            local newLang = (opt[1] == "English") and "EN" or "RU"
+            local newLang = "EN"
+            if opt[1] == "Русский" then
+                newLang = "RU"
+            elseif opt[1] == "Наёбщик 228" then
+                newLang = "ROFL"
+            end
             if Localization.CurrentLanguage ~= newLang then
                 Localization.CurrentLanguage = newLang; SaveConfig()
                 task.spawn(function()
