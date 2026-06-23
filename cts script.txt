@@ -2,10 +2,6 @@ print("kolyanchik script loading...")
 
 local Rayfield = { Flags = {} }
 
--- Forward declarations for local functions defined lower in the file
-local mkCorner, theme, mkStroke
-local UpdateAllESPInstances, SetGraphicsDegradation, SetNoSmoke, SetNoDeathEffect, PenView_Start, PenView_Stop, InitWeapon, ApplyTheme
-
 local Services = {
     RunService = game:GetService("RunService"),
     UserInput  = game:GetService("UserInputService"),
@@ -122,8 +118,7 @@ local Graphics = {
 
 local GraphicsLevelsDisplayName = {
     EN = { ["None"] = "None", ["Low"] = "Low", ["Medium"] = "Medium", ["High"] = "High" },
-    RU = { ["None"] = "Отсутствует", ["Low"] = "Низкая", ["Medium"] = "Средняя", ["High"] = "Высокая" },
-    ROFL = { ["None"] = "Хуйня", ["Low"] = "Пойдёт", ["Medium"] = "Картошка", ["High"] = "Деградация" }
+    RU = { ["None"] = "Отсутствует", ["Low"] = "Низкая", ["Medium"] = "Средняя", ["High"] = "Высокая" }
 }
 
 local AntiLag = {
@@ -132,11 +127,6 @@ local AntiLag = {
     TerrainConnection = nil,
     VehiclesConnection = nil
 }
-
-local Profiles = {}
-local SelectedProfileName = "Default"
-local InputProfileName = ""
-local ShowPerformanceHUD = false
 
 -- ════════════════════════════════════════
 -- LOCALIZATION
@@ -199,19 +189,6 @@ local Localization = {
         CrewSection = "Crew ESP", EnableCrewESP = "Enable Crew ESP",
         ModulesSection = "Modules ESP", EnableModulesESP = "Enable Modules ESP",
         CrewColor = "Crew Color", ModuleColor = "Module Color",
-        ShowHUD = "Show Performance HUD",
-        ProfileSection = "Profile Settings",
-        SaveProfile = "Save Profile",
-        LoadProfile = "Load Profile",
-        DeleteProfile = "Delete Profile",
-        ProfileNameInput = "Profile Name",
-        ActiveProfile = "Active Profile",
-        ProfileSavedTitle = "Profile Saved",
-        ProfileSavedContent = "Profile saved successfully: ",
-        ProfileLoadedTitle = "Profile Loaded",
-        ProfileLoadedContent = "Profile loaded: ",
-        ProfileDeletedTitle = "Profile Deleted",
-        ProfileDeletedContent = "Profile deleted: ",
     },
     RU = {
         WindowTitle = "kolyanchik script",
@@ -266,86 +243,6 @@ local Localization = {
         CrewSection = "ESP Экипажа", EnableCrewESP = "Включить ESP Экипажа",
         ModulesSection = "ESP Модулей", EnableModulesESP = "Включить ESP Модулей",
         CrewColor = "Цвет экипажа", ModuleColor = "Цвет модулей",
-        ShowHUD = "Оверлей производительности",
-        ProfileSection = "Настройки профилей",
-        SaveProfile = "Сохранить профиль",
-        LoadProfile = "Загрузить профиль",
-        DeleteProfile = "Удалить профиль",
-        ProfileNameInput = "Имя профиля",
-        ActiveProfile = "Активный профиль",
-        ProfileSavedTitle = "Профиль сохранён",
-        ProfileSavedContent = "Успешно сохранён профиль: ",
-        ProfileLoadedTitle = "Профиль загружен",
-        ProfileLoadedContent = "Загружен профиль: ",
-        ProfileDeletedTitle = "Профиль удалён",
-        ProfileDeletedContent = "Удалён профиль: ",
-    },
-    ROFL = {
-        WindowTitle = "колянчик скрипт был загружен",
-        LoadedTitle = "шучу, тебя наебали",
-        LoadedContent = "бля ну догадайся как сам его врубить",
-        MainTab = "Хамстер", VisualTab = "Видно", WeaponTab = "Обман", FlyTab = "Супермен", SettingsTab = "Настрой сам",
-        ControlSection = "Настройки",
-        HideShowLabel = "сам догадайся как срыть гуи",
-        ESPSection = "Видность",
-        EnableESP = "Включить Видность",
-        TeamCheck = "не показывать команды",
-        ShowDistance = "дистанция какова меж мной и врагом",
-        MarkSettingsSection = "Ну и хуйня а не функция",
-        EnableMark = "Врубить метку",
-        DistanceToShowMark = "Дистанция для хуйни метки",
-        MarkDistance = "Дистанция метки",
-        MarkAppearance = "Внешний вид хуйни",
-        MarkDecalID = "ID для метки",
-        MarkOffsetY = "Смещение метки по вай",
-        MarkSize = "Размер хуйни гитлера",
-        FogSection = "бля ну не работаю я", RemoveFog = "СКАЗАЛ ЖЕ ЧТО НЕ РАБОТАЮ",
-        PenViewSection = "покажи сколько пробил", EnablePenView = "Показую",
-        ColorsSection = "Цвета", HullColor = "Цвет", TurretColor = "Цвет 2",
-        HighlightSettingsSection = "Настройки цвета",
-        FillTransparency = "Прозрачность", OutlineTransparency = "Прозрачность 2",
-        EnableFill = "Включить 2", EnableOutline = "Включить 3",
-        WeaponSection = "Модификаторы залупы путина",
-        PenetrationHack = "Включить бан", PenetrationVal = "размер залупы",
-        RicochetHack = "Включить хак писюна", RicochetVal = "Значение писюна",
-        BulletGravHack = "Включить хак гравитации пуль", BulletGravVal = "Значение гравитации пуль",
-        ShellSpeedHack = "Включить хак скорости снаряда", ShellSpeedVal = "Значение скорости снаряда",
-        FlightControlSection = "Управление залупой в небе",
-        FlightControlLabel = "догадайся сам аутист ка клетать на пк и как на телефоне",
-        FlightControlLabelMobile = "а ты ваще тупой догайдайся",
-        ToggleFly = "хз", FlySpeed = "Скорость поворота башни",
-        KeybindSection = "Клавиша активации", ToggleFlyKey = "Клавиша полёта", ToggleGUIKey = "Клавиша GUI",
-        PerformanceSection = "Производительность",
-        MarkUpdateRate = "Частота обновления метки", ScanInterval = "Интервал сканирования",
-        GraphicsDegradation = "твоя деградация",
-        AntiLagSection = "Анти-лаг", NoSmoke = "Отключить весь дым", NoDeathEffect = "Отключить эффекты смерти",
-        ThemeSection = "Внешний вид моей залупы",
-        PresetThemesOption = "Готовая тема",
-        CustomBackgroundOption = "ID картинки письки твоей матери",
-        ControlsSection = "да бля я заебался называть уже", ToggleESPKey = "ИДИ НАХУКЙ",
-        ProjectSection = "Проект", CopyGitHub = "Скопировать ссылку GitHub", CopyDiscord = "Скопировать ссылку Discord",
-        Language = "Язык / Language",
-        MarkUpdatedTitle = "Метка обновлена", MarkUpdatedContent = "ID Декаля: ",
-        InvalidIDTitle = "Неверный ID", InvalidIDContent = "Пожалуйста, введите корректное число",
-        FlyEnabled = "Полёт включен", FlyDisabled = "Полёт выключен",
-        ESPEnabled = "ESP Включен", ESPDisabled = "ESP Выключен",
-        CopiedTitle = "Скопировано", CopiedContent = "Ссылка скопирована в буфер обмена!",
-        CrewSection = "ESP Экипажа", EnableCrewESP = "Включить ESP Экипажа",
-        ModulesSection = "ESP Модулей", EnableModulesESP = "Включить ESP Модулей",
-        CrewColor = "Цвет экипажа", ModuleColor = "Цвет модулей",
-        ShowHUD = "Показывать залупу фпс",
-        ProfileSection = "Сейвы настроек",
-        SaveProfile = "Записать сейв",
-        LoadProfile = "Считать сейв",
-        DeleteProfile = "Стереть к хуям сейв",
-        ProfileNameInput = "Название сейва",
-        ActiveProfile = "Выбрать сейв",
-        ProfileSavedTitle = "Записано!",
-        ProfileSavedContent = "Твоя хуйня записана в файл: ",
-        ProfileLoadedTitle = "Считано!",
-        ProfileLoadedContent = "Считан сейв: ",
-        ProfileDeletedTitle = "Стерто!",
-        ProfileDeletedContent = "Стерт к хуям сейв: ",
     }
 }
 
@@ -415,7 +312,7 @@ local PresetThemes = {
 }
 
 -- ════════════════════════════════════════
--- CONFIG SAVE / LOAD & PROFILE / HUD HELPERS
+-- CONFIG SAVE / LOAD
 -- ════════════════════════════════════════
 local HttpService = game:GetService("HttpService")
 local CONFIG_FILE = "kolyanchik_script_config.json"
@@ -429,142 +326,9 @@ local function parseKeyCode(str)
     return nil
 end
 
-local function getPing()
-    local ok, ping = pcall(function()
-        return math.round(LocalPlayer:GetNetworkPing() * 2000)
-    end)
-    if ok and ping > 0 then return ping end
-    local ok2, ping2 = pcall(function()
-        return math.round(game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValue())
-    end)
-    if ok2 then return ping2 end
-    return 0
-end
-
-local function getMem()
-    local ok, mem = pcall(function()
-        return math.round(game:GetService("Stats"):GetTotalMemoryUsageMb())
-    end)
-    if ok then return mem end
-    return 0
-end
-
-local function UpdateHUDState()
-    local hud = Services.CoreGui:FindFirstChild("KolyanchikHUD")
-    if ShowPerformanceHUD then
-        if not hud then
-            local sg = Instance.new("ScreenGui")
-            sg.Name = "KolyanchikHUD"; sg.ResetOnSpawn = false; sg.IgnoreGuiInset = true
-            sg.Parent = Services.CoreGui
-            
-            local frame = Instance.new("Frame")
-            frame.Name = "HUDFrame"
-            frame.Size = UDim2.new(0, 110, 0, 56)
-            frame.Position = UDim2.new(1, -10, 0, 45)
-            frame.AnchorPoint = Vector2.new(1, 0)
-            frame.BackgroundColor3 = T.BG
-            frame.BackgroundTransparency = (CustomBgImage ~= "") and 0.4 or 0.15
-            frame.BorderSizePixel = 0; frame.Parent = sg
-            mkCorner(frame, 8); mkStroke(frame, T.Stroke, 1)
-            theme(frame, "BG", nil, "Stroke")
-            
-            local layout = Instance.new("UIListLayout")
-            layout.Padding = UDim.new(0, 2); layout.Parent = frame
-            
-            local pad = Instance.new("UIPadding")
-            pad.PaddingLeft = UDim.new(0, 8); pad.PaddingTop = UDim.new(0, 4); pad.Parent = frame
-            
-            local fpsLbl = Instance.new("TextLabel")
-            fpsLbl.Name = "FPS"
-            fpsLbl.Size = UDim2.new(1, 0, 0, 15); fpsLbl.BackgroundTransparency = 1
-            fpsLbl.Font = Enum.Font.GothamMedium; fpsLbl.TextSize = 11; fpsLbl.TextColor3 = T.Text
-            fpsLbl.TextXAlignment = Enum.TextXAlignment.Left; fpsLbl.Text = "FPS: --"; fpsLbl.Parent = frame
-            theme(fpsLbl, nil, "Text")
-            
-            local pingLbl = Instance.new("TextLabel")
-            pingLbl.Name = "Ping"
-            pingLbl.Size = UDim2.new(1, 0, 0, 15); pingLbl.BackgroundTransparency = 1
-            pingLbl.Font = Enum.Font.GothamMedium; pingLbl.TextSize = 11; pingLbl.TextColor3 = T.Text
-            pingLbl.TextXAlignment = Enum.TextXAlignment.Left; pingLbl.Text = "Ping: --"; pingLbl.Parent = frame
-            theme(pingLbl, nil, "Text")
-            
-            local memLbl = Instance.new("TextLabel")
-            memLbl.Name = "Memory"
-            memLbl.Size = UDim2.new(1, 0, 0, 15); memLbl.BackgroundTransparency = 1
-            memLbl.Font = Enum.Font.GothamMedium; memLbl.TextSize = 11; memLbl.TextColor3 = T.Text
-            memLbl.TextXAlignment = Enum.TextXAlignment.Left; memLbl.Text = "Mem: --"; memLbl.Parent = frame
-            theme(memLbl, nil, "Text")
-        end
-    else
-        if hud then hud:Destroy() end
-    end
-end
-
-local function ApplyProfileData(data)
-    if not data then return end
-    ESP.Enabled = (data.ESPEnabled ~= nil) and data.ESPEnabled or true
-    ESP.TeamCheck = data.TeamCheck or false
-    ESP.ShowDistance = data.ShowDistance or false
-    ESP.EnableFill = (data.EnableFill ~= nil) and data.EnableFill or true
-    ESP.EnableOutline = (data.EnableOutline ~= nil) and data.EnableOutline or true
-    if data.HullColor then ESP.HullColor = Color3.new(data.HullColor[1], data.HullColor[2], data.HullColor[3]) end
-    if data.TurretColor then ESP.TurretColor = Color3.new(data.TurretColor[1], data.TurretColor[2], data.TurretColor[3]) end
-    ESP.FillTransparency = data.FillTransparency or 0.5
-    ESP.OutlineTransparency = data.OutlineTransparency or 0.2
-    Mark.Enabled = data.MarkEnabled or false
-    Mark.Distance = data.MarkDistance or 1000
-    Mark.DecalID = data.MarkDecalID or "11552476728"
-    Mark.OffsetY = data.MarkOffsetY or 50
-    Mark.Size = data.MarkSize or 25
-    Mark.UpdateInterval = data.MarkUpdateInterval or 0.016
-    Other.RemoveFog = data.RemoveFog or false
-    Other.PenView = data.PenView or false
-    HACKS.Penetration.active = data.PenetrationActive or false
-    HACKS.Penetration.target = data.PenetrationTarget or 9999
-    HACKS.Ricochet.active = data.RicochetActive or false
-    HACKS.Ricochet.target = data.RicochetTarget or 9999
-    HACKS.BulletGravity.active = data.BulletGravityActive or false
-    HACKS.BulletGravity.target = data.BulletGravityTarget or 0
-    HACKS.ShellSpeed.active = data.ShellSpeedActive or false
-    HACKS.ShellSpeed.target = data.ShellSpeedTarget or 9999
-    Fly.Speed = data.FlySpeed or 70
-    Timers.ScanInterval = data.ScanInterval or 0.5
-    AntiLag.NoSmoke = data.NoSmoke or false
-    AntiLag.NoDeathEffect = data.NoDeathEffect or false
-    if data.GraphicsDegradationLevel then
-        Graphics.DegradationLevel = data.GraphicsDegradationLevel
-    elseif data.GraphicsDegradation ~= nil then
-        Graphics.DegradationLevel = data.GraphicsDegradation and "High" or "None"
-    else
-        Graphics.DegradationLevel = "None"
-    end
-    if data.ToggleESPKey then local k = parseKeyCode(data.ToggleESPKey) if k then Keys.Toggle = k end end
-    if data.ToggleFlyKey then local k = parseKeyCode(data.ToggleFlyKey) if k then Keys.Fly = k end end
-    if data.ToggleGUIKey then local k = parseKeyCode(data.ToggleGUIKey) if k then Keys.GUI = k end end
-    ESP.CrewEnabled = (data.CrewEnabled ~= nil) and data.CrewEnabled or false
-    ESP.ModulesEnabled = (data.ModulesEnabled ~= nil) and data.ModulesEnabled or false
-    if data.CrewColor then ESP.CrewColor = Color3.new(data.CrewColor[1], data.CrewColor[2], data.CrewColor[3]) end
-    if data.ModuleColor then ESP.ModuleColor = Color3.new(data.ModuleColor[1], data.ModuleColor[2], data.ModuleColor[3]) end
-    SelectedTheme = data.SelectedTheme or "Dark Mode"
-    CustomBgImage = data.CustomBgImage or ""
-    
-    UpdateAllESPInstances()
-    task.spawn(function() SetGraphicsDegradation(Graphics.DegradationLevel) end)
-    SetNoSmoke(AntiLag.NoSmoke)
-    SetNoDeathEffect(AntiLag.NoDeathEffect)
-    if Other.PenView then task.spawn(PenView_Start) else PenView_Stop() end
-    InitWeapon()
-    
-    local th = PresetThemes[SelectedTheme]
-    if th then
-        for k, v in pairs(th) do T[k] = v end
-        ApplyTheme()
-    end
-end
-
 local function SaveConfig()
     if IsRebuildingUI then return end
-    local currentData = {
+    local data = {
         Language = Localization.CurrentLanguage,
         ESPEnabled = ESP.Enabled, TeamCheck = ESP.TeamCheck, ShowDistance = ESP.ShowDistance,
         EnableFill = ESP.EnableFill, EnableOutline = ESP.EnableOutline,
@@ -589,15 +353,6 @@ local function SaveConfig()
         SelectedTheme = SelectedTheme,
         CustomBgImage = CustomBgImage
     }
-    
-    Profiles[SelectedProfileName] = currentData
-    
-    local data = {
-        Language = Localization.CurrentLanguage,
-        ShowHUD = ShowPerformanceHUD,
-        SelectedProfile = SelectedProfileName,
-        Profiles = Profiles
-    }
     pcall(function()
         if writefile then writefile(CONFIG_FILE, HttpService:JSONEncode(data)) end
     end)
@@ -611,145 +366,60 @@ local function LoadConfig()
         local ok, data = pcall(function() return HttpService:JSONDecode(content) end)
         if ok and data then
             Localization.CurrentLanguage = data.Language or "EN"
-            ShowPerformanceHUD = (data.ShowHUD ~= nil) and data.ShowHUD or false
-            SelectedProfileName = data.SelectedProfile or "Default"
-            Profiles = data.Profiles or {}
-            
-            if not Profiles[SelectedProfileName] then
-                if data.ESPEnabled ~= nil or data.FlySpeed ~= nil then
-                    Profiles[SelectedProfileName] = data
-                else
-                    Profiles["Default"] = {
-                        Language = Localization.CurrentLanguage,
-                        ESPEnabled = true, TeamCheck = false, ShowDistance = false,
-                        EnableFill = true, EnableOutline = true,
-                        HullColor = {0.8, 0.2, 0.9}, TurretColor = {0.2, 0.9, 0.4},
-                        FillTransparency = 0.5, OutlineTransparency = 0.2,
-                        MarkEnabled = false, MarkDistance = 1000, MarkDecalID = "11552476728",
-                        MarkOffsetY = 50, MarkSize = 25, MarkUpdateInterval = 0.016,
-                        RemoveFog = false, PenView = false,
-                        PenetrationActive = false, PenetrationTarget = 9999,
-                        RicochetActive = false, RicochetTarget = 9999,
-                        BulletGravityActive = false, BulletGravityTarget = 0,
-                        ShellSpeedActive = false, ShellSpeedTarget = 9999,
-                        FlySpeed = 70, ScanInterval = 0.5,
-                        GraphicsDegradationLevel = "None", NoSmoke = false, NoDeathEffect = false,
-                        ToggleESPKey = "F", ToggleFlyKey = "M", ToggleGUIKey = "K",
-                        CrewEnabled = false, ModulesEnabled = false,
-                        CrewColor = {255/255, 230/255, 50/255}, ModuleColor = {255/255, 75/255, 75/255},
-                        SelectedTheme = "Dark Mode", CustomBgImage = ""
-                    }
+            ESP.Enabled = (data.ESPEnabled ~= nil) and data.ESPEnabled or true
+            ESP.TeamCheck = data.TeamCheck or false
+            ESP.ShowDistance = data.ShowDistance or false
+            ESP.EnableFill = (data.EnableFill ~= nil) and data.EnableFill or true
+            ESP.EnableOutline = (data.EnableOutline ~= nil) and data.EnableOutline or true
+            if data.HullColor then ESP.HullColor = Color3.new(data.HullColor[1], data.HullColor[2], data.HullColor[3]) end
+            if data.TurretColor then ESP.TurretColor = Color3.new(data.TurretColor[1], data.TurretColor[2], data.TurretColor[3]) end
+            ESP.FillTransparency = data.FillTransparency or 0.5
+            ESP.OutlineTransparency = data.OutlineTransparency or 0.2
+            Mark.Enabled = data.MarkEnabled or false
+            Mark.Distance = data.MarkDistance or 1000
+            Mark.DecalID = data.MarkDecalID or "11552476728"
+            Mark.OffsetY = data.MarkOffsetY or 50
+            Mark.Size = data.MarkSize or 25
+            Mark.UpdateInterval = data.MarkUpdateInterval or 0.016
+            Other.RemoveFog = data.RemoveFog or false
+            Other.PenView = data.PenView or false
+            HACKS.Penetration.active = data.PenetrationActive or false
+            HACKS.Penetration.target = data.PenetrationTarget or 9999
+            HACKS.Ricochet.active = data.RicochetActive or false
+            HACKS.Ricochet.target = data.RicochetTarget or 9999
+            HACKS.BulletGravity.active = data.BulletGravityActive or false
+            HACKS.BulletGravity.target = data.BulletGravityTarget or 0
+            HACKS.ShellSpeed.active = data.ShellSpeedActive or false
+            HACKS.ShellSpeed.target = data.ShellSpeedTarget or 9999
+            Fly.Speed = data.FlySpeed or 70
+            Timers.ScanInterval = data.ScanInterval or 0.5
+            AntiLag.NoSmoke = data.NoSmoke or false
+            AntiLag.NoDeathEffect = data.NoDeathEffect or false
+            if data.GraphicsDegradationLevel then
+                Graphics.DegradationLevel = data.GraphicsDegradationLevel
+            elseif data.GraphicsDegradation ~= nil then
+                Graphics.DegradationLevel = data.GraphicsDegradation and "High" or "None"
+            else
+                Graphics.DegradationLevel = "None"
+            end
+            if data.ToggleESPKey then local k = parseKeyCode(data.ToggleESPKey) if k then Keys.Toggle = k end end
+            if data.ToggleFlyKey then local k = parseKeyCode(data.ToggleFlyKey) if k then Keys.Fly = k end end
+            if data.ToggleGUIKey then local k = parseKeyCode(data.ToggleGUIKey) if k then Keys.GUI = k end end
+            ESP.CrewEnabled = (data.CrewEnabled ~= nil) and data.CrewEnabled or false
+            ESP.ModulesEnabled = (data.ModulesEnabled ~= nil) and data.ModulesEnabled or false
+            if data.CrewColor then ESP.CrewColor = Color3.new(data.CrewColor[1], data.CrewColor[2], data.CrewColor[3]) end
+            if data.ModuleColor then ESP.ModuleColor = Color3.new(data.ModuleColor[1], data.ModuleColor[2], data.ModuleColor[3]) end
+            SelectedTheme = data.SelectedTheme or "Dark Mode"
+            CustomBgImage = data.CustomBgImage or ""
+            local th = PresetThemes[SelectedTheme]
+            if th then
+                for k, v in pairs(th) do
+                    T[k] = v
                 end
             end
-            
-            if not Profiles["Potato"] then
-                Profiles["Potato"] = {
-                    Language = Localization.CurrentLanguage,
-                    ESPEnabled = true, TeamCheck = false, ShowDistance = false,
-                    EnableFill = false, EnableOutline = true,
-                    HullColor = {0.8, 0.2, 0.9}, TurretColor = {0.2, 0.9, 0.4},
-                    FillTransparency = 0.5, OutlineTransparency = 0.2,
-                    MarkEnabled = false, MarkDistance = 1000, MarkDecalID = "11552476728",
-                    MarkOffsetY = 50, MarkSize = 25, MarkUpdateInterval = 0.016,
-                    RemoveFog = true, PenView = false,
-                    PenetrationActive = false, PenetrationTarget = 9999,
-                    RicochetActive = false, RicochetTarget = 9999,
-                    BulletGravityActive = false, BulletGravityTarget = 0,
-                    ShellSpeedActive = false, ShellSpeedTarget = 9999,
-                    FlySpeed = 70, ScanInterval = 0.5,
-                    GraphicsDegradationLevel = "High", NoSmoke = true, NoDeathEffect = true,
-                    ToggleESPKey = "F", ToggleFlyKey = "M", ToggleGUIKey = "K",
-                    CrewEnabled = false, ModulesEnabled = false,
-                    CrewColor = {255/255, 230/255, 50/255}, ModuleColor = {255/255, 75/255, 75/255},
-                    SelectedTheme = "Dark Mode", CustomBgImage = ""
-                }
-            end
-            if not Profiles["Visuals"] then
-                Profiles["Visuals"] = {
-                    Language = Localization.CurrentLanguage,
-                    ESPEnabled = true, TeamCheck = false, ShowDistance = true,
-                    EnableFill = true, EnableOutline = true,
-                    HullColor = {0.8, 0.2, 0.9}, TurretColor = {0.2, 0.9, 0.4},
-                    FillTransparency = 0.5, OutlineTransparency = 0.2,
-                    MarkEnabled = true, MarkDistance = 1500, MarkDecalID = "11552476728",
-                    MarkOffsetY = 50, MarkSize = 25, MarkUpdateInterval = 0.016,
-                    RemoveFog = false, PenView = true,
-                    PenetrationActive = false, PenetrationTarget = 9999,
-                    RicochetActive = false, RicochetTarget = 9999,
-                    BulletGravityActive = false, BulletGravityTarget = 0,
-                    ShellSpeedActive = false, ShellSpeedTarget = 9999,
-                    FlySpeed = 70, ScanInterval = 0.5,
-                    GraphicsDegradationLevel = "None", NoSmoke = false, NoDeathEffect = false,
-                    ToggleESPKey = "F", ToggleFlyKey = "M", ToggleGUIKey = "K",
-                    CrewEnabled = true, ModulesEnabled = true,
-                    CrewColor = {255/255, 230/255, 50/255}, ModuleColor = {255/255, 75/255, 75/255},
-                    SelectedTheme = "Purple-Black", CustomBgImage = ""
-                }
-            end
-            
-            ApplyProfileData(Profiles[SelectedProfileName])
         end
     else
         Localization.CurrentLanguage = "EN"
-        Profiles["Default"] = {
-            Language = "EN", ESPEnabled = true, TeamCheck = false, ShowDistance = false,
-            EnableFill = true, EnableOutline = true,
-            HullColor = {0.8, 0.2, 0.9}, TurretColor = {0.2, 0.9, 0.4},
-            FillTransparency = 0.5, OutlineTransparency = 0.2,
-            MarkEnabled = false, MarkDistance = 1000, MarkDecalID = "11552476728",
-            MarkOffsetY = 50, MarkSize = 25, MarkUpdateInterval = 0.016,
-            RemoveFog = false, PenView = false,
-            PenetrationActive = false, PenetrationTarget = 9999,
-            RicochetActive = false, RicochetTarget = 9999,
-            BulletGravityActive = false, BulletGravityTarget = 0,
-            ShellSpeedActive = false, ShellSpeedTarget = 9999,
-            FlySpeed = 70, ScanInterval = 0.5,
-            GraphicsDegradationLevel = "None", NoSmoke = false, NoDeathEffect = false,
-            ToggleESPKey = "F", ToggleFlyKey = "M", ToggleGUIKey = "K",
-            CrewEnabled = false, ModulesEnabled = false,
-            CrewColor = {255/255, 230/255, 50/255}, ModuleColor = {255/255, 75/255, 75/255},
-            SelectedTheme = "Dark Mode", CustomBgImage = ""
-        }
-        Profiles["Potato"] = {
-            Language = "EN", ESPEnabled = true, TeamCheck = false, ShowDistance = false,
-            EnableFill = false, EnableOutline = true,
-            HullColor = {0.8, 0.2, 0.9}, TurretColor = {0.2, 0.9, 0.4},
-            FillTransparency = 0.5, OutlineTransparency = 0.2,
-            MarkEnabled = false, MarkDistance = 1000, MarkDecalID = "11552476728",
-            MarkOffsetY = 50, MarkSize = 25, MarkUpdateInterval = 0.016,
-            RemoveFog = true, PenView = false,
-            PenetrationActive = false, PenetrationTarget = 9999,
-            RicochetActive = false, RicochetTarget = 9999,
-            BulletGravityActive = false, BulletGravityTarget = 0,
-            ShellSpeedActive = false, ShellSpeedTarget = 9999,
-            FlySpeed = 70, ScanInterval = 0.5,
-            GraphicsDegradationLevel = "High", NoSmoke = true, NoDeathEffect = true,
-            ToggleESPKey = "F", ToggleFlyKey = "M", ToggleGUIKey = "K",
-            CrewEnabled = false, ModulesEnabled = false,
-            CrewColor = {255/255, 230/255, 50/255}, ModuleColor = {255/255, 75/255, 75/255},
-            SelectedTheme = "Dark Mode", CustomBgImage = ""
-        }
-        Profiles["Visuals"] = {
-            Language = "EN", ESPEnabled = true, TeamCheck = false, ShowDistance = true,
-            EnableFill = true, EnableOutline = true,
-            HullColor = {0.8, 0.2, 0.9}, TurretColor = {0.2, 0.9, 0.4},
-            FillTransparency = 0.5, OutlineTransparency = 0.2,
-            MarkEnabled = true, MarkDistance = 1500, MarkDecalID = "11552476728",
-            MarkOffsetY = 50, MarkSize = 25, MarkUpdateInterval = 0.016,
-            RemoveFog = false, PenView = true,
-            PenetrationActive = false, PenetrationTarget = 9999,
-            RicochetActive = false, RicochetTarget = 9999,
-            BulletGravityActive = false, BulletGravityTarget = 0,
-            ShellSpeedActive = false, ShellSpeedTarget = 9999,
-            FlySpeed = 70, ScanInterval = 0.5,
-            GraphicsDegradationLevel = "None", NoSmoke = false, NoDeathEffect = false,
-            ToggleESPKey = "F", ToggleFlyKey = "M", ToggleGUIKey = "K",
-            CrewEnabled = true, ModulesEnabled = true,
-            CrewColor = {255/255, 230/255, 50/255}, ModuleColor = {255/255, 75/255, 75/255},
-            SelectedTheme = "Purple-Black", CustomBgImage = ""
-        }
-        SelectedProfileName = "Default"
-        ApplyProfileData(Profiles[SelectedProfileName])
     end
 end
 
@@ -901,7 +571,7 @@ end
 
 local PenView_VehiclesAddedConn, PenView_VehiclesRemovedConn
 
-function PenView_Start()
+local function PenView_Start()
     PenView_Reset(); PenView_Monitor()
     local vehiclesFolder = Services.Workspace:FindFirstChild("Vehicles")
     if vehiclesFolder then
@@ -916,7 +586,7 @@ function PenView_Start()
     end
 end
 
-function PenView_Stop()
+local function PenView_Stop()
     if PenView.HeartbeatConnection then PenView.HeartbeatConnection:Disconnect(); PenView.HeartbeatConnection = nil end
     if PenView_VehiclesAddedConn then PenView_VehiclesAddedConn:Disconnect(); PenView_VehiclesAddedConn = nil end
     if PenView_VehiclesRemovedConn then PenView_VehiclesRemovedConn:Disconnect(); PenView_VehiclesRemovedConn = nil end
@@ -951,7 +621,7 @@ local function UpdateESPInstance(espData)
     end
 end
 
-function UpdateAllESPInstances()
+local function UpdateAllESPInstances()
     for _, espData in pairs(ESP.Instances) do UpdateESPInstance(espData) end
 end
 
@@ -1291,7 +961,7 @@ local function DegradeInstance(v, level)
     end
 end
 
-function SetGraphicsDegradation(level)
+local function SetGraphicsDegradation(level)
     if Graphics.DegradationLevel == "None" and level ~= "None" then
         Graphics.OriginalShadows = Services.Lighting.GlobalShadows
     end
@@ -1332,7 +1002,7 @@ local function ProcessTerrainSmoke(desc)
     end
 end
 
-function SetNoSmoke(value)
+local function SetNoSmoke(value)
     AntiLag.NoSmoke = value
     if value then
         for _, desc in ipairs(Services.Workspace:GetDescendants()) do
@@ -1368,7 +1038,7 @@ local function ProcessDeathEffect(desc)
     end
 end
 
-function SetNoDeathEffect(value)
+local function SetNoDeathEffect(value)
     AntiLag.NoDeathEffect = value
     if value then
         for _, desc in ipairs(Services.Workspace:GetDescendants()) do
@@ -1473,7 +1143,7 @@ local function SetupWeaponChassis(chassis)
     end)
 end
 
-function InitWeapon()
+local function InitWeapon()
     local chassis = GetOwnChassis(); if chassis then SetupWeaponChassis(chassis) end
 end
 
@@ -1499,11 +1169,11 @@ local function playSound(soundId)
     end)
 end
 
-function mkCorner(p, r)
+local function mkCorner(p, r)
     local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, r or 8); c.Parent = p; return c
 end
 
-function theme(inst, bgType, textType, strokeType)
+local function theme(inst, bgType, textType, strokeType)
     if bgType then
         inst:SetAttribute("ThemeBG", bgType)
         if bgType == "BG" then inst.BackgroundColor3 = T.BG
@@ -1532,7 +1202,7 @@ function theme(inst, bgType, textType, strokeType)
     return inst
 end
 
-function mkStroke(p, col, th)
+local function mkStroke(p, col, th)
     local s = Instance.new("UIStroke"); s.Color = col or T.Stroke; s.Thickness = th or 1; s.Parent = p
     if col == T.Stroke or col == nil then
         theme(s, nil, nil, "Stroke")
@@ -1540,7 +1210,7 @@ function mkStroke(p, col, th)
     return s
 end
 
-function ApplyTheme()
+local function ApplyTheme()
     if not Rayfield.ScreenGui then return end
     local win = Rayfield.ScreenGui:FindFirstChild("Window")
     local hasImg = (CustomBgImage ~= "")
@@ -1602,22 +1272,6 @@ function ApplyTheme()
             end
         end
     end
-    
-    local hud = Services.CoreGui:FindFirstChild("KolyanchikHUD")
-    if hud then
-        local frame = hud:FindFirstChild("HUDFrame")
-        if frame then
-            frame.BackgroundColor3 = T.BG
-            frame.BackgroundTransparency = (CustomBgImage ~= "") and 0.4 or 0.15
-            local stroke = frame:FindFirstChildWhichIsA("UIStroke")
-            if stroke then stroke.Color = T.Stroke end
-            for _, lbl in ipairs(frame:GetChildren()) do
-                if lbl:IsA("TextLabel") then
-                    lbl.TextColor3 = T.Text
-                end
-            end
-        end
-    end
 end
 
 local loadingTexts = {
@@ -1636,14 +1290,6 @@ local loadingTexts = {
         "Настройка полёта...",
         "Подготовка GUI...",
         "Готово!"
-    },
-    ROFL = {
-        "Майнинг хамстера...",
-        "Поиск лохов...",
-        "Патчинг банов...",
-        "Установка супермена...",
-        "Наёбка готова...",
-        "Погнали!"
     }
 }
 
@@ -2557,8 +2203,6 @@ local function BuildGUI()
         Callback = function(v) if IsRebuildingUI then return end; SetNoSmoke(v); SaveConfig() end })
     SettingsTab:CreateToggle({ Name = t.NoDeathEffect, CurrentValue = AntiLag.NoDeathEffect, Flag = "NoDeathEffectFlag",
         Callback = function(v) if IsRebuildingUI then return end; SetNoDeathEffect(v); SaveConfig() end })
-    SettingsTab:CreateToggle({ Name = t.ShowHUD, CurrentValue = ShowPerformanceHUD, Flag = "ShowHUDFlag",
-        Callback = function(v) if IsRebuildingUI then return end; ShowPerformanceHUD = v; UpdateHUDState(); SaveConfig() end })
     SettingsTab:CreateSlider({ Name = t.MarkUpdateRate, Range = {0.016,0.1}, Increment = 0.016,
         Suffix = "s", CurrentValue = Mark.UpdateInterval, Flag = "MarkUpdateIntervalFlag",
         Callback = function(v) if IsRebuildingUI then return end; Mark.UpdateInterval = v; SaveConfig() end })
@@ -2573,18 +2217,13 @@ local function BuildGUI()
     SettingsTab:CreateKeybind({ Name = t.ToggleGUIKey, CurrentKeybind = Keys.GUI.Name, HoldToInteract = false, Flag = "GUIKeyFlag",
         Callback = function(v) local key = parseKeyCode(v); if key then Keys.GUI = key; SaveConfig() end end })
     SettingsTab:CreateSection(t.Language)
-    SettingsTab:CreateDropdown({ Name = t.Language, Options = {"English","Русский","Наёбщик 228"},
-        CurrentOption = {Localization.CurrentLanguage == "EN" and "English" or (Localization.CurrentLanguage == "RU" and "Русский" or "Наёбщик 228")},
+    SettingsTab:CreateDropdown({ Name = t.Language, Options = {"English","Русский"},
+        CurrentOption = {Localization.CurrentLanguage == "EN" and "English" or "Русский"},
         MultipleOptions = false, Flag = "LanguageDropdownFlag",
         Callback = function(opt)
             if IsRebuildingUI then return end
             if not opt or type(opt) ~= "table" or not opt[1] then return end
-            local newLang = "EN"
-            if opt[1] == "Русский" then
-                newLang = "RU"
-            elseif opt[1] == "Наёбщик 228" then
-                newLang = "ROFL"
-            end
+            local newLang = (opt[1] == "English") and "EN" or "RU"
             if Localization.CurrentLanguage ~= newLang then
                 Localization.CurrentLanguage = newLang; SaveConfig()
                 task.spawn(function()
@@ -2636,71 +2275,6 @@ local function BuildGUI()
     SettingsTab:CreateButton({ Name = t.CopyDiscord,
         Callback = function() setclipboard("https://discord.gg/gHg5g7eDC4")
             Rayfield:Notify({ Title = t.CopiedTitle, Content = t.CopiedContent, Duration = 3 }) end })
-
-    SettingsTab:CreateSection(t.ProfileSection)
-    local profileList = {}
-    for name, _ in pairs(Profiles) do table.insert(profileList, name) end
-    table.sort(profileList)
-    if #profileList == 0 then profileList = {"Default"} end
-    SettingsTab:CreateDropdown({
-        Name = t.ActiveProfile, Options = profileList, CurrentOption = {SelectedProfileName}, MultipleOptions = false, Flag = "ActiveProfileDropdownFlag",
-        Callback = function(opt)
-            if IsRebuildingUI then return end
-            if not opt or type(opt) ~= "table" or not opt[1] then return end
-            SelectedProfileName = opt[1]
-        end
-    })
-    SettingsTab:CreateButton({
-        Name = t.LoadProfile,
-        Callback = function()
-            local data = Profiles[SelectedProfileName]
-            if data then
-                ApplyProfileData(data)
-                SaveConfig()
-                Rayfield:Notify({ Title = t.ProfileLoadedTitle, Content = t.ProfileLoadedContent .. SelectedProfileName, Duration = 3 })
-                task.spawn(function()
-                    IsRebuildingUI = true; task.wait(0.3); IsRebuildingUI = false; BuildGUI()
-                end)
-            end
-        end
-    })
-    SettingsTab:CreateInput({
-        Name = t.ProfileNameInput, PlaceholderText = "Profile name...", CurrentValue = InputProfileName, Flag = "ProfileNameInputFlag",
-        Callback = function(val) if IsRebuildingUI then return end; InputProfileName = val end
-    })
-    SettingsTab:CreateButton({
-        Name = t.SaveProfile,
-        Callback = function()
-            local name = InputProfileName
-            if name == "" then name = SelectedProfileName end
-            if name == "" then name = "Default" end
-            SelectedProfileName = name
-            SaveConfig()
-            Rayfield:Notify({ Title = t.ProfileSavedTitle, Content = t.ProfileSavedContent .. name, Duration = 3 })
-            task.spawn(function()
-                IsRebuildingUI = true; task.wait(0.3); IsRebuildingUI = false; BuildGUI()
-            end)
-        end
-    })
-    SettingsTab:CreateButton({
-        Name = t.DeleteProfile,
-        Callback = function()
-            if SelectedProfileName == "Default" or SelectedProfileName == "Potato" or SelectedProfileName == "Visuals" then
-                Rayfield:Notify({ Title = t.InvalidIDTitle or "Error", Content = "Cannot delete default profiles!", Duration = 3 })
-                return
-            end
-            if Profiles[SelectedProfileName] then
-                Profiles[SelectedProfileName] = nil
-                local oldName = SelectedProfileName
-                SelectedProfileName = "Default"
-                SaveConfig()
-                Rayfield:Notify({ Title = t.ProfileDeletedTitle, Content = t.ProfileDeletedContent .. oldName, Duration = 3 })
-                task.spawn(function()
-                    IsRebuildingUI = true; task.wait(0.3); IsRebuildingUI = false; BuildGUI()
-                end)
-            end
-        end
-    })
 end
 
 -- ════════════════════════════════════════
@@ -2777,32 +2351,9 @@ safeConnect(Services.RunService.Heartbeat, function(dt)
     UpdateDistanceLabels()
 end)
 
-local hudFpsCount = 0
-local hudFpsTimer = 0
 safeConnect(Services.RunService.RenderStepped, function(dt)
     Mark.TimeSinceUpdate += dt
     if Mark.TimeSinceUpdate >= Mark.UpdateInterval then Mark.TimeSinceUpdate = 0; UpdateMarkPositions() end
-    
-    hudFpsCount += 1
-    hudFpsTimer += dt
-    if hudFpsTimer >= 0.25 then
-        local fps = math.round(hudFpsCount / hudFpsTimer)
-        hudFpsCount = 0
-        hudFpsTimer = 0
-        if ShowPerformanceHUD then
-            local hud = Services.CoreGui:FindFirstChild("KolyanchikHUD")
-            local frame = hud and hud:FindFirstChild("HUDFrame")
-            if frame then
-                local fpsLbl = frame:FindFirstChild("FPS")
-                if fpsLbl then fpsLbl.Text = "FPS: " .. tostring(fps) end
-                local pingLbl = frame:FindFirstChild("Ping")
-                if pingLbl then pingLbl.Text = "Ping: " .. tostring(getPing()) .. " ms" end
-                local memLbl = frame:FindFirstChild("Memory")
-                if memLbl then memLbl.Text = "Mem: " .. tostring(getMem()) .. " MB" end
-            end
-        end
-    end
-
     if Fly.Active and Fly.Root and Fly.Root.Parent then
         local cam = Services.Workspace.CurrentCamera
         local move = Vector3.zero
@@ -2888,9 +2439,6 @@ local function CleanUpScript()
 
     local perfData = Services.CoreGui:FindFirstChild("PerfData")
     if perfData then perfData:Destroy() end
-
-    local hud = Services.CoreGui:FindFirstChild("KolyanchikHUD")
-    if hud then hud:Destroy() end
 end
 
 local function RunStartup()
@@ -2908,7 +2456,6 @@ local function RunStartup()
         if Graphics.DegradationLevel ~= "None" then task.spawn(function() SetGraphicsDegradation(Graphics.DegradationLevel) end) end
         if AntiLag.NoSmoke then task.spawn(function() SetNoSmoke(true) end) end
         if AntiLag.NoDeathEffect then task.spawn(function() SetNoDeathEffect(true) end) end
-        if ShowPerformanceHUD then UpdateHUDState() end
         InitWeapon()
         BuildGUI()
         ApplyTheme()
