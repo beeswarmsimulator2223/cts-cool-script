@@ -21,8 +21,8 @@ end
 
 local Keys = {
     Toggle = Enum.KeyCode.F,
-    Fly   = Enum.KeyCode.M,
-    GUI    = Enum.KeyCode.K
+    Fly = Enum.KeyCode.M,
+    GUI = Enum.KeyCode.K
 }
 
 local T = {
@@ -128,9 +128,6 @@ local AntiLag = {
     VehiclesConnection = nil
 }
 
--- ════════════════════════════════════════
--- LOCALIZATION
--- ════════════════════════════════════════
 local Localization = {
     CurrentLanguage = "EN",
     EN = {
@@ -246,9 +243,6 @@ local Localization = {
     }
 }
 
--- ════════════════════════════════════════
--- HACKS
--- ════════════════════════════════════════
 local HACKS = {
     Penetration   = { target = 9999, active = false, names = {"Penetration","Penetrate"}, patched = {}, origPatched = {} },
     Ricochet      = { target = 9999, active = false, names = {"RicochetAngle"}, patched = {}, origPatched = {} },
@@ -259,9 +253,6 @@ local HACKS = {
 local WeaponConnections = {}
 local ChassisDescendantConn = nil
 
--- ════════════════════════════════════════
--- PENETRATION VIEW
--- ════════════════════════════════════════
 local PenView = {
     UI = nil, HeartbeatConnection = nil, LastPart = nil, LastChassisName = nil,
     ArmorTypes = {
@@ -274,7 +265,6 @@ local PenView = {
 
 local Camera = Services.Workspace.CurrentCamera
 local IsRebuildingUI = false
-
 local SelectedTheme = "Dark Mode"
 local CustomBgImage = ""
 
@@ -311,9 +301,6 @@ local PresetThemes = {
     }
 }
 
--- ════════════════════════════════════════
--- CONFIG SAVE / LOAD
--- ════════════════════════════════════════
 local HttpService = game:GetService("HttpService")
 local CONFIG_FILE = "kolyanchik_script_config.json"
 
@@ -400,7 +387,7 @@ local function LoadConfig()
             elseif data.GraphicsDegradation ~= nil then
                 Graphics.DegradationLevel = data.GraphicsDegradation and "High" or "None"
             else
-                Graphics.DegradationLevel = "None"
+                 Graphics.DegradationLevel = "None"
             end
             if data.ToggleESPKey then local k = parseKeyCode(data.ToggleESPKey) if k then Keys.Toggle = k end end
             if data.ToggleFlyKey then local k = parseKeyCode(data.ToggleFlyKey) if k then Keys.Fly = k end end
@@ -423,9 +410,6 @@ local function LoadConfig()
     end
 end
 
--- ════════════════════════════════════════
--- PEN VIEW FUNCTIONS
--- ════════════════════════════════════════
 local function PenView_CreateUI()
     for _, v in ipairs(LocalPlayer.PlayerGui:GetChildren()) do
         if v.Name == "PenViewport" then v:Destroy() end
@@ -595,9 +579,6 @@ local function PenView_Stop()
     PenView.UI = nil; PenView.LastPart = nil; PenView.LastChassisName = nil
 end
 
--- ════════════════════════════════════════
--- ESP
--- ════════════════════════════════════════
 local ESPFolder = Instance.new("Folder")
 ESPFolder.Name = "PerfData"; ESPFolder.Parent = Services.CoreGui
 
@@ -632,7 +613,6 @@ local function ClearAllESP()
         if espData.MarkBillboard then espData.MarkBillboard:Destroy() end
     end
     ESP.Instances = {}
-    -- Clear internal (crew/module) ESP
     for _, iData in pairs(ESP.InternalInstances) do
         if iData.Highlight and iData.Highlight.Parent then iData.Highlight:Destroy() end
     end
@@ -801,7 +781,6 @@ local function UpdateAllInternalESP()
 end
 
 local function ProcessInternalParts(chassis)
-    -- Scan ALL descendants of this chassis; match using matchPart function
     for _, part in ipairs(chassis:GetDescendants()) do
         if part:IsA("BasePart") then
             if part.Transparency < 1 then
@@ -859,7 +838,6 @@ function ProcessChassis(chassis)
     end
 
     if ESP.TeamCheck and isTeammate then
-        -- Remove existing highlight ESP for this chassis if it became a teammate
         local function tryRemove(obj)
             if not obj then return end
             local ed = ESP.Instances[obj]
@@ -874,7 +852,6 @@ function ProcessChassis(chassis)
                 ESP.Instances[ed.Target] = nil
             end
         end
-        -- Remove internal (crew/module) ESP for this chassis
         for part, iData in pairs(ESP.InternalInstances) do
             if part and part:IsDescendantOf(chassis) then
                 if iData.Highlight then iData.Highlight:Destroy() end
@@ -888,7 +865,6 @@ function ProcessChassis(chassis)
         return
     end
 
-    -- Highlight ESP (hull + turret)
     local hull = chassis:FindFirstChild("Hull")
     if hull then
         for _, obj in ipairs(hull:GetChildren()) do
@@ -908,7 +884,6 @@ function ProcessChassis(chassis)
         end
     end
 
-    -- Internal (crew/module) ESP — scan ALL descendants by name, regardless of path
     if ESP.CrewEnabled or ESP.ModulesEnabled then
         ProcessInternalParts(chassis)
     end
@@ -920,9 +895,6 @@ local function ScanVehicles()
     for _, chassis in ipairs(vehiclesFolder:GetChildren()) do ProcessChassis(chassis) end
 end
 
--- ════════════════════════════════════════
--- GRAPHICS
--- ════════════════════════════════════════
 local function RestoreGraphics()
     Services.Lighting.GlobalShadows = Graphics.OriginalShadows
     for part, mat in pairs(Graphics.OriginalMaterials) do if part and part.Parent then part.Material = mat end end
@@ -1057,9 +1029,6 @@ local function SetNoDeathEffect(value)
     end
 end
 
--- ════════════════════════════════════════
--- FLY
--- ════════════════════════════════════════
 local bv = Instance.new("BodyVelocity")
 bv.Name = "TankFlyVelocity"; bv.MaxForce = Vector3.new(500000,500000,500000)
 local bg = Instance.new("BodyGyro")
@@ -1094,9 +1063,6 @@ local function stopFly()
     MobileFly.Touch = nil; MobileFly.Delta = Vector2.new(0,0)
 end
 
--- ════════════════════════════════════════
--- WEAPON HACKS
--- ════════════════════════════════════════
 local function GetOwnChassis()
     local vehicles = Services.Workspace:FindFirstChild("Vehicles"); if not vehicles then return nil end
     return vehicles:FindFirstChild("Chassis" .. LocalPlayer.Name)
@@ -1147,9 +1113,6 @@ local function InitWeapon()
     local chassis = GetOwnChassis(); if chassis then SetupWeaponChassis(chassis) end
 end
 
--- ════════════════════════════════════════
--- CUSTOM GUI LIBRARY
--- ════════════════════════════════════════
 local TweenService = game:GetService("TweenService")
 local UserInputSvc = Services.UserInput
 local isMobile = UserInputSvc.TouchEnabled and not UserInputSvc.KeyboardEnabled
@@ -1275,22 +1238,8 @@ local function ApplyTheme()
 end
 
 local loadingTexts = {
-    EN = {
-        "Loading Config...",
-        "Initializing ESP...",
-        "Applying Patches...",
-        "Applying Fly Engine...",
-        "Preparing UI...",
-        "Done!"
-    },
-    RU = {
-        "Загрузка конфига...",
-        "Инициализация ESP...",
-        "Применение патчей...",
-        "Настройка полёта...",
-        "Подготовка GUI...",
-        "Готово!"
-    }
+    EN = { "Loading Config...", "Initializing ESP...", "Applying Patches...", "Applying Fly Engine...", "Preparing UI...", "Done!" },
+    RU = { "Загрузка конфига...", "Инициализация ESP...", "Применение патчей...", "Настройка полёта...", "Подготовка GUI...", "Готово!" }
 }
 
 local function GetUserAvatarUrl(userId)
@@ -1318,7 +1267,6 @@ local function ShowLoadingScreen(callback)
     frame.BackgroundTransparency = 1
     mkCorner(frame, 14); mkStroke(frame, T.Stroke, 1)
 
-    -- Avatar circle
     local avatarCircle = Instance.new("Frame")
     avatarCircle.Size = UDim2.new(0, 64, 0, 64)
     avatarCircle.Position = UDim2.new(0.5, -32, 0, 18)
@@ -1477,9 +1425,8 @@ function Rayfield:CreateWindow(cfg)
 
     local W = math.min(math.clamp(math.floor(vpW * 0.82), 400, 660), vpW - 20)
     local H = math.min(math.clamp(math.floor(vpH * 0.76), 340, 450), vpH - 20)
-    local SW = 120  -- sidebar width
+    local SW = 120
 
-    -- Main window
     local win = Instance.new("Frame"); win.Name = "Window"
     win.AnchorPoint = Vector2.new(0.5, 0.5)
     win.Size = UDim2.new(0, W, 0, H); win.Position = UDim2.new(0.5, 0, 0.5, 0)
@@ -1487,7 +1434,6 @@ function Rayfield:CreateWindow(cfg)
     theme(win, "BG")
     mkCorner(win, 12); mkStroke(win, T.Stroke, 1)
 
-    -- Background Image (Glassmorphism support)
     local winBgImage = Instance.new("ImageLabel")
     winBgImage.Name = "BgImage"
     winBgImage.Size = UDim2.new(1, 0, 1, 0)
@@ -1499,13 +1445,11 @@ function Rayfield:CreateWindow(cfg)
     winBgImage.Parent = win
     mkCorner(winBgImage, 12)
 
-    -- Title bar (drag handle)
     local bar = Instance.new("Frame"); bar.Name = "TitleBar"
     bar.Size = UDim2.new(1,0,0,44)
     bar.BackgroundColor3 = T.Sidebar; bar.BorderSizePixel = 0; bar.Parent = win
     theme(bar, "Sidebar")
     mkCorner(bar, 12)
-    -- Patch bottom corners
     local barFix = Instance.new("Frame"); barFix.Size = UDim2.new(1,0,0,12)
     barFix.Position = UDim2.new(0,0,1,-12); barFix.BackgroundColor3 = T.Sidebar
     barFix.BorderSizePixel = 0; barFix.Parent = bar
@@ -1525,13 +1469,11 @@ function Rayfield:CreateWindow(cfg)
     xBtn.MouseButton1Click:Connect(function() win.Visible = false end)
     mkDrag(win, bar)
 
-    -- Divider under title bar
     local barLine = Instance.new("Frame"); barLine.Size = UDim2.new(1,-SW,0,1)
     barLine.Position = UDim2.new(0,SW,0,44); barLine.BackgroundColor3 = T.Stroke
     barLine.BorderSizePixel = 0; barLine.Parent = win
     theme(barLine, nil, nil, "Stroke")
 
-    -- Sidebar panel
     local sidePanel = Instance.new("Frame"); sidePanel.Name = "Sidebar"
     sidePanel.Size = UDim2.new(0,SW,1,0); sidePanel.BackgroundColor3 = T.Sidebar
     sidePanel.BorderSizePixel = 0; sidePanel.Parent = win
@@ -1546,7 +1488,6 @@ function Rayfield:CreateWindow(cfg)
     sdiv.BorderSizePixel = 0; sdiv.Parent = sidePanel
     theme(sdiv, nil, nil, "Stroke")
 
-    -- User profile in sidebar (bottom-left)
     local userProfile = Instance.new("Frame")
     userProfile.Name = "UserProfile"
     userProfile.Size = UDim2.new(1, 0, 0, 80)
@@ -1582,13 +1523,11 @@ function Rayfield:CreateWindow(cfg)
     welcomeLbl.Parent = userProfile
     theme(welcomeLbl, nil, "Sub")
 
-    -- "MENU" header in sidebar
     local menuHdr = Instance.new("TextLabel"); menuHdr.Size = UDim2.new(1,0,0,44)
     menuHdr.BackgroundTransparency = 1; menuHdr.Font = Enum.Font.GothamBold
     menuHdr.TextSize = 10; menuHdr.TextColor3 = T.Accent; menuHdr.Text = "MENU"; menuHdr.Parent = sidePanel
     theme(menuHdr, nil, "Accent")
 
-    -- TabList
     local tabList = Instance.new("Frame"); tabList.Name = "TabList"
     tabList.Size = UDim2.new(1,0,1,-48 - 85); tabList.Position = UDim2.new(0,0,0,48)
     tabList.BackgroundTransparency = 1; tabList.Parent = sidePanel
@@ -1597,12 +1536,10 @@ function Rayfield:CreateWindow(cfg)
     local tabPad = Instance.new("UIPadding"); tabPad.PaddingLeft = UDim.new(0,7)
     tabPad.PaddingRight = UDim.new(0,7); tabPad.Parent = tabList
 
-    -- Content area (right side)
     local contentArea = Instance.new("Frame"); contentArea.Name = "Content"
     contentArea.Size = UDim2.new(1,-SW,1,-45); contentArea.Position = UDim2.new(0,SW,0,45)
     contentArea.BackgroundTransparency = 1; contentArea.ClipsDescendants = true; contentArea.Parent = win
 
-    -- Floating toggle button
     local floatBtn = Instance.new("TextButton"); floatBtn.Name = "FloatToggle"
     floatBtn.Size = UDim2.new(0,44,0,44); floatBtn.AnchorPoint = Vector2.new(0.5, 0.5)
     floatBtn.Position = UDim2.new(0.5,0,0,32)
@@ -1613,11 +1550,9 @@ function Rayfield:CreateWindow(cfg)
     floatBtn.MouseButton1Click:Connect(function() win.Visible = not win.Visible end)
     mkDrag(floatBtn, floatBtn)
 
-    -- Window object
     local winObj = { Tabs = {}, ActiveTab = nil }
 
     function winObj:CreateTab(name)
-        -- Content scroll
         local scroll = Instance.new("ScrollingFrame"); scroll.Name = name.."_Scroll"
         scroll.Size = UDim2.new(1,0,1,0); scroll.BackgroundTransparency = 1
         scroll.ScrollBarThickness = 4; scroll.ScrollBarImageColor3 = T.Accent
@@ -1632,7 +1567,6 @@ function Rayfield:CreateWindow(cfg)
             scroll.CanvasSize = UDim2.new(0, 0, 0, sLayout.AbsoluteContentSize.Y + sPad.PaddingTop.Offset + sPad.PaddingBottom.Offset)
         end)
 
-        -- Sidebar button
         local btn = Instance.new("TextButton"); btn.Name = name.."_Btn"
         btn.Size = UDim2.new(1,0,0,32); btn.BackgroundColor3 = T.Accent; btn.BackgroundTransparency = 1
         btn.Font = Enum.Font.GothamMedium; btn.TextSize = 12; btn.TextColor3 = T.Sub
@@ -1778,7 +1712,6 @@ function Rayfield:CreateWindow(cfg)
                 if data.Callback then data.Callback(val) end
             end
 
-            -- Use a transparent button the size of the whole card for hit detection
             local hit = Instance.new("TextButton"); hit.Size = UDim2.new(1,0,0,22)
             hit.Position = UDim2.new(0,0,0,30); hit.BackgroundTransparency = 1; hit.Text = ""; hit.Parent = card
             hit.InputBegan:Connect(function(inp)
@@ -1788,7 +1721,6 @@ function Rayfield:CreateWindow(cfg)
                     upd(inp.Position.X)
                 end
             end)
-            -- Use global InputChanged with isDragging flag (safe, per-slider)
             local movedConn = UserInputSvc.InputChanged:Connect(function(inp)
                 if not isDragging then return end
                 if inp.UserInputType == Enum.UserInputType.MouseMovement
@@ -1802,7 +1734,6 @@ function Rayfield:CreateWindow(cfg)
                     isDragging = false
                 end
             end)
-            -- Clean up those connections when scroll is destroyed
             scroll.Destroying:Connect(function()
                 movedConn:Disconnect()
                 endConn:Disconnect()
@@ -1905,11 +1836,13 @@ function Rayfield:CreateWindow(cfg)
             panel.Position = UDim2.new(0,11,0,38); panel.BackgroundTransparency = 1
             panel.Visible = false; panel.Parent = card
             if flag then Rayfield.Flags[flag] = curColor end
+            
             local function updateColor()
                 curColor = Color3.fromRGB(sv.R, sv.G, sv.B); preview.BackgroundColor3 = curColor
                 if flag then Rayfield.Flags[flag] = curColor end
                 if data.Callback then data.Callback(curColor) end
             end
+            
             local chanColors = {R=Color3.fromRGB(238,78,78), G=Color3.fromRGB(78,218,78), B=Color3.fromRGB(78,118,238)}
             for idx, chan in ipairs({"R","G","B"}) do
                 local row = Instance.new("Frame"); row.Size = UDim2.new(1,0,0,22)
@@ -1927,12 +1860,14 @@ function Rayfield:CreateWindow(cfg)
                 vLbl.Font = Enum.Font.SourceSans; vLbl.TextSize = 12; vLbl.TextColor3 = T.Sub
                 vLbl.Text = tostring(sv[chan]); vLbl.Parent = row
                 theme(vLbl, nil, "Sub")
+                
                 local colorDragging = false
                 local function updC(px)
                     local pct = math.clamp((px-bar.AbsolutePosition.X)/math.max(bar.AbsoluteSize.X,1),0,1)
                     sv[chan] = math.round(pct*255); fillC.Size = UDim2.new(pct,0,1,0)
                     vLbl.Text = tostring(sv[chan]); updateColor()
                 end
+                
                 local hit = Instance.new("TextButton"); hit.Size = UDim2.new(1,0,1.5,0)
                 hit.Position = UDim2.new(0,0,-0.25,0); hit.BackgroundTransparency = 1; hit.Text = ""; hit.Parent = bar
                 hit.InputBegan:Connect(function(inp)
@@ -1950,6 +1885,7 @@ function Rayfield:CreateWindow(cfg)
                 end)
                 scroll.Destroying:Connect(function() cmConn:Disconnect(); ceConn:Disconnect() end)
             end
+            
             preview.MouseButton1Click:Connect(function()
                 expanded = not expanded; panel.Visible = expanded
                 local h = expanded and 128 or 36
@@ -1995,7 +1931,6 @@ function Rayfield:CreateWindow(cfg)
     return winObj
 end
 
--- GUI Key toggle (PC)
 safeConnect(UserInputSvc.InputBegan, function(inp, gp)
     if gp then return end
     if inp.KeyCode == Keys.GUI then
@@ -2004,12 +1939,8 @@ safeConnect(UserInputSvc.InputBegan, function(inp, gp)
     end
 end)
 
--- ════════════════════════════════════════
--- BUILD GUI
--- ════════════════════════════════════════
 local Window
 local function BuildGUI()
-    -- Добавлен fallback на английский язык, если текущий язык не найден
     local t = Localization[Localization.CurrentLanguage] or Localization.EN
 
     Window = Rayfield:CreateWindow({ Name = t.WindowTitle })
@@ -2021,7 +1952,6 @@ local function BuildGUI()
     local FlyTab      = Window:CreateTab(t.FlyTab)
     local SettingsTab = Window:CreateTab(t.SettingsTab)
 
-    -- ── Main Tab ──────────────────────────────────────────────
     MainTab:CreateSection(t.ControlSection)
     MainTab:CreateLabel(t.HideShowLabel)
 
@@ -2054,7 +1984,6 @@ local function BuildGUI()
             for _, ed in pairs(ESP.Instances) do if ed.MarkBillboard then ed.MarkBillboard.Size = UDim2.new(0,v,0,v) end end
             SaveConfig() end })
 
-    -- ── Visual Tab ────────────────────────────────────────────
     VisualTab:CreateSection(t.ESPSection)
     ESPToggle = VisualTab:CreateToggle({ Name = t.EnableESP, CurrentValue = ESP.Enabled, Flag = "ESPToggle",
         Callback = function(v) if IsRebuildingUI then return end; ESP.Enabled = v; UpdateAllESPInstances(); SaveConfig() end })
@@ -2088,7 +2017,6 @@ local function BuildGUI()
         CurrentValue = ESP.OutlineTransparency, Flag = "OutlineTransparencyFlag",
         Callback = function(v) if IsRebuildingUI then return end; ESP.OutlineTransparency = v; UpdateAllESPInstances(); SaveConfig() end })
 
-    -- ── Crew ESP ──
     VisualTab:CreateSection(t.CrewSection)
     VisualTab:CreateToggle({ Name = t.EnableCrewESP, CurrentValue = ESP.CrewEnabled, Flag = "CrewESPToggle",
         Callback = function(v) if IsRebuildingUI then return end; ESP.CrewEnabled = v; UpdateAllInternalESP(); UpdateAllESPInstances()
@@ -2101,7 +2029,6 @@ local function BuildGUI()
     VisualTab:CreateColorPicker({ Name = t.CrewColor, Color = ESP.CrewColor, Flag = "CrewColorFlag",
         Callback = function(v) if IsRebuildingUI then return end; ESP.CrewColor = v; UpdateAllInternalESP(); SaveConfig() end })
 
-    -- ── Modules ESP ──
     VisualTab:CreateSection(t.ModulesSection)
     VisualTab:CreateToggle({ Name = t.EnableModulesESP, CurrentValue = ESP.ModulesEnabled, Flag = "ModulesESPToggle",
         Callback = function(v) if IsRebuildingUI then return end; ESP.ModulesEnabled = v; UpdateAllInternalESP(); UpdateAllESPInstances()
@@ -2125,7 +2052,6 @@ local function BuildGUI()
         Callback = function(v) if IsRebuildingUI then return end; Other.PenView = v
             if v then PenView_Start() else PenView_Stop() end; SaveConfig() end })
 
-    -- ── Weapon Tab ────────────────────────────────────────────
     WeaponTab:CreateSection("Penetration")
     WeaponTab:CreateToggle({ Name = t.PenetrationHack, CurrentValue = HACKS.Penetration.active, Flag = "HackPenetrationFlag",
         Callback = function(v) if IsRebuildingUI then return end; HACKS.Penetration.active = v; task.defer(InitWeapon); SaveConfig() end })
@@ -2151,7 +2077,6 @@ local function BuildGUI()
         CurrentValue = HACKS.ShellSpeed.target, Flag = "ShellSpeedValueFlag",
         Callback = function(v) if IsRebuildingUI then return end; HACKS.ShellSpeed.target = v; if HACKS.ShellSpeed.active then task.defer(InitWeapon) end; SaveConfig() end })
 
-    -- ── Fly Tab ───────────────────────────────────────────────
     FlyTab:CreateSection(t.FlightControlSection)
     do
         local mob = Services.UserInput.TouchEnabled and not Services.UserInput.KeyboardEnabled
@@ -2171,8 +2096,6 @@ local function BuildGUI()
         Callback = function(v) local key = parseKeyCode(v); if key then
             Fly.IsRebinding = true; Fly.LastRebindTime = tick()
             task.delay(0.5, function() Fly.IsRebinding = false end); Keys.Fly = key; SaveConfig() end end })
-
-    -- ── Settings Tab ──────────────────────────────────────────
 
     SettingsTab:CreateSection(t.AntiLagSection)
     local lang = Localization.CurrentLanguage
@@ -2278,14 +2201,10 @@ local function BuildGUI()
             Rayfield:Notify({ Title = t.CopiedTitle, Content = t.CopiedContent, Duration = 3 }) end })
 end
 
--- ════════════════════════════════════════
--- INPUT EVENTS
--- ════════════════════════════════════════
 safeConnect(Services.UserInput.InputBegan, function(input, gameProcessed)
     if gameProcessed then return end
     if Fly.IsRebinding or (tick() - Fly.LastRebindTime) < 0.5 then return end
     
-    -- Добавлен fallback на английский язык, чтобы не крашило, если язык не найден
     local t = Localization[Localization.CurrentLanguage] or Localization.EN
     
     if input.KeyCode == Keys.Toggle then
@@ -2309,7 +2228,6 @@ safeConnect(Services.UserInput.InputBegan, function(input, gameProcessed)
     end
 end)
 
--- Mobile joystick (left half of screen)
 if Services.UserInput.TouchEnabled then
     safeConnect(Services.UserInput.TouchStarted, function(touch, gameProcessed)
         if not Fly.Active then return end
@@ -2340,9 +2258,6 @@ safeConnect(workspace:GetPropertyChangedSignal("CurrentCamera"), function()
     Camera = Services.Workspace.CurrentCamera
 end)
 
--- ════════════════════════════════════════
--- MAIN LOOPS
--- ════════════════════════════════════════
 safeConnect(Services.RunService.Heartbeat, function(dt)
     Timers.VehicleScan += dt
     if Timers.VehicleScan >= Timers.ScanInterval then
@@ -2388,7 +2303,6 @@ end
 safeConnect(Services.Lighting.ChildAdded, function(child) if child:IsA("Atmosphere") then WatchAtmosphere(child) end end)
 for _, child in ipairs(Services.Lighting:GetChildren()) do if child:IsA("Atmosphere") then WatchAtmosphere(child) end end
 
--- Weapon watcher (background thread to avoid blocking GUI)
 task.spawn(function()
     local vehiclesFolder = Services.Workspace:WaitForChild("Vehicles", 60)
     if not vehiclesFolder then return end
@@ -2413,9 +2327,6 @@ task.spawn(function()
     end)
 end)
 
--- ════════════════════════════════════════
--- STARTUP
--- ════════════════════════════════════════
 local function CleanUpScript()
     for _, conn in ipairs(ScriptConnections) do
         if conn and conn.Connected then conn:Disconnect() end
