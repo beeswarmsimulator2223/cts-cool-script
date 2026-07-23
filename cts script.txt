@@ -111,6 +111,7 @@ local MobileFlyButton = {
     Locked = false,
     Position = UDim2.new(0, 150, 0, 450),
     Size = UDim2.new(0, 64, 0, 64),
+    Transparency = 0.15,
     Ui = nil
 }
 
@@ -177,6 +178,8 @@ local Localization = {
         MobileFlyButtonSection = "Mobile Fly Button",
         MobileFlyButtonEnabled = "Enable On-Screen Fly Button",
         MobileFlyButtonLock = "Lock Fly Button Position",
+        MobileFlyButtonSize = "Fly Button Size",
+        MobileFlyButtonTransparency = "Fly Button Transparency",
         ToggleFly = "Toggle Fly", FlySpeed = "Fly Speed",
         KeybindSection = "Keybind", ToggleFlyKey = "Toggle Fly Key", ToggleGUIKey = "Toggle GUI Key",
         PerformanceSection = "Performance",
@@ -237,6 +240,8 @@ local Localization = {
         MobileFlyButtonSection = "Мобильная кнопка полёта",
         MobileFlyButtonEnabled = "Включить кнопку полёта на экране",
         MobileFlyButtonLock = "Зафиксировать позицию кнопки",
+        MobileFlyButtonSize = "Размер кнопки полёта",
+        MobileFlyButtonTransparency = "Прозрачность кнопки",
         ToggleFly = "Переключить полёт", FlySpeed = "Скорость полёта",
         KeybindSection = "Клавиша активации", ToggleFlyKey = "Клавиша полёта", ToggleGUIKey = "Клавиша GUI",
         PerformanceSection = "Производительность",
@@ -358,7 +363,9 @@ local function SaveConfig()
         CustomBgImage = CustomBgImage,
         MobileFlyButtonEnabled = MobileFlyButton.Enabled,
         MobileFlyButtonLocked = MobileFlyButton.Locked,
-        MobileFlyButtonPosition = {MobileFlyButton.Position.X.Scale, MobileFlyButton.Position.X.Offset, MobileFlyButton.Position.Y.Scale, MobileFlyButton.Position.Y.Offset}
+        MobileFlyButtonPosition = {MobileFlyButton.Position.X.Scale, MobileFlyButton.Position.X.Offset, MobileFlyButton.Position.Y.Scale, MobileFlyButton.Position.Y.Offset},
+        MobileFlyButtonSize = {MobileFlyButton.Size.X.Offset, MobileFlyButton.Size.Y.Offset},
+        MobileFlyButtonTransparency = MobileFlyButton.Transparency
     }
     pcall(function()
         if writefile then writefile(CONFIG_FILE, HttpService:JSONEncode(data)) end
@@ -423,6 +430,10 @@ local function LoadConfig()
             if data.MobileFlyButtonPosition and type(data.MobileFlyButtonPosition) == "table" and #data.MobileFlyButtonPosition == 4 then
                 MobileFlyButton.Position = UDim2.new(data.MobileFlyButtonPosition[1], data.MobileFlyButtonPosition[2], data.MobileFlyButtonPosition[3], data.MobileFlyButtonPosition[4])
             end
+            if data.MobileFlyButtonSize and type(data.MobileFlyButtonSize) == "table" and #data.MobileFlyButtonSize == 2 then
+                MobileFlyButton.Size = UDim2.new(0, math.clamp(data.MobileFlyButtonSize[1], 40, 140), 0, math.clamp(data.MobileFlyButtonSize[2], 40, 140))
+            end
+            MobileFlyButton.Transparency = (type(data.MobileFlyButtonTransparency) == "number") and math.clamp(data.MobileFlyButtonTransparency, 0, 0.8) or 0.15
             local th = PresetThemes[SelectedTheme]
             if th then
                 for k, v in pairs(th) do
@@ -1404,9 +1415,11 @@ local function RefreshMobileFlyButton()
     if not MobileFlyButton.Ui then return end
     local btn = MobileFlyButton.Ui.Button
     if btn then
+        btn.Size = MobileFlyButton.Size
         btn.Position = ClampMobileButtonPosition(MobileFlyButton.Position, btn.AbsoluteSize)
         btn.Text = Fly.Active and "FLY\nON" or "FLY"
         btn.BackgroundColor3 = Fly.Active and Color3.fromRGB(88, 214, 141) or T.Accent
+        btn.BackgroundTransparency = MobileFlyButton.Transparency
         btn.TextColor3 = T.Text
     end
     local lockBtn = MobileFlyButton.Ui.LockBtn
@@ -1448,6 +1461,7 @@ local function CreateMobileFlyButton()
     button.Position = ClampMobileButtonPosition(MobileFlyButton.Position)
     button.AnchorPoint = Vector2.new(0, 0)
     button.BackgroundColor3 = Fly.Active and Color3.fromRGB(88, 214, 141) or T.Accent
+    button.BackgroundTransparency = MobileFlyButton.Transparency
     button.BorderSizePixel = 0
     button.Font = Enum.Font.GothamBold
     button.TextSize = 16
@@ -2278,6 +2292,21 @@ local function BuildGUI()
         Callback = function(v) if IsRebuildingUI then return end; MobileFlyButton.Enabled = v; UpdateMobileFlyButton(); SaveConfig() end })
     FlyTab:CreateToggle({ Name = t.MobileFlyButtonLock, CurrentValue = MobileFlyButton.Locked, Flag = "MobileFlyButtonLockFlag",
         Callback = function(v) if IsRebuildingUI then return end; MobileFlyButton.Locked = v; RefreshMobileFlyButton(); SaveConfig() end })
+    FlyTab:CreateSlider({ Name = t.MobileFlyButtonSize, Range = {40,140}, Increment = 2,
+        Suffix = " px", CurrentValue = MobileFlyButton.Size.X.Offset, Flag = "MobileFlyButtonSizeFlag",
+        Callback = function(v) if IsRebuildingUI then return end; MobileFlyButton.Size = UDim2.new(0, v, 0, v)
+            if MobileFlyButton.Ui and MobileFlyButton.Ui.Button then
+                MobileFlyButton.Ui.Button.Size = MobileFlyButton.Size
+                MobileFlyButton.Ui.Button.Position = ClampMobileButtonPosition(MobileFlyButton.Position, MobileFlyButton.Ui.Button.AbsoluteSize)
+            end
+            SaveConfig() end })
+    FlyTab:CreateSlider({ Name = t.MobileFlyButtonTransparency, Range = {0,0.8}, Increment = 0.05,
+        Suffix = "", CurrentValue = MobileFlyButton.Transparency, Flag = "MobileFlyButtonTransparencyFlag",
+        Callback = function(v) if IsRebuildingUI then return end; MobileFlyButton.Transparency = v
+            if MobileFlyButton.Ui and MobileFlyButton.Ui.Button then
+                MobileFlyButton.Ui.Button.BackgroundTransparency = v
+            end
+            SaveConfig() end })
     FlyTab:CreateSection(t.KeybindSection)
     FlyTab:CreateKeybind({ Name = t.ToggleFlyKey, CurrentKeybind = Keys.Fly.Name, HoldToInteract = false, Flag = "FlyKeyFlag",
         Callback = function(v) local key = parseKeyCode(v); if key then
