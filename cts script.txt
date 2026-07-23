@@ -11,6 +11,9 @@ local Services = {
     Lighting   = game:GetService("Lighting")
 }
 local LocalPlayer = Services.Players.LocalPlayer
+local TweenService = game:GetService("TweenService")
+local UserInputSvc = Services.UserInput
+local isMobile = UserInputSvc.TouchEnabled and not UserInputSvc.KeyboardEnabled
 
 local ScriptConnections = {}
 local function safeConnect(signal, callback)
@@ -103,6 +106,14 @@ local MobileFly = {
     MaxRadius = 75,
 }
 
+local MobileFlyButton = {
+    Enabled = false,
+    Locked = false,
+    Position = UDim2.new(0, 150, 0, 450),
+    Size = UDim2.new(0, 64, 0, 64),
+    Ui = nil
+}
+
 local Other = {
     RemoveFog = false,
     PenView = false
@@ -163,6 +174,9 @@ local Localization = {
         FlightControlSection = "Flight Control",
         FlightControlLabel = "W/A/S/D — move  | Space — up  |  LCtrl — down",
         FlightControlLabelMobile = "Joystick — move  | Up/Down not available on mobile",
+        MobileFlyButtonSection = "Mobile Fly Button",
+        MobileFlyButtonEnabled = "Enable On-Screen Fly Button",
+        MobileFlyButtonLock = "Lock Fly Button Position",
         ToggleFly = "Toggle Fly", FlySpeed = "Fly Speed",
         KeybindSection = "Keybind", ToggleFlyKey = "Toggle Fly Key", ToggleGUIKey = "Toggle GUI Key",
         PerformanceSection = "Performance",
@@ -220,6 +234,9 @@ local Localization = {
         FlightControlSection = "Управление полётом",
         FlightControlLabel = "W/A/S/D — движение  | Пробел — вверх  |  LControl — вниз",
         FlightControlLabelMobile = "Джойстик — движение  | Вверх/вниз недоступно на мобильном",
+        MobileFlyButtonSection = "Мобильная кнопка полёта",
+        MobileFlyButtonEnabled = "Включить кнопку полёта на экране",
+        MobileFlyButtonLock = "Зафиксировать позицию кнопки",
         ToggleFly = "Переключить полёт", FlySpeed = "Скорость полёта",
         KeybindSection = "Клавиша активации", ToggleFlyKey = "Клавиша полёта", ToggleGUIKey = "Клавиша GUI",
         PerformanceSection = "Производительность",
@@ -338,7 +355,10 @@ local function SaveConfig()
         CrewColor = {ESP.CrewColor.R, ESP.CrewColor.G, ESP.CrewColor.B},
         ModuleColor = {ESP.ModuleColor.R, ESP.ModuleColor.G, ESP.ModuleColor.B},
         SelectedTheme = SelectedTheme,
-        CustomBgImage = CustomBgImage
+        CustomBgImage = CustomBgImage,
+        MobileFlyButtonEnabled = MobileFlyButton.Enabled,
+        MobileFlyButtonLocked = MobileFlyButton.Locked,
+        MobileFlyButtonPosition = {MobileFlyButton.Position.X.Scale, MobileFlyButton.Position.X.Offset, MobileFlyButton.Position.Y.Scale, MobileFlyButton.Position.Y.Offset}
     }
     pcall(function()
         if writefile then writefile(CONFIG_FILE, HttpService:JSONEncode(data)) end
@@ -398,6 +418,11 @@ local function LoadConfig()
             if data.ModuleColor then ESP.ModuleColor = Color3.new(data.ModuleColor[1], data.ModuleColor[2], data.ModuleColor[3]) end
             SelectedTheme = data.SelectedTheme or "Dark Mode"
             CustomBgImage = data.CustomBgImage or ""
+            MobileFlyButton.Enabled = data.MobileFlyButtonEnabled or false
+            MobileFlyButton.Locked = data.MobileFlyButtonLocked or false
+            if data.MobileFlyButtonPosition and type(data.MobileFlyButtonPosition) == "table" and #data.MobileFlyButtonPosition == 4 then
+                MobileFlyButton.Position = UDim2.new(data.MobileFlyButtonPosition[1], data.MobileFlyButtonPosition[2], data.MobileFlyButtonPosition[3], data.MobileFlyButtonPosition[4])
+            end
             local th = PresetThemes[SelectedTheme]
             if th then
                 for k, v in pairs(th) do
@@ -1056,11 +1081,13 @@ end
 local function startFly()
     if Fly.Active then return end; initFlyRoot(); Fly.Active = true
     if Fly.Root then bv.Parent = Fly.Root; bg.Parent = Fly.Root end
+    RefreshMobileFlyButton()
 end
 
 local function stopFly()
     if not Fly.Active then return end; Fly.Active = false; bv.Parent = nil; bg.Parent = nil
     MobileFly.Touch = nil; MobileFly.Delta = Vector2.new(0,0)
+    RefreshMobileFlyButton()
 end
 
 local function GetOwnChassis()
@@ -1112,10 +1139,6 @@ end
 local function InitWeapon()
     local chassis = GetOwnChassis(); if chassis then SetupWeaponChassis(chassis) end
 end
-
-local TweenService = game:GetService("TweenService")
-local UserInputSvc = Services.UserInput
-local isMobile = UserInputSvc.TouchEnabled and not UserInputSvc.KeyboardEnabled
 
 local TOGGLE_SOUND_ID = "140231021022259"
 local LOAD_SOUND_ID   = "876941152"
@@ -1235,6 +1258,7 @@ local function ApplyTheme()
             end
         end
     end
+    RefreshMobileFlyButton()
 end
 
 local loadingTexts = {
@@ -1360,6 +1384,164 @@ local function mkDrag(frame, handle)
         local d = inp.Position - ds
         frame.Position = UDim2.new(fp.X.Scale, fp.X.Offset + d.X, fp.Y.Scale, fp.Y.Offset + d.Y)
     end)
+end
+
+local function IsMobileDevice()
+    return Services.UserInput.TouchEnabled and not Services.UserInput.KeyboardEnabled
+end
+
+local function ClampMobileButtonPosition(pos, size)
+    local cam = Services.Workspace.CurrentCamera
+    local vp = cam and cam.ViewportSize or Vector2.new(1920,1080)
+    local width = size and size.X or MobileFlyButton.Size.X.Offset
+    local height = size and size.Y or MobileFlyButton.Size.Y.Offset
+    local x = math.clamp(pos.X.Offset, 0, math.max(vp.X - width, 0))
+    local y = math.clamp(pos.Y.Offset, 0, math.max(vp.Y - height, 0))
+    return UDim2.new(0, x, 0, y)
+end
+
+local function RefreshMobileFlyButton()
+    if not MobileFlyButton.Ui then return end
+    local btn = MobileFlyButton.Ui.Button
+    if btn then
+        btn.Position = ClampMobileButtonPosition(MobileFlyButton.Position, btn.AbsoluteSize)
+        btn.Text = Fly.Active and "FLY\nON" or "FLY"
+        btn.BackgroundColor3 = Fly.Active and Color3.fromRGB(88, 214, 141) or T.Accent
+        btn.TextColor3 = T.Text
+    end
+    local lockBtn = MobileFlyButton.Ui.LockBtn
+    if lockBtn then
+        lockBtn.Text = MobileFlyButton.Locked and "🔒" or "🔓"
+        lockBtn.TextColor3 = T.Text
+        lockBtn.BackgroundColor3 = T.Card
+    end
+end
+
+local function DestroyMobileFlyButton()
+    if MobileFlyButton.Ui then
+        if MobileFlyButton.Ui.ScreenGui and MobileFlyButton.Ui.ScreenGui.Parent then
+            MobileFlyButton.Ui.ScreenGui:Destroy()
+        end
+        if MobileFlyButton.Ui.Connections then
+            for _, conn in ipairs(MobileFlyButton.Ui.Connections) do
+                if conn and conn.Connected then conn:Disconnect() end
+            end
+        end
+    end
+    MobileFlyButton.Ui = nil
+end
+
+local function CreateMobileFlyButton()
+    if not IsMobileDevice() then return end
+    if not MobileFlyButton.Enabled then return end
+    DestroyMobileFlyButton()
+    local sg = Instance.new("ScreenGui")
+    sg.Name = "KolyanchikMobileFly"
+    sg.ResetOnSpawn = false
+    sg.IgnoreGuiInset = true
+    sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    sg.Parent = Services.CoreGui
+
+    local button = Instance.new("TextButton")
+    button.Name = "FlyButton"
+    button.Size = MobileFlyButton.Size
+    button.Position = ClampMobileButtonPosition(MobileFlyButton.Position)
+    button.AnchorPoint = Vector2.new(0, 0)
+    button.BackgroundColor3 = Fly.Active and Color3.fromRGB(88, 214, 141) or T.Accent
+    button.BorderSizePixel = 0
+    button.Font = Enum.Font.GothamBold
+    button.TextSize = 16
+    button.TextColor3 = T.Text
+    button.Text = Fly.Active and "FLY\nON" or "FLY"
+    button.TextWrapped = true
+    button.Parent = sg
+    mkCorner(button, 16)
+    mkStroke(button, T.Stroke, 1)
+
+    local lockBtn = Instance.new("TextButton")
+    lockBtn.Name = "FlyButtonLock"
+    lockBtn.Size = UDim2.new(0, 20, 0, 20)
+    lockBtn.Position = UDim2.new(1, -22, 1, -22)
+    lockBtn.AnchorPoint = Vector2.new(0, 0)
+    lockBtn.BackgroundColor3 = T.Card
+    lockBtn.BorderSizePixel = 0
+    lockBtn.Font = Enum.Font.GothamBold
+    lockBtn.TextSize = 14
+    lockBtn.TextColor3 = T.Text
+    lockBtn.Text = MobileFlyButton.Locked and "🔒" or "🔓"
+    lockBtn.Parent = button
+    mkCorner(lockBtn, 5)
+    mkStroke(lockBtn, T.Stroke, 1)
+
+    local connections = {}
+    local dragging = false
+    local dragStart = Vector2.new(0,0)
+    local startPos = button.Position
+
+    local function stopDragging()
+        dragging = false
+    end
+
+    table.insert(connections, button.InputBegan:Connect(function(inp)
+        if MobileFlyButton.Locked then return end
+        if inp.UserInputType ~= Enum.UserInputType.MouseButton1 and inp.UserInputType ~= Enum.UserInputType.Touch then return end
+        dragging = true
+        dragStart = inp.Position
+        startPos = button.Position
+        inp.Changed:Connect(function()
+            if inp.UserInputState == Enum.UserInputState.End then
+                stopDragging()
+                SaveConfig()
+            end
+        end)
+    end))
+
+    table.insert(connections, UserInputSvc.InputChanged:Connect(function(inp)
+        if not dragging then return end
+        if inp.UserInputType ~= Enum.UserInputType.MouseMovement and inp.UserInputType ~= Enum.UserInputType.Touch then return end
+        local d = inp.Position - dragStart
+        local newPos = UDim2.new(0, startPos.X.Offset + d.X, 0, startPos.Y.Offset + d.Y)
+        newPos = ClampMobileButtonPosition(newPos, button.AbsoluteSize)
+        MobileFlyButton.Position = newPos
+        button.Position = newPos
+    end))
+
+    table.insert(connections, UserInputSvc.InputEnded:Connect(function(inp)
+        if not dragging then return end
+        if inp.UserInputType ~= Enum.UserInputType.MouseButton1 and inp.UserInputType ~= Enum.UserInputType.Touch then return end
+        stopDragging()
+        SaveConfig()
+    end))
+
+    table.insert(connections, button.MouseButton1Click:Connect(function()
+        if Fly.Active then
+            stopFly()
+        else
+            startFly()
+        end
+        RefreshMobileFlyButton()
+    end))
+
+    table.insert(connections, lockBtn.MouseButton1Click:Connect(function()
+        MobileFlyButton.Locked = not MobileFlyButton.Locked
+        RefreshMobileFlyButton()
+        SaveConfig()
+    end))
+
+    MobileFlyButton.Ui = {
+        ScreenGui = sg,
+        Button = button,
+        LockBtn = lockBtn,
+        Connections = connections
+    }
+end
+
+local function UpdateMobileFlyButton()
+    if MobileFlyButton.Enabled and IsMobileDevice() then
+        CreateMobileFlyButton()
+    else
+        DestroyMobileFlyButton()
+    end
 end
 
 Rayfield.ScreenGui = nil
@@ -2091,6 +2273,11 @@ local function BuildGUI()
     FlyTab:CreateSlider({ Name = t.FlySpeed, Range = {10,300}, Increment = 10,
         Suffix = " studs/s", CurrentValue = Fly.Speed, Flag = "FlySpeedFlag",
         Callback = function(v) if IsRebuildingUI then return end; Fly.Speed = v; SaveConfig() end })
+    FlyTab:CreateSection(t.MobileFlyButtonSection)
+    FlyTab:CreateToggle({ Name = t.MobileFlyButtonEnabled, CurrentValue = MobileFlyButton.Enabled, Flag = "MobileFlyButtonEnabledFlag",
+        Callback = function(v) if IsRebuildingUI then return end; MobileFlyButton.Enabled = v; UpdateMobileFlyButton(); SaveConfig() end })
+    FlyTab:CreateToggle({ Name = t.MobileFlyButtonLock, CurrentValue = MobileFlyButton.Locked, Flag = "MobileFlyButtonLockFlag",
+        Callback = function(v) if IsRebuildingUI then return end; MobileFlyButton.Locked = v; RefreshMobileFlyButton(); SaveConfig() end })
     FlyTab:CreateSection(t.KeybindSection)
     FlyTab:CreateKeybind({ Name = t.ToggleFlyKey, CurrentKeybind = Keys.Fly.Name, HoldToInteract = false, Flag = "FlyKeyFlag",
         Callback = function(v) local key = parseKeyCode(v); if key then
@@ -2345,6 +2532,7 @@ local function CleanUpScript()
     if Rayfield.ScreenGui and Rayfield.ScreenGui.Parent then Rayfield.ScreenGui:Destroy() end
     Rayfield.ScreenGui = nil
     ESPToggle = nil
+    DestroyMobileFlyButton()
 
     local loadingScreen = Services.CoreGui:FindFirstChild("KolyanchikLoading")
     if loadingScreen then loadingScreen:Destroy() end
@@ -2374,6 +2562,7 @@ local function RunStartup()
         InitWeapon()
         BuildGUI()
         ApplyTheme()
+        UpdateMobileFlyButton()
         print("kolyanchik script loaded!")
     end)
 end
