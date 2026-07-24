@@ -320,6 +320,11 @@ local PresetThemes = {
         BG = Color3.fromRGB(10, 14, 18), Sidebar = Color3.fromRGB(14, 20, 26), Card = Color3.fromRGB(20, 28, 36),
         Stroke = Color3.fromRGB(46, 64, 82), Accent = Color3.fromRGB(137, 207, 240), Text = Color3.fromRGB(230, 242, 250),
         Sub = Color3.fromRGB(150, 172, 190), Hover = Color3.fromRGB(28, 40, 52)
+    },
+    ["✡ Jewish"] = {
+        BG = Color3.fromRGB(10, 20, 60), Sidebar = Color3.fromRGB(8, 16, 50), Card = Color3.fromRGB(14, 28, 72),
+        Stroke = Color3.fromRGB(40, 80, 160), Accent = Color3.fromRGB(255, 255, 255), Text = Color3.fromRGB(240, 245, 255),
+        Sub = Color3.fromRGB(140, 170, 220), Hover = Color3.fromRGB(20, 40, 90)
     }
 }
 
@@ -1592,6 +1597,7 @@ function Rayfield:Notify(data)
     body.TextColor3 = T.Text; body.TextXAlignment = Enum.TextXAlignment.Left
     body.TextYAlignment = Enum.TextYAlignment.Top; body.TextWrapped = true
     body.Text = data.Content or ""; body.TextTransparency = 1; body.Parent = card
+    theme(body, nil, "Text")
     local ti = TweenInfo.new(0.3, Enum.EasingStyle.Quad)
     TweenService:Create(card, ti, {BackgroundTransparency = 0.12}):Play()
     TweenService:Create(lbl, ti, {TextTransparency = 0}):Play()
@@ -1640,6 +1646,36 @@ function Rayfield:CreateWindow(cfg)
     winBgImage.ZIndex = 0
     winBgImage.Parent = win
     mkCorner(winBgImage, 12)
+
+    -- Star of David decorations for Jewish theme
+    local starContainer = Instance.new("Frame")
+    starContainer.Name = "StarDecor"
+    starContainer.Size = UDim2.new(1, 0, 1, 0)
+    starContainer.BackgroundTransparency = 1
+    starContainer.ClipsDescendants = true
+    starContainer.ZIndex = 1
+    starContainer.Parent = win
+    mkCorner(starContainer, 12)
+    local starPositions = {
+        {0.08, 0.12, 28, 0.88}, {0.85, 0.08, 22, 0.92}, {0.45, 0.82, 18, 0.9},
+        {0.92, 0.75, 24, 0.85}, {0.15, 0.88, 16, 0.93}, {0.7, 0.45, 14, 0.91},
+        {0.3, 0.35, 20, 0.87}, {0.55, 0.15, 16, 0.9}, {0.78, 0.9, 20, 0.86},
+    }
+    for _, sp in ipairs(starPositions) do
+        local star = Instance.new("TextLabel")
+        star.Name = "Star"
+        star.Size = UDim2.new(0, sp[3], 0, sp[3])
+        star.Position = UDim2.new(sp[1], 0, sp[2], 0)
+        star.BackgroundTransparency = 1
+        star.Text = "✡"
+        star.TextSize = sp[3]
+        star.TextColor3 = Color3.fromRGB(255, 255, 255)
+        star.TextTransparency = sp[4]
+        star.Font = Enum.Font.SourceSans
+        star.ZIndex = 1
+        star.Parent = starContainer
+        star.Visible = (SelectedTheme == "✡ Jewish")
+    end
 
     local bar = Instance.new("Frame"); bar.Name = "TitleBar"
     bar.Size = UDim2.new(1,0,0,44)
@@ -2373,7 +2409,7 @@ local function BuildGUI()
         end })
 
     SettingsTab:CreateSection(t.ThemeSection)
-    SettingsTab:CreateDropdown({ Name = t.PresetThemesOption, Options = {"Dark Mode", "White-Black", "White-Gold", "Purple-Black", "Purple-White", "Baby Blue-Black"},
+    SettingsTab:CreateDropdown({ Name = t.PresetThemesOption, Options = {"Dark Mode", "White-Black", "White-Gold", "Purple-Black", "Purple-White", "Baby Blue-Black", "✡ Jewish"},
         CurrentValue = {SelectedTheme}, MultipleOptions = false, Flag = "PresetThemesDropdownFlag",
         Callback = function(opt)
             if IsRebuildingUI then return end
@@ -2385,6 +2421,21 @@ local function BuildGUI()
                     T[k] = v
                 end
                 ApplyTheme()
+                -- Show/hide Star of David decorations
+                local sg = Rayfield.ScreenGui
+                if sg then
+                    local w = sg:FindFirstChild("Window")
+                    if w then
+                        local sd = w:FindFirstChild("StarDecor")
+                        if sd then
+                            for _, star in ipairs(sd:GetChildren()) do
+                                if star.Name == "Star" then
+                                    star.Visible = (opt[1] == "✡ Jewish")
+                                end
+                            end
+                        end
+                    end
+                end
                 SaveConfig()
             end
         end })
@@ -2563,6 +2614,15 @@ local function CleanUpScript()
     ESPToggle = nil
     DestroyMobileFlyButton()
 
+    -- Cleanup easter egg music
+    pcall(function()
+        if getgenv and getgenv()._kolyanchikEasterEgg then
+            getgenv()._kolyanchikEasterEgg:Stop()
+            getgenv()._kolyanchikEasterEgg:Destroy()
+            getgenv()._kolyanchikEasterEgg = nil
+        end
+    end)
+
     local loadingScreen = Services.CoreGui:FindFirstChild("KolyanchikLoading")
     if loadingScreen then loadingScreen:Destroy() end
 
@@ -2571,6 +2631,23 @@ local function CleanUpScript()
 
     local perfData = Services.CoreGui:FindFirstChild("PerfData")
     if perfData then perfData:Destroy() end
+end
+
+local function PlayEasterEggMusic()
+    pcall(function()
+        local eggSound = Instance.new("Sound")
+        eggSound.Name = "KolyanchikEasterEgg"
+        eggSound.SoundId = "rbxassetid://1840529306"
+        eggSound.Volume = 0.07
+        eggSound.Looped = true
+        eggSound.PlayOnRemove = false
+        eggSound.Parent = game:GetService("SoundService")
+        eggSound:Play()
+        -- Store reference for cleanup
+        if getgenv then
+            getgenv()._kolyanchikEasterEgg = eggSound
+        end
+    end)
 end
 
 local function RunStartup()
@@ -2582,6 +2659,8 @@ local function RunStartup()
     end
 
     LoadConfig()
+    -- Easter egg: quietly play background music
+    task.spawn(PlayEasterEggMusic)
     ShowLoadingScreen(function()
         ScanVehicles()
         if Other.PenView then task.spawn(PenView_Start) end
