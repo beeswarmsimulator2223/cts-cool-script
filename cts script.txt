@@ -1,5 +1,9 @@
 print("kolyanchik script loading...")
 
+if not game:IsLoaded() then
+    game.Loaded:Wait()
+end
+
 local Rayfield = { Flags = {} }
 
 local Services = {
@@ -10,6 +14,10 @@ local Services = {
     Workspace  = game:GetService("Workspace"),
     Lighting   = game:GetService("Lighting")
 }
+
+while not Services.Players.LocalPlayer do
+    task.wait(0.1)
+end
 local LocalPlayer = Services.Players.LocalPlayer
 local TweenService = game:GetService("TweenService")
 local UserInputSvc = Services.UserInput
@@ -25,7 +33,8 @@ end
 local Keys = {
     Toggle = Enum.KeyCode.F,
     Fly = Enum.KeyCode.M,
-    GUI = Enum.KeyCode.K
+    GUI = Enum.KeyCode.K,
+    Flip = Enum.KeyCode.T
 }
 
 local T = {
@@ -140,6 +149,25 @@ local AntiLag = {
     VehiclesConnection = nil
 }
 
+local PvE = {
+    Enabled = false,
+    TankSlot = "slot1",
+    FlyHeight = 2500,
+    ShootInterval = 0.15,
+    AutoRestart = true,
+    SelectedModifiers = {"LARP", "TERMINATORS", "FOG", "NIGHT", "REINFORCEMENTS", "SLOW MO", "HEAVY RAIN", "MIRROR", "LOW GRAVITY"},
+    PostVictoryWait = 10,
+    SpawnDelay = 5,
+    _running = false,
+    _connections = {},
+    _currentTarget = nil,
+    _phase = "IDLE",
+    _statusText = "Idle",
+    _statusLabel = nil,
+    _inSight = false,
+    _lastTargetName = nil
+}
+
 local Localization = {
     CurrentLanguage = "EN",
     EN = {
@@ -172,6 +200,8 @@ local Localization = {
         RicochetHack = "Enable Ricochet Hack", RicochetVal = "Ricochet Value",
         BulletGravHack = "Enable Bullet Gravity Hack", BulletGravVal = "Bullet Gravity Value",
         ShellSpeedHack = "Enable Shell Speed Hack", ShellSpeedVal = "Shell Speed Value",
+        TraverseSection = "Turret Traverse",
+        InstantTraverseHack = "Enable Instant Turret Traverse", InstantTraverseVal = "Traverse Speed",
         FlightControlSection = "Flight Control",
         FlightControlLabel = "W/A/S/D — move  | Space — up  |  LCtrl — down",
         FlightControlLabelMobile = "Joystick — move  | Up/Down not available on mobile",
@@ -181,6 +211,8 @@ local Localization = {
         MobileFlyButtonSize = "Fly Button Size",
         MobileFlyButtonTransparency = "Fly Button Transparency",
         ToggleFly = "Toggle Fly", FlySpeed = "Fly Speed",
+        FlipTank = "Unflip / Flip Tank", FlipKey = "Flip Tank Keybind",
+        FlipSuccess = "Tank flipped upright!", FlipNoTank = "Tank not found",
         KeybindSection = "Keybind", ToggleFlyKey = "Toggle Fly Key", ToggleGUIKey = "Toggle GUI Key",
         PerformanceSection = "Performance",
         MarkUpdateRate = "Mark Update Rate", ScanInterval = "Scan Interval",
@@ -203,6 +235,9 @@ local Localization = {
         CrewSection = "Crew ESP", EnableCrewESP = "Enable Crew ESP",
         ModulesSection = "Modules ESP", EnableModulesESP = "Enable Modules ESP",
         CrewColor = "Crew Color", ModuleColor = "Module Color",
+        PvETab = "PvE Farm", EnablePvE = "Enable PvE Auto-Farm", PvETankSlot = "Tank Slot",
+        PvEFlyHeight = "Fly Height", PvEShootInterval = "Shoot Interval", PvEAutoRestart = "Auto-Restart",
+        PvEStatus = "Status: ",
     },
     RU = {
         WindowTitle = "kolyanchik script",
@@ -234,6 +269,8 @@ local Localization = {
         RicochetHack = "Включить хак рикошета", RicochetVal = "Значение рикошета",
         BulletGravHack = "Включить хак гравитации пуль", BulletGravVal = "Значение гравитации пуль",
         ShellSpeedHack = "Включить хак скорости снаряда", ShellSpeedVal = "Значение скорости снаряда",
+        TraverseSection = "Поворот башни",
+        InstantTraverseHack = "Включить мгновенный поворот башни", InstantTraverseVal = "Скорость поворота",
         FlightControlSection = "Управление полётом",
         FlightControlLabel = "W/A/S/D — движение  | Пробел — вверх  |  LControl — вниз",
         FlightControlLabelMobile = "Джойстик — движение  | Вверх/вниз недоступно на мобильном",
@@ -243,6 +280,8 @@ local Localization = {
         MobileFlyButtonSize = "Размер кнопки полёта",
         MobileFlyButtonTransparency = "Прозрачность кнопки",
         ToggleFly = "Переключить полёт", FlySpeed = "Скорость полёта",
+        FlipTank = "Перевернуть танк", FlipKey = "Клавиша переворота",
+        FlipSuccess = "Танк перевернут на колёса!", FlipNoTank = "Танк не найден",
         KeybindSection = "Клавиша активации", ToggleFlyKey = "Клавиша полёта", ToggleGUIKey = "Клавиша GUI",
         PerformanceSection = "Производительность",
         MarkUpdateRate = "Частота обновления метки", ScanInterval = "Интервал сканирования",
@@ -262,14 +301,18 @@ local Localization = {
         CrewSection = "ESP Экипажа", EnableCrewESP = "Включить ESP Экипажа",
         ModulesSection = "ESP Модулей", EnableModulesESP = "Включить ESP Модулей",
         CrewColor = "Цвет экипажа", ModuleColor = "Цвет модулей",
+        PvETab = "PvE Фарм", EnablePvE = "Включить PvE Фарм", PvETankSlot = "Слот Танка",
+        PvEFlyHeight = "Высота полёта", PvEShootInterval = "Интервал стрельбы", PvEAutoRestart = "Авто-рестарт",
+        PvEStatus = "Статус: ",
     }
 }
 
 local HACKS = {
-    Penetration   = { target = 9999, active = false, names = {"Penetration","Penetrate"}, patched = {}, origPatched = {} },
-    Ricochet      = { target = 9999, active = false, names = {"RicochetAngle"}, patched = {}, origPatched = {} },
-    BulletGravity = { target = 0, active = false, names = {"BulletGravity"}, patched = {}, origPatched = {} },
-    ShellSpeed    = { target = 9999, active = false, names = {"ShellSpeed"}, patched = {}, origPatched = {} },
+    Penetration     = { target = 9999, active = true, names = {"Penetration","Penetrate"}, patched = {}, origPatched = {} },
+    Ricochet        = { target = 9999, active = true, names = {"RicochetAngle"}, patched = {}, origPatched = {} },
+    BulletGravity   = { target = 0, active = true, names = {"BulletGravity"}, patched = {}, origPatched = {} },
+    ShellSpeed      = { target = 9999, active = true, names = {"ShellSpeed"}, patched = {}, origPatched = {} },
+    InstantTraverse = { target = 9999, active = true, names = {"HzTraverse","VtTraverse","TraverseSpeed","HorizontalTraverse","VerticalTraverse"}, patched = {}, origPatched = {} },
 }
 
 local WeaponConnections = {}
@@ -356,11 +399,13 @@ local function SaveConfig()
         RicochetActive = HACKS.Ricochet.active, RicochetTarget = HACKS.Ricochet.target,
         BulletGravityActive = HACKS.BulletGravity.active, BulletGravityTarget = HACKS.BulletGravity.target,
         ShellSpeedActive = HACKS.ShellSpeed.active, ShellSpeedTarget = HACKS.ShellSpeed.target,
+        InstantTraverseActive = HACKS.InstantTraverse.active, InstantTraverseTarget = HACKS.InstantTraverse.target,
         FlySpeed = Fly.Speed, ScanInterval = Timers.ScanInterval,
         GraphicsDegradationLevel = Graphics.DegradationLevel,
         NoSmoke = AntiLag.NoSmoke,
         NoDeathEffect = AntiLag.NoDeathEffect,
         ToggleESPKey = Keys.Toggle.Name, ToggleFlyKey = Keys.Fly.Name, ToggleGUIKey = Keys.GUI.Name,
+        FlipKey = Keys.Flip.Name,
         CrewEnabled = ESP.CrewEnabled, ModulesEnabled = ESP.ModulesEnabled,
         CrewColor = {ESP.CrewColor.R, ESP.CrewColor.G, ESP.CrewColor.B},
         ModuleColor = {ESP.ModuleColor.R, ESP.ModuleColor.G, ESP.ModuleColor.B},
@@ -370,7 +415,9 @@ local function SaveConfig()
         MobileFlyButtonLocked = MobileFlyButton.Locked,
         MobileFlyButtonPosition = {MobileFlyButton.Position.X.Scale, MobileFlyButton.Position.X.Offset, MobileFlyButton.Position.Y.Scale, MobileFlyButton.Position.Y.Offset},
         MobileFlyButtonSize = {MobileFlyButton.Size.X.Offset, MobileFlyButton.Size.Y.Offset},
-        MobileFlyButtonTransparency = MobileFlyButton.Transparency
+        MobileFlyButtonTransparency = MobileFlyButton.Transparency,
+        PvEEnabled = PvE.Enabled, PvETankSlot = PvE.TankSlot, PvEFlyHeight = PvE.FlyHeight,
+        PvEShootInterval = PvE.ShootInterval, PvEAutoRestart = PvE.AutoRestart
     }
     pcall(function()
         if writefile then writefile(CONFIG_FILE, HttpService:JSONEncode(data)) end
@@ -402,14 +449,16 @@ local function LoadConfig()
             Mark.UpdateInterval = data.MarkUpdateInterval or 0.016
             Other.RemoveFog = data.RemoveFog or false
             Other.PenView = data.PenView or false
-            HACKS.Penetration.active = data.PenetrationActive or false
+            HACKS.Penetration.active = (data.PenetrationActive ~= nil) and data.PenetrationActive or true
             HACKS.Penetration.target = data.PenetrationTarget or 9999
-            HACKS.Ricochet.active = data.RicochetActive or false
+            HACKS.Ricochet.active = (data.RicochetActive ~= nil) and data.RicochetActive or true
             HACKS.Ricochet.target = data.RicochetTarget or 9999
-            HACKS.BulletGravity.active = data.BulletGravityActive or false
+            HACKS.BulletGravity.active = (data.BulletGravityActive ~= nil) and data.BulletGravityActive or true
             HACKS.BulletGravity.target = data.BulletGravityTarget or 0
-            HACKS.ShellSpeed.active = data.ShellSpeedActive or false
+            HACKS.ShellSpeed.active = (data.ShellSpeedActive ~= nil) and data.ShellSpeedActive or true
             HACKS.ShellSpeed.target = data.ShellSpeedTarget or 9999
+            HACKS.InstantTraverse.active = (data.InstantTraverseActive ~= nil) and data.InstantTraverseActive or true
+            HACKS.InstantTraverse.target = data.InstantTraverseTarget or 9999
             Fly.Speed = data.FlySpeed or 70
             Timers.ScanInterval = data.ScanInterval or 0.5
             AntiLag.NoSmoke = data.NoSmoke or false
@@ -424,6 +473,7 @@ local function LoadConfig()
             if data.ToggleESPKey then local k = parseKeyCode(data.ToggleESPKey) if k then Keys.Toggle = k end end
             if data.ToggleFlyKey then local k = parseKeyCode(data.ToggleFlyKey) if k then Keys.Fly = k end end
             if data.ToggleGUIKey then local k = parseKeyCode(data.ToggleGUIKey) if k then Keys.GUI = k end end
+            if data.FlipKey then local k = parseKeyCode(data.FlipKey) if k then Keys.Flip = k end end
             ESP.CrewEnabled = (data.CrewEnabled ~= nil) and data.CrewEnabled or false
             ESP.ModulesEnabled = (data.ModulesEnabled ~= nil) and data.ModulesEnabled or false
             if data.CrewColor then ESP.CrewColor = Color3.new(data.CrewColor[1], data.CrewColor[2], data.CrewColor[3]) end
@@ -439,6 +489,11 @@ local function LoadConfig()
                 MobileFlyButton.Size = UDim2.new(0, math.clamp(data.MobileFlyButtonSize[1], 40, 140), 0, math.clamp(data.MobileFlyButtonSize[2], 40, 140))
             end
             MobileFlyButton.Transparency = (type(data.MobileFlyButtonTransparency) == "number") and math.clamp(data.MobileFlyButtonTransparency, 0, 0.8) or 0.15
+            PvE.Enabled = data.PvEEnabled or false
+            PvE.TankSlot = data.PvETankSlot or "slot1"
+            PvE.FlyHeight = data.PvEFlyHeight or 300
+            PvE.ShootInterval = data.PvEShootInterval or 0.15
+            PvE.AutoRestart = (data.PvEAutoRestart ~= nil) and data.PvEAutoRestart or true
             local th = PresetThemes[SelectedTheme]
             if th then
                 for k, v in pairs(th) do
@@ -866,6 +921,8 @@ local function findHighlightTarget(model)
 end
 
 function ProcessChassis(chassis)
+    if not LocalPlayer then LocalPlayer = Services.Players.LocalPlayer end
+    if not LocalPlayer then return end
     if not chassis:IsA("Model") or not chassis.Name:match("^Chassis") then return end
     local playerName = chassis.Name:match("^Chassis(.+)$")
     if not playerName or playerName == "" then return end
@@ -995,41 +1052,125 @@ local function SetGraphicsDegradation(level)
 end
 
 local function ProcessTerrainSmoke(desc)
-    if AntiLag.NoSmoke then
-        pcall(function()
-            if desc:IsA("ParticleEmitter") then
-                local lname = desc.Name:lower()
-                if lname == "smoke" or lname:find("smoke") then
-                    desc.Enabled = false
-                    desc.Rate = 0
-                    desc.Lifetime = NumberRange.new(0)
-                    desc.Speed = NumberRange.new(0)
-                    desc.Transparency = NumberSequence.new(1)
-                end
-            elseif desc:IsA("Smoke") then
+    if not AntiLag.NoSmoke then return end
+    pcall(function()
+        -- 1. All ParticleEmitters (Smoke, Exhaust, Muzzle, Dust, Explosions, Fire)
+        if desc:IsA("ParticleEmitter") then
+            desc.Enabled = false
+            desc.Rate = 0
+            desc.Lifetime = NumberRange.new(0)
+            desc.Speed = NumberRange.new(0)
+            desc.Transparency = NumberSequence.new(1)
+            desc.Size = NumberSequence.new(0)
+            pcall(function() desc:Clear() end)
+        -- 2. Legacy Smoke objects
+        elseif desc:IsA("Smoke") then
+            desc.Enabled = false
+            desc.Opacity = 0
+            desc.Size = 0
+        -- 3. Legacy Fire & Sparkles
+        elseif desc:IsA("Fire") or desc:IsA("Sparkles") then
+            desc.Enabled = false
+            desc.Size = 0
+        -- 4. Beams & Trails (SmokeTrail, Tracer smoke, bullet vapor)
+        elseif desc:IsA("Beam") or desc:IsA("Trail") then
+            local n = desc.Name:lower()
+            if n:find("smoke") or n:find("trail") or n:find("dust") or n:find("cloud") then
                 desc.Enabled = false
-                desc.Opacity = 0
-                desc.Size = 0
+                desc.Transparency = NumberSequence.new(1)
             end
-        end)
-    end
+        -- 5. Smoke Flipbook / 2D Billboard images (Smoke Grenades in CTS)
+        -- Note: Do NOT set BillboardGui.Enabled = false (triggers anti-tamper kick)
+        -- Instead, make the ImageLabel completely invisible
+        elseif desc:IsA("ImageLabel") or desc:IsA("Decal") or desc:IsA("Texture") then
+            local n = desc.Name:lower()
+            local pName = desc.Parent and desc.Parent.Name:lower() or ""
+            if n:find("smoke") or n:find("flipbook") or n:find("dust") or n:find("cloud") or
+               pName:find("smoke") or pName:find("smokeobj") or pName:find("debris") or pName:find("projectiles") then
+                if desc:IsA("ImageLabel") then
+                    desc.ImageTransparency = 1
+                    desc.Visible = false
+                else
+                    desc.Transparency = 1
+                end
+            end
+        -- 6. 3D Smoke Sphere / SmokeObj mesh parts
+        elseif desc:IsA("BasePart") then
+            local n = desc.Name:lower()
+            if desc:HasTag("SmokeObj") or desc.CollisionGroup == "10SMOKE" or
+               n:find("smokepart") or n:find("smokecloud") or n:find("smokesphere") or n:find("smokegrenade") then
+                desc.Transparency = 1
+                desc.LocalTransparencyModifier = 1
+                desc.CanCollide = false
+            end
+        -- 7. Explosions
+        elseif desc:IsA("Explosion") then
+            desc.Visible = false
+        end
+    end)
 end
 
 local function SetNoSmoke(value)
     AntiLag.NoSmoke = value
     if value then
+        -- Process all existing objects in Workspace
         for _, desc in ipairs(Services.Workspace:GetDescendants()) do
             ProcessTerrainSmoke(desc)
         end
+
+        -- Clear atmospheric fog and visual blurs
+        pcall(function()
+            Services.Lighting.FogEnd = 100000
+            Services.Lighting.FogStart = 99999
+            for _, eff in ipairs(Services.Lighting:GetChildren()) do
+                if eff:IsA("Atmosphere") then
+                    eff.Haze = 0
+                    eff.Density = 0
+                    eff.Glare = 0
+                elseif eff:IsA("BloomEffect") or eff:IsA("DepthOfFieldEffect") or eff:IsA("BlurEffect") or eff:IsA("SunRaysEffect") then
+                    eff.Enabled = false
+                end
+            end
+        end)
+
         if not AntiLag.TerrainConnection then
             AntiLag.TerrainConnection = Services.Workspace.DescendantAdded:Connect(function(desc)
                 ProcessTerrainSmoke(desc)
+            end)
+        end
+
+        -- Active background watchdog for continuous smoke grenade projectile spawns
+        if not AntiLag.SmokeLoop then
+            AntiLag.SmokeLoop = task.spawn(function()
+                while AntiLag.NoSmoke do
+                    task.wait(0.3)
+                    local proj = Services.Workspace:FindFirstChild("Projectiles")
+                    if proj then
+                        for _, child in ipairs(proj:GetChildren()) do
+                            if child:HasTag("SmokeObj") or child.CollisionGroup == "10SMOKE" or child.Name:lower():find("smoke") then
+                                pcall(function()
+                                    if child:IsA("BasePart") then
+                                        child.Transparency = 1
+                                        child.LocalTransparencyModifier = 1
+                                    end
+                                    for _, sub in ipairs(child:GetDescendants()) do
+                                        ProcessTerrainSmoke(sub)
+                                    end
+                                end)
+                            end
+                        end
+                    end
+                end
             end)
         end
     else
         if AntiLag.TerrainConnection then
             AntiLag.TerrainConnection:Disconnect()
             AntiLag.TerrainConnection = nil
+        end
+        if AntiLag.SmokeLoop then
+            task.cancel(AntiLag.SmokeLoop)
+            AntiLag.SmokeLoop = nil
         end
     end
 end
@@ -1089,24 +1230,104 @@ local function findFlyPart(model)
 end
 
 local function initFlyRoot()
+    if not LocalPlayer then LocalPlayer = Services.Players.LocalPlayer end
+    if not LocalPlayer then return end
     local vehicles = workspace:FindFirstChild("Vehicles"); if not vehicles then return end
     local tankModel = vehicles:FindFirstChild("Chassis" .. LocalPlayer.Name); if not tankModel then return end
     Fly.Root = findFlyPart(tankModel)
+    if Fly.Root then
+        bv.Parent = Fly.Root
+        bg.Parent = Fly.Root
+    end
 end
 
 local function startFly()
     if Fly.Active then return end; initFlyRoot(); Fly.Active = true
     if Fly.Root then bv.Parent = Fly.Root; bg.Parent = Fly.Root end
-    RefreshMobileFlyButton()
+    if RefreshMobileFlyButton then pcall(RefreshMobileFlyButton) end
 end
 
 local function stopFly()
     if not Fly.Active then return end; Fly.Active = false; bv.Parent = nil; bg.Parent = nil
     MobileFly.Touch = nil; MobileFly.Delta = Vector2.new(0,0)
-    RefreshMobileFlyButton()
+    if RefreshMobileFlyButton then pcall(RefreshMobileFlyButton) end
+end
+
+local function FlipTank()
+    if Fly._flipping then return end
+    
+    local t = Localization[Localization.CurrentLanguage] or Localization.EN
+    local ch = GetOwnChassis()
+    if not ch then
+        Rayfield:Notify({ Title = "Flip", Content = t.FlipNoTank or "Tank not found", Duration = 2 })
+        return
+    end
+
+    initFlyRoot()
+    if not Fly.Root or not Fly.Root.Parent then
+        Rayfield:Notify({ Title = "Flip", Content = t.FlipNoTank or "Tank root part not found", Duration = 2 })
+        return
+    end
+
+    Fly._flipping = true
+    local wasFlyActive = Fly.Active
+    local curPos = Fly.Root.Position
+    local _, yaw, _ = Fly.Root.CFrame:ToOrientation()
+    -- Lift +4 studs upright without roll or pitch
+    local targetCF = CFrame.new(curPos.X, curPos.Y + 4, curPos.Z) * CFrame.Angles(0, yaw, 0)
+
+    bv.Parent = Fly.Root
+    bg.Parent = Fly.Root
+    bv.MaxForce = Vector3.new(1e8, 1e8, 1e8)
+    bv.Velocity = Vector3.new(0, 0, 0)
+    bg.MaxTorque = Vector3.new(1e8, 1e8, 1e8)
+    bg.P = 1e5
+    bg.D = 500
+    bg.CFrame = targetCF
+
+    pcall(function()
+        Fly.Root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+        Fly.Root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+        Fly.Root.CFrame = targetCF
+    end)
+
+    playSound(TOGGLE_SOUND_ID)
+    Rayfield:Notify({ Title = "Flip", Content = t.FlipSuccess or "Tank flipped upright!", Duration = 1.5 })
+
+    -- Freeze for 1.0 second so it completely stabilizes
+    task.spawn(function()
+        local start = tick()
+        while tick() - start < 1.0 do
+            if Fly.Root and Fly.Root.Parent and bg.Parent == Fly.Root then
+                bg.CFrame = targetCF
+                bv.Velocity = Vector3.new(0, 0, 0)
+                pcall(function()
+                    Fly.Root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                    Fly.Root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                end)
+            end
+            task.wait(0.05)
+        end
+
+        -- Release cleanly
+        if not wasFlyActive then
+            bv.Parent = nil
+            bg.Parent = nil
+            bg.MaxTorque = Vector3.new(500000, 500000, 500000)
+            bg.D = 120
+            bg.P = 3000
+        else
+            bg.MaxTorque = Vector3.new(500000, 500000, 500000)
+            bg.D = 120
+            bg.P = 3000
+        end
+        Fly._flipping = false
+    end)
 end
 
 local function GetOwnChassis()
+    if not LocalPlayer then LocalPlayer = Services.Players.LocalPlayer end
+    if not LocalPlayer then return nil end
     local vehicles = Services.Workspace:FindFirstChild("Vehicles"); if not vehicles then return nil end
     return vehicles:FindFirstChild("Chassis" .. LocalPlayer.Name)
 end
@@ -1122,7 +1343,7 @@ end
 
 local function WatchWeaponObject(obj)
     for _, hack in pairs(HACKS) do
-        if hack.active then
+        if hack.active and hack.names then
             for _, name in ipairs(hack.names) do
                 if obj.Name == name then
                     ForceValue(obj, hack)
@@ -1144,16 +1365,33 @@ end
 local function SetupWeaponChassis(chassis)
     if ChassisDescendantConn then ChassisDescendantConn:Disconnect(); ChassisDescendantConn = nil end
     ClearWeaponConnections()
-    for _, obj in ipairs(chassis:GetDescendants()) do
-        if obj:IsA("IntValue") or obj:IsA("NumberValue") then WatchWeaponObject(obj) end
+    
+    local function applyTo(container)
+        if not container then return end
+        for _, obj in ipairs(container:GetDescendants()) do
+            if obj:IsA("IntValue") or obj:IsA("NumberValue") then
+                WatchWeaponObject(obj)
+            end
+        end
     end
-    ChassisDescendantConn = chassis.DescendantAdded:Connect(function(obj)
-        if obj:IsA("IntValue") or obj:IsA("NumberValue") then WatchWeaponObject(obj) end
+
+    if chassis then applyTo(chassis) end
+    pcall(function()
+        applyTo(Services.Workspace:FindFirstChild("Vehicles"))
+        applyTo(Services.ReplicatedStorage:FindFirstChild("Shells"))
+        applyTo(Services.ReplicatedStorage:FindFirstChild("VehicleModuleScripts"))
     end)
+
+    if chassis then
+        ChassisDescendantConn = chassis.DescendantAdded:Connect(function(obj)
+            if obj:IsA("IntValue") or obj:IsA("NumberValue") then WatchWeaponObject(obj) end
+        end)
+    end
 end
 
 local function InitWeapon()
-    local chassis = GetOwnChassis(); if chassis then SetupWeaponChassis(chassis) end
+    local chassis = GetOwnChassis()
+    SetupWeaponChassis(chassis)
 end
 
 local TOGGLE_SOUND_ID = "140231021022259"
@@ -1274,7 +1512,7 @@ local function ApplyTheme()
             end
         end
     end
-    RefreshMobileFlyButton()
+    if RefreshMobileFlyButton then pcall(RefreshMobileFlyButton) end
 end
 
 local loadingTexts = {
@@ -1319,7 +1557,8 @@ local function ShowLoadingScreen(callback)
     local avatarImg = Instance.new("ImageLabel")
     avatarImg.Size = UDim2.new(1,0,1,0)
     avatarImg.BackgroundTransparency = 1
-    avatarImg.Image = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(LocalPlayer.UserId) .. "&w=150&h=150"
+    local uid = (LocalPlayer and LocalPlayer.UserId) or (Services.Players.LocalPlayer and Services.Players.LocalPlayer.UserId) or 0
+    avatarImg.Image = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(uid) .. "&w=150&h=150"
     avatarImg.Parent = avatarCircle
 
     local title = Instance.new("TextLabel")
@@ -1632,7 +1871,7 @@ function Rayfield:CreateWindow(cfg)
     local win = Instance.new("Frame"); win.Name = "Window"
     win.AnchorPoint = Vector2.new(0.5, 0.5)
     win.Size = UDim2.new(0, W, 0, H); win.Position = UDim2.new(0.5, 0, 0.5, 0)
-    win.BackgroundColor3 = T.BG; win.BorderSizePixel = 0; win.Parent = sg
+    win.BackgroundColor3 = T.BG; win.BorderSizePixel = 0; win.Visible = false; win.Parent = sg
     theme(win, "BG")
     mkCorner(win, 12); mkStroke(win, T.Stroke, 1)
 
@@ -1740,7 +1979,8 @@ function Rayfield:CreateWindow(cfg)
     local avatarImg2 = Instance.new("ImageLabel")
     avatarImg2.Size = UDim2.new(1, 0, 1, 0)
     avatarImg2.BackgroundTransparency = 1
-    avatarImg2.Image = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(LocalPlayer.UserId) .. "&w=150&h=150"
+    local uid2 = (LocalPlayer and LocalPlayer.UserId) or (Services.Players.LocalPlayer and Services.Players.LocalPlayer.UserId) or 0
+    avatarImg2.Image = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(uid2) .. "&w=150&h=150"
     avatarImg2.Parent = avatarFrame
     mkCorner(avatarImg2, 21)
 
@@ -1750,7 +1990,8 @@ function Rayfield:CreateWindow(cfg)
     welcomeLbl.BackgroundTransparency = 1
     welcomeLbl.Font = Enum.Font.GothamMedium; welcomeLbl.TextSize = 10
     welcomeLbl.TextXAlignment = Enum.TextXAlignment.Center
-    welcomeLbl.Text = "Welcome, " .. LocalPlayer.Name
+    local myName = (LocalPlayer and LocalPlayer.Name) or (Services.Players.LocalPlayer and Services.Players.LocalPlayer.Name) or "Player"
+    welcomeLbl.Text = "Welcome, " .. myName
     welcomeLbl.TextTruncate = Enum.TextTruncate.AtEnd
     welcomeLbl.Parent = userProfile
     theme(welcomeLbl, nil, "Sub")
@@ -2183,6 +2424,23 @@ local function BuildGUI()
     local WeaponTab   = Window:CreateTab(t.WeaponTab)
     local FlyTab      = Window:CreateTab(t.FlyTab)
     local SettingsTab = Window:CreateTab(t.SettingsTab)
+    local PvETab      = Window:CreateTab(t.PvETab)
+
+    PvETab:CreateSection("Auto-Farm")
+    PvETab:CreateToggle({ Name = t.EnablePvE, CurrentValue = PvE.Enabled, Flag = "PvEEnabledFlag",
+        Callback = function(v) if IsRebuildingUI then return end; PvE.Enabled = v; SaveConfig() end })
+    PvETab:CreateDropdown({ Name = t.PvETankSlot, Options = {"slot1", "slot2", "slot3", "slot4"},
+        CurrentOption = {PvE.TankSlot}, MultipleOptions = false, Flag = "PvETankSlotFlag",
+        Callback = function(opt) if IsRebuildingUI then return end; if opt and opt[1] then PvE.TankSlot = opt[1]; SaveConfig() end end })
+    PvETab:CreateSlider({ Name = t.PvEFlyHeight, Range = {100, 3000}, Increment = 50,
+        Suffix = " studs", CurrentValue = PvE.FlyHeight, Flag = "PvEFlyHeightFlag",
+        Callback = function(v) if IsRebuildingUI then return end; PvE.FlyHeight = v; SaveConfig() end })
+    PvETab:CreateSlider({ Name = t.PvEShootInterval, Range = {0.05, 1.0}, Increment = 0.05,
+        Suffix = "s", CurrentValue = PvE.ShootInterval, Flag = "PvEShootIntervalFlag",
+        Callback = function(v) if IsRebuildingUI then return end; PvE.ShootInterval = v; SaveConfig() end })
+    PvETab:CreateToggle({ Name = t.PvEAutoRestart, CurrentValue = PvE.AutoRestart, Flag = "PvEAutoRestartFlag",
+        Callback = function(v) if IsRebuildingUI then return end; PvE.AutoRestart = v; SaveConfig() end })
+    PvETab:CreateLabel(t.PvEStatus .. PvE._statusText)
 
     MainTab:CreateSection(t.ControlSection)
     MainTab:CreateLabel(t.HideShowLabel)
@@ -2309,6 +2567,13 @@ local function BuildGUI()
         CurrentValue = HACKS.ShellSpeed.target, Flag = "ShellSpeedValueFlag",
         Callback = function(v) if IsRebuildingUI then return end; HACKS.ShellSpeed.target = v; if HACKS.ShellSpeed.active then task.defer(InitWeapon) end; SaveConfig() end })
 
+    WeaponTab:CreateSection(t.TraverseSection or "Turret Traverse")
+    WeaponTab:CreateToggle({ Name = t.InstantTraverseHack, CurrentValue = HACKS.InstantTraverse.active, Flag = "HackInstantTraverseFlag",
+        Callback = function(v) if IsRebuildingUI then return end; HACKS.InstantTraverse.active = v; task.defer(InitWeapon); SaveConfig() end })
+    WeaponTab:CreateSlider({ Name = t.InstantTraverseVal or "Traverse Speed", Range = {10,9999}, Increment = 10,
+        CurrentValue = HACKS.InstantTraverse.target, Flag = "InstantTraverseValueFlag",
+        Callback = function(v) if IsRebuildingUI then return end; HACKS.InstantTraverse.target = v; if HACKS.InstantTraverse.active then task.defer(InitWeapon) end; SaveConfig() end })
+
     FlyTab:CreateSection(t.FlightControlSection)
     do
         local mob = Services.UserInput.TouchEnabled and not Services.UserInput.KeyboardEnabled
@@ -2343,11 +2608,18 @@ local function BuildGUI()
                 MobileFlyButton.Ui.Button.BackgroundTransparency = v
             end
             SaveConfig() end })
+    FlyTab:CreateButton({ Name = t.FlipTank or "Unflip / Flip Tank",
+        Callback = function()
+            FlipTank()
+        end })
     FlyTab:CreateSection(t.KeybindSection)
     FlyTab:CreateKeybind({ Name = t.ToggleFlyKey, CurrentKeybind = Keys.Fly.Name, HoldToInteract = false, Flag = "FlyKeyFlag",
         Callback = function(v) local key = parseKeyCode(v); if key then
             Fly.IsRebinding = true; Fly.LastRebindTime = tick()
             task.delay(0.5, function() Fly.IsRebinding = false end); Keys.Fly = key; SaveConfig() end end })
+    FlyTab:CreateKeybind({ Name = t.FlipKey or "Flip Tank Keybind", CurrentKeybind = Keys.Flip.Name, HoldToInteract = false, Flag = "FlipKeyFlag",
+        Callback = function(v) local key = parseKeyCode(v); if key then
+            Keys.Flip = key; SaveConfig() end end })
 
     SettingsTab:CreateSection(t.AntiLagSection)
     local lang = Localization.CurrentLanguage
@@ -2493,6 +2765,9 @@ safeConnect(Services.UserInput.InputBegan, function(input, gameProcessed)
             Rayfield:Notify({ Title = "Fly", Content = t.FlyEnabled, Duration = 2 })
         end
     end
+    if input.KeyCode == Keys.Flip then
+        FlipTank()
+    end
 end)
 
 if Services.UserInput.TouchEnabled then
@@ -2557,8 +2832,10 @@ safeConnect(Services.RunService.RenderStepped, function(dt)
                 move += fl*jy + fr*jx
             end
         end
-        bv.Velocity = move.Magnitude > 0 and move.Unit * Fly.Speed or Vector3.zero
-        bg.CFrame = cam.CFrame
+        if not (PvE.Enabled and PvE._phase == "FIGHTING") then
+            bv.Velocity = move.Magnitude > 0 and move.Unit * Fly.Speed or Vector3.zero
+            bg.CFrame = cam.CFrame
+        end
     end
 end)
 
@@ -2574,7 +2851,8 @@ task.spawn(function()
     local vehiclesFolder = Services.Workspace:WaitForChild("Vehicles", 60)
     if not vehiclesFolder then return end
     safeConnect(vehiclesFolder.ChildAdded, function(obj)
-        if obj.Name == ("Chassis"..LocalPlayer.Name) then
+        if not LocalPlayer then LocalPlayer = Services.Players.LocalPlayer end
+        if LocalPlayer and obj.Name == ("Chassis"..LocalPlayer.Name) then
             for _, hack in pairs(HACKS) do hack.patched = {}; hack.origPatched = {} end
             task.wait(1); SetupWeaponChassis(obj)
         end
@@ -2649,6 +2927,741 @@ local function PlayEasterEggMusic()
         end
     end)
 end
+
+local function PvE_SetStatus(text)
+    PvE._statusText = text
+    PvE._phase = PvE._phase or "IDLE"
+end
+
+-- Performance caches for multi-tank waves
+local PvE_TeammateCache = setmetatable({}, { __mode = "k" })
+local PvE_TargetPartCache = setmetatable({}, { __mode = "k" })
+
+-- Check if a chassis belongs to our team (cached)
+local function PvE_IsTeammate(chassisModel)
+    if not chassisModel then return false end
+    if PvE_TeammateCache[chassisModel] ~= nil then
+        return PvE_TeammateCache[chassisModel]
+    end
+
+    if not LocalPlayer then LocalPlayer = Services.Players.LocalPlayer end
+    if not LocalPlayer then return false end
+    
+    local name = chassisModel.Name:gsub("^Chassis", "")
+    if name == LocalPlayer.Name then
+        PvE_TeammateCache[chassisModel] = true
+        return true
+    end
+    
+    -- Check game.Players
+    local targetPlayer = Services.Players:FindFirstChild(name)
+    if targetPlayer and targetPlayer.Team and LocalPlayer.Team and targetPlayer.Team == LocalPlayer.Team then
+        PvE_TeammateCache[chassisModel] = true
+        return true
+    end
+    
+    -- Check team names / attributes
+    local myTeamRaw = LocalPlayer.Team and LocalPlayer.Team.Name or ""
+    local myTeamClean = myTeamRaw:gsub(" ", ""):lower()
+    
+    local function matchesTeam(val)
+        if not val then return false end
+        local s = tostring(val):gsub(" ", ""):lower()
+        if myTeamClean ~= "" and s == myTeamClean then return true end
+        if myTeamRaw ~= "" and tostring(val) == myTeamRaw then return true end
+        if typeof(val) == "Instance" and LocalPlayer.Team and val == LocalPlayer.Team then return true end
+        return false
+    end
+    
+    -- Check model attributes
+    if matchesTeam(chassisModel:GetAttribute("team")) or 
+       matchesTeam(chassisModel:GetAttribute("Team")) or 
+       matchesTeam(chassisModel:GetAttribute("team_name")) or
+       matchesTeam(chassisModel:GetAttribute("TeamName")) then
+        PvE_TeammateCache[chassisModel] = true
+        return true
+    end
+    
+    -- Check children & descendants
+    for _, child in ipairs(chassisModel:GetChildren()) do
+        if child.Name:lower() == "team" then
+            if child:IsA("StringValue") or child:IsA("ObjectValue") then
+                if matchesTeam(child.Value) then
+                    PvE_TeammateCache[chassisModel] = true
+                    return true
+                end
+            end
+        end
+    end
+    
+    PvE_TeammateCache[chassisModel] = false
+    return false
+end
+
+local function PvE_SelectModifiers()
+    local RS = game:GetService("ReplicatedStorage")
+    for _, modName in ipairs(PvE.SelectedModifiers) do
+        if not PvE.Enabled then return end
+        pcall(function() RS:WaitForChild("modifier_vote", 5):InvokeServer(modName, true) end)
+        task.wait(0.3)
+    end
+end
+
+local function PvE_SpawnTank()
+    local RS = game:GetService("ReplicatedStorage")
+    pcall(function() RS:WaitForChild("css", 5):InvokeServer() end)
+    task.wait(0.5)
+    pcall(function() RS:WaitForChild("SpawnClick", 5):FireServer(PvE.TankSlot, nil) end)
+end
+
+-- Ensure fly engine is active and root part is valid
+local function PvE_EnsureFly()
+    if not Fly.Active or not Fly.Root or not Fly.Root.Parent or not bv.Parent or not bg.Parent then
+        initFlyRoot()
+        Fly.Active = true
+        if Fly.Root then
+            bv.Parent = Fly.Root
+            bg.Parent = Fly.Root
+        end
+    end
+end
+
+-- Find highest value target module (AmmoRack -> Turret -> Hull) with instant cache
+local function PvE_FindTargetPart(chassisModel)
+    if not chassisModel or not chassisModel.Parent then return nil end
+    local cached = PvE_TargetPartCache[chassisModel]
+    if cached and cached.Parent and cached:IsDescendantOf(chassisModel) then
+        return cached
+    end
+    
+    -- Priority 1: AmmoRack / Ammo (guarantees instant detonation/cookoff)
+    for _, desc in ipairs(chassisModel:GetDescendants()) do
+        if desc:IsA("BasePart") and desc.Transparency < 1 then
+            local n = desc.Name:lower()
+            if n:find("ammorack") or n:find("ammo") then
+                PvE_TargetPartCache[chassisModel] = desc
+                return desc
+            end
+        end
+    end
+    
+    -- Priority 2: Turret roof / Turret / GunBrick (thin armor from top)
+    local turret = chassisModel:FindFirstChild("Turret")
+    if turret then
+        for _, desc in ipairs(turret:GetDescendants()) do
+            if desc:IsA("BasePart") and desc.Transparency < 1 then
+                local n = desc.Name:lower()
+                if n:find("roof") or n:find("ring") or n:find("turret") then
+                    PvE_TargetPartCache[chassisModel] = desc
+                    return desc
+                end
+            end
+        end
+        local bp = turret:FindFirstChildWhichIsA("BasePart", true)
+        if bp then
+            PvE_TargetPartCache[chassisModel] = bp
+            return bp
+        end
+    end
+    
+    -- Priority 3: Hull top / PrimaryPart
+    local hull = chassisModel:FindFirstChild("Hull")
+    if hull then
+        for _, child in ipairs(hull:GetChildren()) do
+            if child:IsA("Model") then
+                local pp = child.PrimaryPart or child:FindFirstChildWhichIsA("BasePart")
+                if pp then
+                    PvE_TargetPartCache[chassisModel] = pp
+                    return pp
+                end
+            end
+        end
+        local bp = hull:FindFirstChildWhichIsA("BasePart", true)
+        if bp then
+            PvE_TargetPartCache[chassisModel] = bp
+            return bp
+        end
+    end
+    
+    local fallback = chassisModel:FindFirstChildWhichIsA("BasePart", true)
+    if fallback then PvE_TargetPartCache[chassisModel] = fallback end
+    return fallback
+end
+
+-- PvE lock-on system: updates every frame for zero wobble
+local PvE_lockTarget = nil  -- set to enemy Part position by main loop
+local PvE_renderConn = nil
+
+local function PvE_StartLockOn()
+    if PvE_renderConn then return end
+    PvE_renderConn = Services.RunService.RenderStepped:Connect(function()
+        if not PvE.Enabled or not Fly.Root or not Fly.Root.Parent then return end
+        local myPos = Fly.Root.Position
+        local targetPos = nil
+        if typeof(PvE_lockTarget) == "Instance" and PvE_lockTarget:IsA("BasePart") and PvE_lockTarget.Parent then
+            targetPos = PvE_lockTarget.Position
+        elseif typeof(PvE_lockTarget) == "Vector3" then
+            targetPos = PvE_lockTarget
+        end
+
+        if targetPos then
+            -- Lock BodyGyro: point tank straight at enemy (gun down)
+            bg.MaxTorque = Vector3.new(1e8, 1e8, 1e8)
+            bg.D = 500
+            bg.P = 1e5
+            bg.CFrame = CFrame.new(myPos, targetPos)
+            -- Aim camera at live enemy position every single frame
+            local cam = Services.Workspace.CurrentCamera
+            if cam then
+                cam.CFrame = CFrame.new(cam.CFrame.Position, targetPos)
+            end
+        end
+    end)
+end
+
+
+
+local function PvE_StopLockOn()
+    PvE_lockTarget = nil
+    if PvE_renderConn then
+        PvE_renderConn:Disconnect()
+        PvE_renderConn = nil
+    end
+    -- Restore BodyGyro to normal values
+    bg.MaxTorque = Vector3.new(500000, 500000, 500000)
+    bg.D = 120
+    bg.P = 3000
+end
+
+-- Fly the tank to a 3D position (above the target), optionally tilt toward enemy
+local function PvE_FlyToPosition(targetPos, enemyGroundPos)
+    PvE_EnsureFly()
+    if not Fly.Root or not Fly.Root.Parent then return false end
+    local myPos = Fly.Root.Position
+    local diff = targetPos - myPos
+    local horizDist = Vector3.new(diff.X, 0, diff.Z).Magnitude
+    local vertDist = math.abs(diff.Y)
+    -- Adaptive speed: faster when far, slower when close
+    local speed = math.clamp(diff.Magnitude * 1.5, 30, 400)
+    if diff.Magnitude > 8 then
+        bv.Velocity = diff.Unit * speed
+    else
+        bv.Velocity = Vector3.new(0, 0, 0)
+    end
+    local onPosition = horizDist < 15 and vertDist < 20
+    if onPosition and enemyGroundPos then
+        -- ON POSITION: let RenderStepped lock-on handle the aiming
+        PvE_lockTarget = enemyGroundPos
+    else
+        -- FLYING: keep tank level, disable lock-on
+        PvE_lockTarget = nil
+        local lookDir = Vector3.new(diff.X, 0, diff.Z)
+        if lookDir.Magnitude > 0.1 then
+            bg.CFrame = CFrame.new(myPos, myPos + lookDir.Unit)
+        end
+    end
+    return onPosition
+end
+
+-- Aim camera straight down at the target
+local function PvE_AimDown(enemyPos)
+    PvE_lockTarget = enemyPos
+    PvE_StartLockOn()
+end
+
+-- Restore camera to normal
+local function PvE_RestoreCamera()
+    PvE_StopLockOn()
+    local cam = Services.Workspace.CurrentCamera
+    if cam and cam.CameraType == Enum.CameraType.Scriptable then
+        cam.CameraType = Enum.CameraType.Custom
+    end
+end
+
+local function PvE_AutoShoot()
+    task.spawn(function()
+        pcall(function()
+            local cam = Services.Workspace.CurrentCamera
+            local vp = cam and cam.ViewportSize or Vector2.new(800, 600)
+            local midX, midY = vp.X / 2, vp.Y / 2
+
+            -- 1. PC mouse executors
+            if mouse1click then
+                mouse1click()
+            elseif mouse1press and mouse1release then
+                mouse1press()
+                task.wait(0.02)
+                mouse1release()
+            end
+
+            -- 2. VirtualInputManager (Desktop mouse click + Mobile touch tap)
+            local vim = game:GetService("VirtualInputManager")
+            if vim then
+                pcall(function() vim:SendMouseButtonEvent(midX, midY, 0, true, game, 1) end)
+                pcall(function() vim:SendTouchEvent(0, 0, midX, midY) end)
+                task.delay(0.03, function()
+                    pcall(function()
+                        vim:SendMouseButtonEvent(midX, midY, 0, false, game, 1)
+                        vim:SendTouchEvent(0, 2, midX, midY)
+                    end)
+                end)
+            end
+
+            -- 3. VirtualUser (Universal Roblox engine service for Mobile and PC)
+            local vu = game:GetService("VirtualUser")
+            if vu then
+                pcall(function()
+                    vu:Button1Down(Vector2.new(midX, midY))
+                    task.delay(0.03, function()
+                        pcall(function() vu:Button1Up(Vector2.new(midX, midY)) end)
+                    end)
+                end)
+            end
+        end)
+    end)
+end
+
+-- Find the defend/capture point position
+local function PvE_GetDefendPointPos()
+    local capPoints = workspace:FindFirstChild("CapPoints")
+    if capPoints then
+        for _, cap in ipairs(capPoints:GetChildren()) do
+            local part = cap:IsA("BasePart") and cap or cap:FindFirstChildWhichIsA("BasePart", true)
+            if part then return part.Position end
+        end
+    end
+    return Vector3.new(0, 10, 0)
+end
+
+-- Detect active CEO Bomb / defusal challenge in workspace
+local function PvE_GetActiveBomb()
+    -- 1. Check workspace.Challenges (e.g. defusal, mortars)
+    local challenges = workspace:FindFirstChild("Challenges")
+    if challenges then
+        for _, ch in ipairs(challenges:GetChildren()) do
+            local name = ch.Name:lower()
+            if name:find("defus") or name:find("bomb") or name:find("ceo") then
+                for _, desc in ipairs(ch:GetDescendants()) do
+                    if desc:IsA("BasePart") and desc.Transparency < 1 then
+                        return desc.Position, desc
+                    elseif desc:IsA("Model") and desc.PrimaryPart then
+                        return desc.PrimaryPart.Position, desc
+                    end
+                end
+                local bp = ch:FindFirstChildWhichIsA("BasePart", true)
+                if bp then return bp.Position, bp end
+            end
+        end
+    end
+
+    -- 2. Check workspace.Interactive
+    local interactive = workspace:FindFirstChild("Interactive")
+    if interactive then
+        for _, obj in ipairs(interactive:GetChildren()) do
+            local name = obj.Name:lower()
+            if name:find("defus") or name:find("bomb") or name:find("ceo") or name:find("c4") then
+                local bp = obj:IsA("BasePart") and obj or obj:FindFirstChildWhichIsA("BasePart", true)
+                if bp then return bp.Position, bp end
+            end
+        end
+    end
+
+    -- 3. Check workspace.CapPoints for defuse zones
+    local capPoints = workspace:FindFirstChild("CapPoints")
+    if capPoints then
+        for _, cap in ipairs(capPoints:GetChildren()) do
+            local name = cap.Name:lower()
+            if name:find("defus") or name:find("bomb") or name:find("ceo") then
+                local bp = cap:IsA("BasePart") and cap or cap:FindFirstChildWhichIsA("BasePart", true)
+                if bp then return bp.Position, bp end
+            end
+        end
+    end
+
+    -- 4. General workspace scan for bomb models
+    for _, obj in ipairs(workspace:GetChildren()) do
+        if obj:IsA("Model") or obj:IsA("Folder") then
+            local name = obj.Name:lower()
+            if (name:find("bomb") or name:find("defus") or name:find("ceo_bomb")) and not name:find("chassis") then
+                local bp = obj:IsA("BasePart") and obj or obj:FindFirstChildWhichIsA("BasePart", true)
+                if bp then return bp.Position, bp end
+            end
+        end
+    end
+
+    return nil
+end
+
+-- Check if camera is aimed precisely at the enemy
+local function PvE_IsAimedAtTarget(enemyPos)
+    local cam = Services.Workspace.CurrentCamera
+    if not cam then return true end
+    local camPos = cam.CFrame.Position
+    local lookDir = cam.CFrame.LookVector
+    local toEnemy = (enemyPos - camPos)
+    if toEnemy.Magnitude < 1 then return true end
+    toEnemy = toEnemy.Unit
+    local dot = lookDir:Dot(toEnemy)
+    return dot > 0.94
+end
+
+-- Keep sight/zoom mode active during PvE (enters sight ONCE on spawn, stays in sight)
+local function PvE_EnterSight()
+    if shared.zoomed and shared.zoomed.Value == true then
+        PvE._inSight = true
+        return
+    end
+    PvE._inSight = true
+    pcall(function()
+        local vim = game:GetService("VirtualInputManager")
+        if vim then
+            vim:SendKeyEvent(true, Enum.KeyCode.LeftShift, false, game)
+            task.wait(0.05)
+            vim:SendKeyEvent(false, Enum.KeyCode.LeftShift, false, game)
+        end
+        -- Direct value fallback for mobile executors
+        if shared.zoomed and not shared.zoomed.Value then
+            shared.zoomed.Value = true
+        end
+    end)
+end
+
+local function PvE_GetEnemies()
+    local enemies = {}
+    local vehiclesFolder = workspace:FindFirstChild("Vehicles")
+    if not vehiclesFolder then return enemies end
+    local defendPos = PvE_GetDefendPointPos()
+    local myChassisName = LocalPlayer and ("Chassis" .. LocalPlayer.Name) or ""
+    
+    for _, ch in ipairs(vehiclesFolder:GetChildren()) do
+        -- Match ALL enemy tanks (ChassisBOT__, ChassisBoss, ChassisCEO, etc.)
+        if ch:IsA("Model") and ch.Name:match("^Chassis") and ch.Name ~= myChassisName then
+            local isDead = ch:GetAttribute("Dead")
+            if isDead then continue end
+            
+            -- Skip teammate bots/players
+            if PvE_IsTeammate(ch) then continue end
+            
+            -- Valid enemy: target immediately without any spawn delay
+            local hp = PvE_FindTargetPart(ch)
+            if hp and hp.Parent then
+                local enemyPos = hp.Position
+                local distToPoint = Vector3.new(enemyPos.X - defendPos.X, 0, enemyPos.Z - defendPos.Z).Magnitude
+                table.insert(enemies, { Model = ch, Part = hp, Distance = distToPoint })
+            end
+        end
+    end
+    
+    table.sort(enemies, function(a, b) return a.Distance < b.Distance end)
+    return enemies
+end
+
+local PvE_lastSkipTime = 0
+local PvE_noEnemySince = 0
+local PvE_targetSwitchTime = 0  -- when target was last switched
+local PvE_defuseStartTime = 0   -- defuse timer tracking
+
+local function PvE_MainLoop()
+    local RS = game:GetService("ReplicatedStorage")
+    local lastShootTime = 0
+
+    while task.wait(0.05) do
+        if not PvE.Enabled then
+            if PvE._phase ~= "IDLE" then
+                PvE._phase = "IDLE"
+                PvE_SetStatus("Idle")
+                if Fly.Active then stopFly() end
+                PvE_StopLockOn()
+                PvE_RestoreCamera()
+            end
+            continue
+        end
+
+        local gameReady = workspace:GetAttribute("game_ready")
+        local gameOver = workspace:GetAttribute("game_over")
+        local challenge = workspace:GetAttribute("challenge")
+
+        if not challenge then
+            PvE._phase = "IDLE"
+            PvE_SetStatus("Waiting for challenge lobby...")
+            PvE_RestoreCamera()
+            continue
+        end
+
+        if gameOver then
+            if PvE._phase ~= "ROUND_END" then
+                PvE._phase = "ROUND_END"
+                PvE_SetStatus("Round ended, restarting in " .. PvE.PostVictoryWait .. "s...")
+                if Fly.Active then stopFly() end
+                PvE_StopLockOn()
+                PvE_RestoreCamera()
+                task.wait(PvE.PostVictoryWait)
+                if PvE.AutoRestart and PvE.Enabled then
+                    pcall(function() RS:WaitForChild("restart_v", 5):InvokeServer() end)
+                    task.wait(2)
+                    pcall(function() RS:WaitForChild("restart_v", 5):InvokeServer() end)
+                end
+                PvE._phase = "IDLE"
+            end
+            continue
+        end
+
+        if not gameReady then
+            if PvE._phase ~= "SETUP_MODIFIERS" and PvE._phase ~= "WAIT_GAME_START" then
+                PvE._phase = "SETUP_MODIFIERS"
+                PvE_SetStatus("Selecting modifiers...")
+                PvE_RestoreCamera()
+                PvE_SelectModifiers()
+                if not PvE.Enabled then continue end
+                task.wait(1)
+                PvE_SetStatus("Setting ready...")
+                pcall(function() RS:WaitForChild("set_ready", 5):InvokeServer(true) end)
+                task.wait(1)
+                PvE_SetStatus("Starting challenge...")
+                pcall(function() RS:WaitForChild("challenge_start", 5):InvokeServer() end)
+                PvE._phase = "WAIT_GAME_START"
+                PvE_SetStatus("Waiting for game to start...")
+            end
+            continue
+        end
+
+        local myChassis = GetOwnChassis()
+        if not myChassis or myChassis:GetAttribute("Dead") then
+            if PvE._phase ~= "DEAD" then
+                PvE._phase = "DEAD"
+                PvE_SetStatus("Tank destroyed, respawning...")
+                if Fly.Active then stopFly() end
+                PvE_StopLockOn()
+                PvE_RestoreCamera()
+                PvE._inSight = false
+                PvE._lastTargetName = nil
+            end
+            task.wait(2)
+            if not PvE.Enabled then continue end
+            PvE_SetStatus("Spawning tank...")
+            PvE_SpawnTank()
+            task.wait(PvE.SpawnDelay)
+
+            -- Wait up to 5s for chassis and root part to be ready
+            for _ = 1, 25 do
+                local ch = GetOwnChassis()
+                if ch and not ch:GetAttribute("Dead") and findFlyPart(ch) then
+                    break
+                end
+                task.wait(0.2)
+            end
+
+            initFlyRoot()
+            Fly.Active = true
+            PvE_EnsureFly()
+            InitWeapon()
+
+            -- Initial takeoff climb
+            if Fly.Root then
+                bv.Velocity = Vector3.new(0, 200, 0)
+            end
+
+            -- Enter sight ONCE after spawning/takeoff
+            task.wait(1)
+            PvE_EnterSight()
+            continue
+        end
+
+        -- === FIGHTING PHASE ===
+        PvE._phase = "FIGHTING"
+        local waveAbs = workspace:GetAttribute("wave_abs") or "?"
+        local wavesTotal = workspace:GetAttribute("waves_total") or "?"
+
+        -- Enter sight if not already in sight
+        if not PvE._inSight then
+            PvE_EnterSight()
+        end
+
+        -- === CHECK FOR ACTIVE CEO BOMB / DEFUSAL EVENT ===
+        local bombPos, bombObj = PvE_GetActiveBomb()
+        if bombPos and bombObj and bombObj.Parent then
+            PvE_StopLockOn()
+            PvE_EnsureFly()
+            if Fly.Root and Fly.Root.Parent then
+                local myPos = Fly.Root.Position
+                local horizDiff = Vector3.new(bombPos.X - myPos.X, 0, bombPos.Z - myPos.Z)
+                local horizDist = horizDiff.Magnitude
+                local vertDiff = (bombPos.Y + 8) - myPos.Y
+                local vertDist = math.abs(vertDiff)
+
+                if horizDist > 20 then
+                    -- PHASE 1: Fly horizontally at HIGH ALTITUDE straight over the bomb (avoids all obstacles/buildings)
+                    local highTarget = Vector3.new(bombPos.X, myPos.Y, bombPos.Z)
+                    local diffHigh = highTarget - myPos
+                    local speed = math.clamp(horizDist * 2, 60, 450)
+                    bv.Velocity = diffHigh.Unit * speed
+                    bg.CFrame = CFrame.new(myPos, myPos + horizDiff.Unit)
+                    PvE_defuseStartTime = 0
+                    PvE_SetStatus("CEO BOMB DETECTED! Flying above bomb (" .. math.floor(horizDist) .. "m)...")
+                elseif vertDist > 18 then
+                    -- PHASE 2: Directly above bomb -> Descend vertically straight down like an elevator
+                    local defuseTargetPos = Vector3.new(bombPos.X, bombPos.Y + 8, bombPos.Z)
+                    local diff = defuseTargetPos - myPos
+                    local speed = math.clamp(diff.Magnitude * 2, 40, 300)
+                    bv.Velocity = diff.Unit * speed
+                    bg.CFrame = CFrame.new(myPos, myPos + Vector3.new(0, 0, -1))
+                    PvE_defuseStartTime = 0
+                    PvE_SetStatus("DESCENDING TO CEO BOMB (" .. math.floor(vertDist) .. "m)...")
+                else
+                    -- PHASE 3: Inside the defusal zone -> Hold position and defuse!
+                    bv.Velocity = Vector3.new(0, 0, 0)
+                    if PvE_defuseStartTime == 0 then
+                        PvE_defuseStartTime = tick()
+                    end
+                    local defuseElapsed = tick() - PvE_defuseStartTime
+                    if defuseElapsed < 5.5 then
+                        PvE_SetStatus("DEFUSING CEO BOMB... (" .. string.format("%.1f", 5.5 - defuseElapsed) .. "s)")
+                    else
+                        PvE_SetStatus("CEO BOMB DEFUSED! Returning to altitude...")
+                    end
+                end
+            end
+            continue
+        else
+            PvE_defuseStartTime = 0
+        end
+
+        -- Stay at fixed height above defend point (don't chase enemies)
+        local defendPos = PvE_GetDefendPointPos()
+        local hoverPos = Vector3.new(defendPos.X, defendPos.Y + PvE.FlyHeight, defendPos.Z)
+        PvE_EnsureFly()
+        if Fly.Root and Fly.Root.Parent then
+            local myPos = Fly.Root.Position
+            local diff = hoverPos - myPos
+            if diff.Magnitude > 10 then
+                local speed = math.clamp(diff.Magnitude * 1.5, 30, 400)
+                bv.Velocity = diff.Unit * speed
+            else
+                bv.Velocity = Vector3.new(0, 0, 0)
+            end
+        end
+
+        local enemies = PvE_GetEnemies()
+        if #enemies > 0 then
+            PvE_noEnemySince = 0  -- reset no-enemy timer
+            local target = enemies[1]
+            PvE._currentTarget = target.Model
+
+            -- Pass LIVE Part instance to lock-on for real-time moving target tracking
+            PvE_lockTarget = target.Part
+            PvE_StartLockOn()
+
+            local targetName = target.Model.Name:gsub("ChassisBOT__", "")
+            if targetName ~= PvE._lastTargetName then
+                PvE._lastTargetName = targetName
+                PvE_targetSwitchTime = tick()
+            end
+
+            -- Immediately set status (shooting is handled by high-speed background thread)
+            PvE_SetStatus("Wave " .. tostring(waveAbs) .. "/" .. tostring(wavesTotal) .. " | FIRING at " .. targetName .. " (" .. math.floor(target.Distance) .. "m to point)")
+            if tick() - lastShootTime >= PvE.ShootInterval then
+                lastShootTime = tick()
+                PvE_AutoShoot()
+            end
+        else
+            PvE._currentTarget = nil
+            PvE._lastTargetName = nil
+            PvE_StopLockOn()
+
+            local skipInterval = PvE_GetSkipInterval()
+            if skipInterval and (tick() - PvE_lastSkipTime >= skipInterval) then
+                PvE_lastSkipTime = tick()
+                pcall(function() RS:WaitForChild("skipcurrent", 1):InvokeServer() end)
+            end
+            PvE_SetStatus("Wave " .. tostring(waveAbs) .. "/" .. tostring(wavesTotal) .. " | Waiting for next wave...")
+        end
+    end
+end
+
+-- Adaptive Wave Skip Interval calculation:
+-- Waves 1-11: 5s
+-- Wave 12: 30s
+-- Wave 13 (final wave): completely disabled (nil)
+function PvE_GetSkipInterval()
+    local waveAbs = tonumber(workspace:GetAttribute("wave_abs")) or 1
+    local wavesTotal = tonumber(workspace:GetAttribute("waves_total")) or 13
+
+    if waveAbs >= 13 or waveAbs >= wavesTotal then
+        return nil  -- Never skip on wave 13
+    elseif waveAbs == 12 then
+        return 30   -- 30s interval on wave 12
+    else
+        return 5    -- 5s interval on waves 1-11
+    end
+end
+
+task.spawn(PvE_MainLoop)
+
+-- Independent High-Speed Auto-Shooter (never throttled by tank count or main loop latency)
+task.spawn(function()
+    local lastFastShoot = 0
+    while true do
+        task.wait(0.01)
+        if PvE.Enabled and PvE._currentTarget and PvE._currentTarget.Parent and not PvE._currentTarget:GetAttribute("Dead") then
+            local now = tick()
+            if now - lastFastShoot >= PvE.ShootInterval then
+                lastFastShoot = now
+                PvE_AutoShoot()
+            end
+        end
+    end
+end)
+
+-- Wave Skip Timer (Adaptive: 5s waves 1-11, 30s wave 12, disabled wave 13)
+task.spawn(function()
+    local RS = game:GetService("ReplicatedStorage")
+    while true do
+        task.wait(1)
+        if PvE.Enabled then
+            local gameReady = workspace:GetAttribute("game_ready")
+            local gameOver = workspace:GetAttribute("game_over")
+            if gameReady and not gameOver then
+                local skipInterval = PvE_GetSkipInterval()
+                if skipInterval and (tick() - PvE_lastSkipTime >= skipInterval) then
+                    PvE_lastSkipTime = tick()
+                    pcall(function()
+                        local skipRF = RS:FindFirstChild("skipcurrent")
+                        if skipRF then
+                            skipRF:InvokeServer()
+                        end
+                    end)
+                end
+            end
+        end
+    end
+end)
+
+task.spawn(function()
+    local RS = game:GetService("ReplicatedStorage")
+    local upd_timer = RS:WaitForChild("upd_timer", 15)
+    if upd_timer then
+        safeConnect(upd_timer.OnClientEvent, function(seconds, text)
+            if PvE.Enabled and type(text) == "string" and text:lower():find("wave begins") then
+                local skipInterval = PvE_GetSkipInterval()
+                if skipInterval then
+                    pcall(function() RS:WaitForChild("skipcurrent", 1):InvokeServer() end)
+                end
+            end
+        end)
+    end
+    local summaryRE = RS:WaitForChild("SummaryRE", 15)
+    if summaryRE then
+        safeConnect(summaryRE.OnClientEvent, function()
+            if PvE.Enabled and PvE.AutoRestart then
+                task.delay(PvE.PostVictoryWait, function()
+                    if PvE.Enabled then
+                        pcall(function() RS:WaitForChild("restart_v", 5):InvokeServer() end)
+                    end
+                end)
+            end
+        end)
+    end
+end)
 
 local function RunStartup()
     if getgenv then
