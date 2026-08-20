@@ -3352,7 +3352,7 @@ local function PvE_FindTargetPart(chassisModel)
     return fallback
 end
 
--- PvE lock-on system: updates every frame for zero wobble
+-- PvE lock-on system: zero wobble, rock-solid physical & visual aim
 local PvE_lockTarget = nil  -- set to enemy Part position by main loop
 local PvE_renderConn = nil
 
@@ -3369,21 +3369,61 @@ local function PvE_StartLockOn()
         end
 
         if targetPos then
-            -- Lock BodyGyro: point tank straight at enemy (gun down)
-            bg.MaxTorque = Vector3.new(1e8, 1e8, 1e8)
-            bg.D = 500
-            bg.P = 1e5
-            bg.CFrame = CFrame.new(myPos, targetPos)
-            -- Aim camera at live enemy position every single frame
+            local toTarget = targetPos - myPos
+            if toTarget.Magnitude < 0.1 then return end
+            local dir = toTarget.Unit
+
+            -- Safe UpVector to prevent Gimbal lock / flipping when aiming downwards
+            local upVec = Vector3.new(0, 1, 0)
+            if math.abs(dir.Y) > 0.95 then
+                upVec = Vector3.new(0, 0, (dir.Y < 0 and 1 or -1))
+            end
+
+            local targetLookCF = CFrame.lookAt(myPos, targetPos, upVec)
+
+            -- 1. Rock-solid BodyGyro without physics oscillation/shaking
+            bg.MaxTorque = Vector3.new(4e6, 4e6, 4e6)
+            bg.D = 600
+            bg.P = 8000
+            bg.CFrame = targetLookCF
+
+            -- Zero out physical angular bouncing completely
+            pcall(function()
+                Fly.Root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+            end)
+
+            -- 2. Aim camera directly at enemy center smoothly
             local cam = Services.Workspace.CurrentCamera
             if cam then
-                cam.CFrame = CFrame.new(cam.CFrame.Position, targetPos)
+                cam.CameraType = Enum.CameraType.Scriptable
+                local camPos = myPos + Vector3.new(0, 4, 0)
+                cam.CFrame = CFrame.lookAt(camPos, targetPos, upVec)
+            end
+
+            -- 3. Synchronize CTS internal aiming angles so game turret tracks instantly
+            local yaw = math.deg(math.atan2(-dir.X, -dir.Z))
+            local pitch = math.deg(math.asin(math.clamp(dir.Y, -1, 1)))
+            shared.xAngle = yaw
+            shared.yAngle = pitch
+
+            -- 4. Directly align Turret & Gun gyros for instant aim
+            local myChassis = GetOwnChassis()
+            if myChassis then
+                local turretFolder = myChassis:FindFirstChild("Turret")
+                if turretFolder then
+                    local gyroHz = turretFolder:FindFirstChild("GyroPartHz")
+                    local gyroVt = turretFolder:FindFirstChild("GyroPartVt")
+                    if gyroHz and gyroHz:FindFirstChild("BodyGyro") then
+                        gyroHz.BodyGyro.CFrame = targetLookCF
+                    end
+                    if gyroVt and gyroVt:FindFirstChild("BodyGyro") then
+                        gyroVt.BodyGyro.CFrame = targetLookCF
+                    end
+                end
             end
         end
     end)
 end
-
-
 
 local function PvE_StopLockOn()
     PvE_lockTarget = nil
@@ -3395,6 +3435,10 @@ local function PvE_StopLockOn()
     bg.MaxTorque = Vector3.new(500000, 500000, 500000)
     bg.D = 120
     bg.P = 3000
+    local cam = Services.Workspace.CurrentCamera
+    if cam and cam.CameraType == Enum.CameraType.Scriptable then
+        cam.CameraType = Enum.CameraType.Custom
+    end
 end
 
 -- Fly the tank to a 3D position (above the target), optionally tilt toward enemy
@@ -3436,10 +3480,6 @@ end
 -- Restore camera to normal
 local function PvE_RestoreCamera()
     PvE_StopLockOn()
-    local cam = Services.Workspace.CurrentCamera
-    if cam and cam.CameraType == Enum.CameraType.Scriptable then
-        cam.CameraType = Enum.CameraType.Custom
-    end
 end
 
 local function PvE_AutoShoot()
@@ -3733,6 +3773,11 @@ local function PvE_MainLoop()
 
         -- === FIGHTING PHASE ===
         PvE._phase = "FIGHTING"
+        HACKS.BulletGravity.active = true; HACKS.BulletGravity.target = 0
+        HACKS.ShellSpeed.active = true; HACKS.ShellSpeed.target = 9999
+        HACKS.Penetration.active = true; HACKS.Penetration.target = 9999
+        HACKS.InstantTraverse.active = true; HACKS.InstantTraverse.target = 9999
+        HACKS.Ricochet.active = true; HACKS.Ricochet.target = 9999
         local waveAbs = workspace:GetAttribute("wave_abs") or "?"
         local wavesTotal = workspace:GetAttribute("waves_total") or "?"
 
@@ -3824,8 +3869,10 @@ local function PvE_MainLoop()
             -- Immediately set status (shooting is handled by high-speed background thread)
             PvE_SetStatus("Wave " .. tostring(waveAbs) .. "/" .. tostring(wavesTotal) .. " | FIRING at " .. targetName .. " (" .. math.floor(target.Distance) .. "m to point)")
             if tick() - lastShootTime >= PvE.ShootInterval then
-                lastShootTime = tick()
-                PvE_AutoShoot()
+                if PvE_IsAimedAtTarget(target.Part.Position) then
+                    lastShootTime = tick()
+                    PvE_AutoShoot()
+                end
             end
         else
             PvE._currentTarget = nil
