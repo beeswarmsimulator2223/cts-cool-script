@@ -3373,30 +3373,30 @@ local function PvE_StartLockOn()
             if toTarget.Magnitude < 0.1 then return end
             local dir = toTarget.Unit
 
-            -- Safe UpVector to prevent Gimbal lock / flipping when aiming downwards
-            local upVec = Vector3.new(0, 1, 0)
-            if math.abs(dir.Y) > 0.95 then
-                upVec = Vector3.new(0, 0, (dir.Y < 0 and 1 or -1))
+            -- 1. Keep Tank Hull HORIZONTALLY LEVEL (Pitch = 0, Roll = 0) facing enemy direction.
+            -- This completely prevents chassis tilt physics fights, suspension wobble, and track shaking!
+            local horizDir = Vector3.new(toTarget.X, 0, toTarget.Z)
+            if horizDir.Magnitude > 0.1 then
+                bg.MaxTorque = Vector3.new(9e6, 9e6, 9e6)
+                bg.D = 400
+                bg.P = 5000
+                bg.CFrame = CFrame.lookAt(myPos, myPos + horizDir.Unit)
             end
-
-            local targetLookCF = CFrame.lookAt(myPos, targetPos, upVec)
-
-            -- 1. Rock-solid BodyGyro without physics oscillation/shaking
-            bg.MaxTorque = Vector3.new(4e6, 4e6, 4e6)
-            bg.D = 600
-            bg.P = 8000
-            bg.CFrame = targetLookCF
 
             -- Zero out physical angular bouncing completely
             pcall(function()
                 Fly.Root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
             end)
 
-            -- 2. Aim camera directly at enemy center smoothly
+            -- 2. Aim camera directly at enemy center smoothly without shaking
             local cam = Services.Workspace.CurrentCamera
             if cam then
                 cam.CameraType = Enum.CameraType.Scriptable
                 local camPos = myPos + Vector3.new(0, 4, 0)
+                local upVec = Vector3.new(0, 1, 0)
+                if math.abs(dir.Y) > 0.95 then
+                    upVec = Vector3.new(0, 0, (dir.Y < 0 and 1 or -1))
+                end
                 cam.CFrame = CFrame.lookAt(camPos, targetPos, upVec)
             end
 
@@ -3406,18 +3406,19 @@ local function PvE_StartLockOn()
             shared.xAngle = yaw
             shared.yAngle = pitch
 
-            -- 4. Directly align Turret & Gun gyros for instant aim
+            -- 4. Directly aim Turret & Gun gyros at the enemy
             local myChassis = GetOwnChassis()
             if myChassis then
                 local turretFolder = myChassis:FindFirstChild("Turret")
                 if turretFolder then
                     local gyroHz = turretFolder:FindFirstChild("GyroPartHz")
                     local gyroVt = turretFolder:FindFirstChild("GyroPartVt")
+                    local turretLookCF = CFrame.lookAt(myPos, targetPos)
                     if gyroHz and gyroHz:FindFirstChild("BodyGyro") then
-                        gyroHz.BodyGyro.CFrame = targetLookCF
+                        gyroHz.BodyGyro.CFrame = turretLookCF
                     end
                     if gyroVt and gyroVt:FindFirstChild("BodyGyro") then
-                        gyroVt.BodyGyro.CFrame = targetLookCF
+                        gyroVt.BodyGyro.CFrame = turretLookCF
                     end
                 end
             end
@@ -3449,23 +3450,21 @@ local function PvE_FlyToPosition(targetPos, enemyGroundPos)
     local diff = targetPos - myPos
     local horizDist = Vector3.new(diff.X, 0, diff.Z).Magnitude
     local vertDist = math.abs(diff.Y)
-    -- Adaptive speed: faster when far, slower when close
-    local speed = math.clamp(diff.Magnitude * 1.5, 30, 400)
-    if diff.Magnitude > 8 then
+    local speed = math.clamp(diff.Magnitude * 2, 20, 400)
+    if diff.Magnitude > 3 then
         bv.Velocity = diff.Unit * speed
     else
         bv.Velocity = Vector3.new(0, 0, 0)
+        pcall(function() Fly.Root.AssemblyLinearVelocity = Vector3.new(0, 0, 0) end)
     end
     local onPosition = horizDist < 15 and vertDist < 20
     if onPosition and enemyGroundPos then
-        -- ON POSITION: let RenderStepped lock-on handle the aiming
         PvE_lockTarget = enemyGroundPos
     else
-        -- FLYING: keep tank level, disable lock-on
         PvE_lockTarget = nil
         local lookDir = Vector3.new(diff.X, 0, diff.Z)
         if lookDir.Magnitude > 0.1 then
-            bg.CFrame = CFrame.new(myPos, myPos + lookDir.Unit)
+            bg.CFrame = CFrame.lookAt(myPos, myPos + lookDir.Unit)
         end
     end
     return onPosition
@@ -3842,11 +3841,13 @@ local function PvE_MainLoop()
         if Fly.Root and Fly.Root.Parent then
             local myPos = Fly.Root.Position
             local diff = hoverPos - myPos
-            if diff.Magnitude > 10 then
-                local speed = math.clamp(diff.Magnitude * 1.5, 30, 400)
+            local dist = diff.Magnitude
+            if dist > 2 then
+                local speed = math.clamp(dist * 2.5, 10, 350)
                 bv.Velocity = diff.Unit * speed
             else
                 bv.Velocity = Vector3.new(0, 0, 0)
+                pcall(function() Fly.Root.AssemblyLinearVelocity = Vector3.new(0, 0, 0) end)
             end
         end
 
