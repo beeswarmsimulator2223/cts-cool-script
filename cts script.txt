@@ -7,12 +7,13 @@ end
 local Rayfield = { Flags = {} }
 
 local Services = {
-    RunService = game:GetService("RunService"),
-    UserInput  = game:GetService("UserInputService"),
-    Players    = game:GetService("Players"),
-    CoreGui    = game:GetService("CoreGui"),
-    Workspace  = game:GetService("Workspace"),
-    Lighting   = game:GetService("Lighting")
+    RunService  = game:GetService("RunService"),
+    UserInput   = game:GetService("UserInputService"),
+    Players     = game:GetService("Players"),
+    CoreGui     = game:GetService("CoreGui"),
+    Workspace   = game:GetService("Workspace"),
+    Lighting    = game:GetService("Lighting"),
+    HttpService = game:GetService("HttpService")
 }
 
 while not Services.Players.LocalPlayer do
@@ -168,6 +169,17 @@ local PvE = {
     _lastTargetName = nil
 }
 
+local Webhook = {
+    Enabled = false,
+    Url = "",
+    StartTime = tick(),
+    TotalMoney = 0,
+    TotalCrates = 0,
+    LastReportTime = tick(),
+    ReportInterval = 600, -- 10 minutes
+    _lastBalance = nil
+}
+
 local Localization = {
     CurrentLanguage = "EN",
     EN = {
@@ -201,13 +213,13 @@ local Localization = {
         BulletGravHack = "Enable Bullet Gravity Hack", BulletGravVal = "Bullet Gravity Value",
         ShellSpeedHack = "Enable Shell Speed Hack", ShellSpeedVal = "Shell Speed Value",
         TraverseSection = "Turret Traverse",
-        InstantTraverseHack = "Enable Instant Turret Traverse", InstantTraverseVal = "Traverse Speed",
+        InstantTraverseHack = "Instant Turret Traverse", InstantTraverseVal = "Traverse Speed",
         FlightControlSection = "Flight Control",
-        FlightControlLabel = "W/A/S/D — move  | Space — up  |  LCtrl — down",
-        FlightControlLabelMobile = "Joystick — move  | Up/Down not available on mobile",
+        FlightControlLabel = "W/A/S/D - Move  |  Space - Up  |  LControl - Down",
+        FlightControlLabelMobile = "Joystick - Move  |  Up/down unavailable on mobile",
         MobileFlyButtonSection = "Mobile Fly Button",
         MobileFlyButtonEnabled = "Enable On-Screen Fly Button",
-        MobileFlyButtonLock = "Lock Fly Button Position",
+        MobileFlyButtonLock = "Lock Button Position",
         MobileFlyButtonSize = "Fly Button Size",
         MobileFlyButtonTransparency = "Fly Button Transparency",
         ToggleFly = "Toggle Fly", FlySpeed = "Fly Speed",
@@ -225,7 +237,8 @@ local Localization = {
         PresetThemesOption = "Preset Theme",
         CustomBackgroundOption = "Custom Background Image ID",
         ControlsSection = "Controls", ToggleESPKey = "Toggle ESP Key",
-        ProjectSection = "Project", CopyGitHub = "Copy GitHub Link", CopyDiscord = "Copy Discord Link",
+        ProjectSection = "Credits", CopyDiscord = "Copy Discord Link",
+        AuthorSign = "made by iluhasigma223 in discord",
         Language = "Language / Язык",
         MarkUpdatedTitle = "Mark Updated", MarkUpdatedContent = "Decal ID: ",
         InvalidIDTitle = "Invalid ID", InvalidIDContent = "Please enter a valid number",
@@ -237,6 +250,9 @@ local Localization = {
         CrewColor = "Crew Color", ModuleColor = "Module Color",
         PvETab = "PvE Farm", EnablePvE = "Enable PvE Auto-Farm", PvETankSlot = "Tank Slot",
         PvEFlyHeight = "Fly Height", PvEShootInterval = "Shoot Interval", PvEAutoRestart = "Auto-Restart",
+        PvEModSection = "Modifiers", PvESelectedModifiers = "Auto-Vote Modifiers",
+        PvEWebhookSection = "Discord Webhook", PvEWebhookEnabled = "Enable Webhook", PvEWebhookUrl = "Webhook URL",
+        PvETestWebhook = "Test Webhook", PvEWebhookSuccess = "Webhook test sent successfully!", PvEWebhookFail = "Failed to send webhook: ",
         PvEStatus = "Status: ",
     },
     RU = {
@@ -272,8 +288,8 @@ local Localization = {
         TraverseSection = "Поворот башни",
         InstantTraverseHack = "Включить мгновенный поворот башни", InstantTraverseVal = "Скорость поворота",
         FlightControlSection = "Управление полётом",
-        FlightControlLabel = "W/A/S/D — движение  | Пробел — вверх  |  LControl — вниз",
-        FlightControlLabelMobile = "Джойстик — движение  | Вверх/вниз недоступно на мобильном",
+        FlightControlLabel = "W/A/S/D - движение  | Пробел - вверх  |  LControl - вниз",
+        FlightControlLabelMobile = "Джойстик - движение  | Вверх/вниз недоступно на мобильном",
         MobileFlyButtonSection = "Мобильная кнопка полёта",
         MobileFlyButtonEnabled = "Включить кнопку полёта на экране",
         MobileFlyButtonLock = "Зафиксировать позицию кнопки",
@@ -291,7 +307,8 @@ local Localization = {
         PresetThemesOption = "Готовая тема",
         CustomBackgroundOption = "ID картинки фона",
         ControlsSection = "Клавиши управления", ToggleESPKey = "Клавиша ESP",
-        ProjectSection = "Проект", CopyGitHub = "Скопировать ссылку GitHub", CopyDiscord = "Скопировать ссылку Discord",
+        ProjectSection = "Создатели", CopyDiscord = "Скопировать ссылку Discord",
+        AuthorSign = "made by iluhasigma223 in discord",
         Language = "Язык / Language",
         MarkUpdatedTitle = "Метка обновлена", MarkUpdatedContent = "ID Декаля: ",
         InvalidIDTitle = "Неверный ID", InvalidIDContent = "Пожалуйста, введите корректное число",
@@ -303,6 +320,9 @@ local Localization = {
         CrewColor = "Цвет экипажа", ModuleColor = "Цвет модулей",
         PvETab = "PvE Фарм", EnablePvE = "Включить PvE Фарм", PvETankSlot = "Слот Танка",
         PvEFlyHeight = "Высота полёта", PvEShootInterval = "Интервал стрельбы", PvEAutoRestart = "Авто-рестарт",
+        PvEModSection = "Модификаторы", PvESelectedModifiers = "Авто-выбор модификаторов",
+        PvEWebhookSection = "Discord Вебхук", PvEWebhookEnabled = "Включить Вебхук", PvEWebhookUrl = "URL Вебхука",
+        PvETestWebhook = "Тест Вебхука", PvEWebhookSuccess = "Тестовое сообщение успешно отправлено!", PvEWebhookFail = "Ошибка отправки вебхука: ",
         PvEStatus = "Статус: ",
     }
 }
@@ -373,6 +393,7 @@ local PresetThemes = {
 
 local HttpService = game:GetService("HttpService")
 local CONFIG_FILE = "kolyanchik_script_config.json"
+local FLOATING_ICON = "rbxthumb://type=Asset&id=15771263462&w=420&h=420"
 
 local function parseKeyCode(str)
     if not str or str == "" then return nil end
@@ -417,7 +438,9 @@ local function SaveConfig()
         MobileFlyButtonSize = {MobileFlyButton.Size.X.Offset, MobileFlyButton.Size.Y.Offset},
         MobileFlyButtonTransparency = MobileFlyButton.Transparency,
         PvEEnabled = PvE.Enabled, PvETankSlot = PvE.TankSlot, PvEFlyHeight = PvE.FlyHeight,
-        PvEShootInterval = PvE.ShootInterval, PvEAutoRestart = PvE.AutoRestart
+        PvEShootInterval = PvE.ShootInterval, PvEAutoRestart = PvE.AutoRestart,
+        PvESelectedModifiers = PvE.SelectedModifiers,
+        WebhookEnabled = Webhook.Enabled, WebhookUrl = Webhook.Url
     }
     pcall(function()
         if writefile then writefile(CONFIG_FILE, HttpService:JSONEncode(data)) end
@@ -494,6 +517,11 @@ local function LoadConfig()
             PvE.FlyHeight = data.PvEFlyHeight or 300
             PvE.ShootInterval = data.PvEShootInterval or 0.15
             PvE.AutoRestart = (data.PvEAutoRestart ~= nil) and data.PvEAutoRestart or true
+            if data.PvESelectedModifiers and type(data.PvESelectedModifiers) == "table" then
+                PvE.SelectedModifiers = data.PvESelectedModifiers
+            end
+            Webhook.Enabled = data.WebhookEnabled or false
+            Webhook.Url = data.WebhookUrl or ""
             local th = PresetThemes[SelectedTheme]
             if th then
                 for k, v in pairs(th) do
@@ -1341,9 +1369,28 @@ local function ForceValue(obj, hack)
     obj.Value = hack.target
 end
 
+local function IsPvEMode()
+    -- Check challenge attribute or wave attributes
+    if workspace:GetAttribute("challenge") ~= nil or workspace:GetAttribute("wave") ~= nil or workspace:GetAttribute("wave_abs") ~= nil then
+        return true
+    end
+    -- Check place ID
+    local placeId = tostring(game.PlaceId)
+    if game.PlaceId ~= 6925857548 and (placeId:sub(1, 1) == "4" or placeId:sub(1, 1) == "9") then
+        return true
+    end
+    -- Check specific challenge / PvE folders
+    if workspace:FindFirstChild("Challenges") then
+        return true
+    end
+    return false
+end
+
 local function WatchWeaponObject(obj)
-    for _, hack in pairs(HACKS) do
-        if hack.active and hack.names then
+    local inPvE = IsPvEMode()
+    for hackKey, hack in pairs(HACKS) do
+        -- Only apply dangerous weapon hacks in PvE mode to avoid PvP server "invalid damage pocket" kicks!
+        if (inPvE or hackKey == "InstantTraverse") and hack.active and hack.names then
             for _, name in ipairs(hack.names) do
                 if obj.Name == name then
                     ForceValue(obj, hack)
@@ -1936,7 +1983,7 @@ function Rayfield:CreateWindow(cfg)
     local xBtn = Instance.new("TextButton"); xBtn.Size = UDim2.new(0,28,0,28)
     xBtn.Position = UDim2.new(1,-38,0.5,-14); xBtn.BackgroundColor3 = Color3.fromRGB(36,22,42)
     xBtn.Font = Enum.Font.GothamBold; xBtn.TextSize = 14; xBtn.TextColor3 = T.Red
-    xBtn.Text = "✕"; xBtn.Parent = bar; mkCorner(xBtn, 7); mkStroke(xBtn, T.Stroke, 1)
+    xBtn.Text = "X"; xBtn.Parent = bar; mkCorner(xBtn, 7); mkStroke(xBtn, T.Stroke, 1)
     xBtn.MouseButton1Click:Connect(function() win.Visible = false end)
     mkDrag(win, bar)
 
@@ -2013,12 +2060,14 @@ function Rayfield:CreateWindow(cfg)
     contentArea.Size = UDim2.new(1,-SW,1,-45); contentArea.Position = UDim2.new(0,SW,0,45)
     contentArea.BackgroundTransparency = 1; contentArea.ClipsDescendants = true; contentArea.Parent = win
 
-    local floatBtn = Instance.new("TextButton"); floatBtn.Name = "FloatToggle"
-    floatBtn.Size = UDim2.new(0,44,0,44); floatBtn.AnchorPoint = Vector2.new(0.5, 0.5)
-    floatBtn.Position = UDim2.new(0.5,0,0,32)
+    local floatBtn = Instance.new("ImageButton"); floatBtn.Name = "FloatToggle"
+    floatBtn.Size = UDim2.new(0, 48, 0, 48); floatBtn.AnchorPoint = Vector2.new(0.5, 0.5)
+    floatBtn.Position = UDim2.new(0.5, 0, 0, 32)
     floatBtn.BackgroundColor3 = T.BG; floatBtn.BackgroundTransparency = 0.1
-    floatBtn.Font = Enum.Font.GothamBold; floatBtn.TextSize = 18; floatBtn.TextColor3 = T.Accent
-    floatBtn.Text = "☰"; floatBtn.Parent = sg; mkCorner(floatBtn, 22); mkStroke(floatBtn, T.Accent, 1.5)
+    floatBtn.ClipsDescendants = true
+    floatBtn.Image = FLOATING_ICON
+    floatBtn.ScaleType = Enum.ScaleType.Fit
+    floatBtn.Parent = sg; mkCorner(floatBtn, 24); mkStroke(floatBtn, T.Accent, 2)
     theme(floatBtn, "BG")
     floatBtn.MouseButton1Click:Connect(function() win.Visible = not win.Visible end)
     mkDrag(floatBtn, floatBtn)
@@ -2217,16 +2266,18 @@ function Rayfield:CreateWindow(cfg)
             local flag = data.Flag; local val = data.CurrentValue or ""
             local card = Instance.new("Frame"); card.Size = UDim2.new(1,0,0,36)
             card.BackgroundColor3 = T.Card; card.BorderSizePixel = 0; card.Parent = scroll
+            card.ClipsDescendants = true
             theme(card, "Card")
             mkCorner(card, 7); mkStroke(card, T.Stroke, 1)
-            local lbl = Instance.new("TextLabel"); lbl.Size = UDim2.new(1,-148,1,0)
+            local lbl = Instance.new("TextLabel"); lbl.Size = UDim2.new(1,-175,1,0)
             lbl.Position = UDim2.new(0,12,0,0); lbl.BackgroundTransparency = 1
             lbl.Font = Enum.Font.GothamMedium; lbl.TextSize = 13; lbl.TextColor3 = T.Text
             lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.Text = data.Name or "Input"; lbl.Parent = card
             theme(lbl, nil, "Text")
-            local box = Instance.new("TextBox"); box.Size = UDim2.new(0,128,0,24)
-            box.Position = UDim2.new(1,-140,0.5,-12); box.BackgroundColor3 = Color3.fromRGB(30,30,44)
-            box.BorderSizePixel = 0; box.Font = Enum.Font.Gotham; box.TextSize = 12; box.TextColor3 = T.Text
+            local box = Instance.new("TextBox"); box.Size = UDim2.new(0,155,0,24)
+            box.Position = UDim2.new(1,-165,0.5,-12); box.BackgroundColor3 = Color3.fromRGB(30,30,44)
+            box.BorderSizePixel = 0; box.Font = Enum.Font.Gotham; box.TextSize = 11; box.TextColor3 = T.Text
+            box.ClipsDescendants = true; box.TextTruncate = Enum.TextTruncate.AtEnd
             box.PlaceholderText = data.PlaceholderText or "..."; box.PlaceholderColor3 = T.Sub
             box.Text = val; box.ClearTextOnFocus = false; box.Parent = card; mkCorner(box, 5); mkStroke(box, T.Stroke, 1)
             theme(box, nil, "Text")
@@ -2240,7 +2291,17 @@ function Rayfield:CreateWindow(cfg)
 
         function tabObj:CreateDropdown(data)
             local flag = data.Flag; local opts = data.Options or {}
-            local cur = (data.CurrentOption and data.CurrentOption[1]) or opts[1] or ""; local open = false
+            local isMulti = (data.MultipleOptions == true)
+            local curList = {}
+            if isMulti then
+                if type(data.CurrentOption) == "table" then
+                    for _, v in ipairs(data.CurrentOption) do curList[v] = true end
+                end
+            else
+                local single = (data.CurrentOption and data.CurrentOption[1]) or opts[1] or ""
+                curList[single] = true
+            end
+            local open = false
             local card = Instance.new("Frame"); card.Size = UDim2.new(1,0,0,36)
             card.BackgroundColor3 = T.Card; card.BorderSizePixel = 0
             card.ClipsDescendants = true; card.Parent = scroll; mkCorner(card, 7); mkStroke(card, T.Stroke, 1)
@@ -2253,38 +2314,80 @@ function Rayfield:CreateWindow(cfg)
             local selBtn = Instance.new("TextButton"); selBtn.Size = UDim2.new(0,128,0,24)
             selBtn.Position = UDim2.new(1,-140,0,6); selBtn.BackgroundColor3 = Color3.fromRGB(30,30,44)
             selBtn.Font = Enum.Font.Gotham; selBtn.TextSize = 11; selBtn.TextColor3 = T.Text
-            selBtn.Text = cur.." ▾"; selBtn.Parent = card; mkCorner(selBtn, 5); mkStroke(selBtn, T.Stroke, 1)
+
+            local function getDisplayText()
+                if isMulti then
+                    local count = 0
+                    for _ in pairs(curList) do count = count + 1 end
+                    return tostring(count) .. " selected"
+                else
+                    for k in pairs(curList) do return tostring(k) end
+                    return ""
+                end
+            end
+
+            local function getSelectedTable()
+                local res = {}
+                for _, opt in ipairs(opts) do
+                    if curList[opt] then table.insert(res, opt) end
+                end
+                return res
+            end
+
+            selBtn.Text = getDisplayText() .. " v"; selBtn.Parent = card; mkCorner(selBtn, 5); mkStroke(selBtn, T.Stroke, 1)
             theme(selBtn, nil, "Text")
             local listFrame = Instance.new("Frame"); listFrame.Size = UDim2.new(1,-22,0,#opts*29)
             listFrame.Position = UDim2.new(0,11,0,40); listFrame.BackgroundTransparency = 1
             listFrame.Visible = false; listFrame.Parent = card
             local ll = Instance.new("UIListLayout"); ll.Padding = UDim.new(0,3); ll.Parent = listFrame
-            if flag then Rayfield.Flags[flag] = {cur} end
+            if flag then Rayfield.Flags[flag] = getSelectedTable() end
+
             local function toggleDD()
                 open = not open; listFrame.Visible = open
                 local h = open and (36 + #opts*32 + 6) or 36
                 TweenService:Create(card, TweenInfo.new(0.18, Enum.EasingStyle.Quad), {Size = UDim2.new(1,0,0,h)}):Play()
-                selBtn.Text = cur .. (open and " ▴" or " ▾")
+                selBtn.Text = getDisplayText() .. (open and " ^" or " v")
             end
             selBtn.MouseButton1Click:Connect(toggleDD)
+
             for _, opt in ipairs(opts) do
                 local ob = Instance.new("TextButton"); ob.Size = UDim2.new(1,0,0,29)
                 ob.BackgroundColor3 = Color3.fromRGB(26,26,40); ob.BorderSizePixel = 0
                 ob.Font = Enum.Font.Gotham; ob.TextSize = 12
-                ob.TextColor3 = (opt == cur) and T.Accent or T.Text
-                ob.Text = "  "..opt; ob.TextXAlignment = Enum.TextXAlignment.Left; ob.Parent = listFrame; mkCorner(ob, 5)
-                theme(ob, nil, (opt == cur) and "Accent" or "Text")
+                local isSel = (curList[opt] == true)
+                ob.TextColor3 = isSel and T.Accent or T.Text
+                ob.Text = (isSel and "  [+] " or "  [ ] ") .. opt; ob.TextXAlignment = Enum.TextXAlignment.Left; ob.Parent = listFrame; mkCorner(ob, 5)
+                theme(ob, nil, isSel and "Accent" or "Text")
                 ob.MouseButton1Click:Connect(function()
-                    cur = opt; selBtn.Text = cur.." ▾"
-                    for _, ch in ipairs(listFrame:GetChildren()) do
-                        if ch:IsA("TextButton") then
-                            local isSelected = (ch.Text == "  "..opt)
-                            theme(ch, nil, isSelected and "Accent" or "Text")
+                    if isMulti then
+                        if curList[opt] then
+                            curList[opt] = nil
+                        else
+                            curList[opt] = true
                         end
+                        local nowSel = (curList[opt] == true)
+                        ob.Text = (nowSel and "  [+] " or "  [ ] ") .. opt
+                        theme(ob, nil, nowSel and "Accent" or "Text")
+                        selBtn.Text = getDisplayText() .. (open and " ^" or " v")
+                        local res = getSelectedTable()
+                        if flag then Rayfield.Flags[flag] = res end
+                        if data.Callback then data.Callback(res) end
+                    else
+                        table.clear(curList)
+                        curList[opt] = true
+                        selBtn.Text = opt .. " v"
+                        for _, ch in ipairs(listFrame:GetChildren()) do
+                            if ch:IsA("TextButton") then
+                                local isThis = (ch.Text:find(opt, 1, true) ~= nil)
+                                ch.Text = (isThis and "  [+] " or "  [ ] ") .. opt
+                                theme(ch, nil, isThis and "Accent" or "Text")
+                            end
+                        end
+                        local res = {opt}
+                        if flag then Rayfield.Flags[flag] = res end
+                        if data.Callback then data.Callback(res) end
+                        toggleDD()
                     end
-                    if flag then Rayfield.Flags[flag] = {cur} end
-                    if data.Callback then data.Callback({cur}) end
-                    toggleDD()
                 end)
             end
         end
@@ -2412,6 +2515,129 @@ safeConnect(UserInputSvc.InputBegan, function(inp, gp)
     end
 end)
 
+local function Webhook_FormatNumber(n)
+    local formatted = tostring(math.floor(tonumber(n) or 0))
+    local k
+    while true do
+        formatted, k = string.gsub(formatted, "^(-?%d+)(%d%d%d)", "%1,%2")
+        if k == 0 then break end
+    end
+    return formatted
+end
+
+local function SendDiscordWebhook(payload)
+    if not Webhook.Url or Webhook.Url == "" or not Webhook.Url:find("https://") then
+        return false, "Invalid URL"
+    end
+
+    local req = (syn and syn.request) or (http and http.request) or http_request or request
+    if not req then
+        return false, "Executor does not support HTTP requests"
+    end
+
+    local ok, res = pcall(function()
+        local httpSvc = Services.HttpService or game:GetService("HttpService")
+        return req({
+            Url = Webhook.Url,
+            Method = "POST",
+            Headers = { ["Content-Type"] = "application/json" },
+            Body = httpSvc:JSONEncode(payload)
+        })
+    end)
+
+    if ok and res and (res.StatusCode == 200 or res.StatusCode == 204) then
+        return true, "Success"
+    else
+        local errCode = (res and res.StatusCode) or (tostring(res))
+        return false, tostring(errCode)
+    end
+end
+
+local function Webhook_SendTest()
+    local userName = LocalPlayer and LocalPlayer.Name or "Unknown"
+    local dispName = LocalPlayer and LocalPlayer.DisplayName or userName
+    local userId = LocalPlayer and LocalPlayer.UserId or 1
+
+    local embed = {
+        title = "CTS PvE Farm - Webhook Test",
+        description = "Webhook successfully connected!\nStats will be reported automatically every 10 minutes.",
+        color = 0x3ED456,
+        fields = {
+            { name = "Account", value = "`" .. userName .. "` (" .. dispName .. ")", inline = true },
+            { name = "User ID", value = tostring(userId), inline = true },
+            { name = "Status", value = "Connected & Active", inline = false }
+        },
+        footer = { text = "kolyanchik script | CTS PvE Auto-Farm" },
+        timestamp = DateTime.now():ToIsoDate()
+    }
+
+    local payload = {
+        username = "CTS PvE Auto-Farm",
+        avatar_url = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. tostring(userId) .. "&width=150&height=150&format=png",
+        content = "**Discord Webhook Test Successful!**",
+        embeds = { embed }
+    }
+
+    return SendDiscordWebhook(payload)
+end
+
+local function Webhook_SendReport()
+    if not Webhook.Enabled or Webhook.Url == "" then return end
+
+    local elapsedSec = math.max(tick() - Webhook.StartTime, 1)
+    local hours = elapsedSec / 3600
+    local moneyPerHour = math.floor(Webhook.TotalMoney / hours)
+    local cratesPerHour = math.floor((Webhook.TotalCrates / hours) * 10) / 10
+
+    local userName = LocalPlayer and LocalPlayer.Name or "Unknown"
+    local dispName = LocalPlayer and LocalPlayer.DisplayName or userName
+    local userId = LocalPlayer and LocalPlayer.UserId or 1
+
+    local elapsedMin = math.floor(elapsedSec / 60)
+    local elapsedHours = math.floor(elapsedMin / 60)
+    local uptimeStr = string.format("%dh %02dm", elapsedHours, elapsedMin % 60)
+
+    local waveAbs = workspace:GetAttribute("wave_abs") or "?"
+    local wavesTotal = workspace:GetAttribute("waves_total") or "?"
+
+    local moneyHrStr = Webhook_FormatNumber(moneyPerHour) .. " / hr"
+    local cratesHrStr = tostring(cratesPerHour) .. " / hr"
+    local totalMoneyStr = Webhook_FormatNumber(Webhook.TotalMoney) .. " YEN"
+    local totalCratesStr = tostring(Webhook.TotalCrates) .. " Crates"
+
+    local msgText = string.format(
+        "money: %s\ncrates: %s\naccount being farmed on: %s",
+        moneyHrStr,
+        cratesHrStr,
+        userName
+    )
+
+    local embed = {
+        title = "CTS PvE Farm - 10 Minute Report",
+        description = msgText,
+        color = 0x5865F2,
+        fields = {
+            { name = "Money Rate", value = "`" .. moneyHrStr .. "`\n*(Total: " .. totalMoneyStr .. ")*", inline = true },
+            { name = "Crates Rate", value = "`" .. cratesHrStr .. "`\n*(Total: " .. totalCratesStr .. ")*", inline = true },
+            { name = "Account", value = "`" .. userName .. "` (" .. dispName .. ")", inline = true },
+            { name = "Session Uptime", value = uptimeStr, inline = true },
+            { name = "Current Wave", value = tostring(waveAbs) .. " / " .. tostring(wavesTotal), inline = true },
+            { name = "Farm Status", value = PvE._statusText or "Active", inline = true }
+        },
+        footer = { text = "kolyanchik script | CTS PvE Auto-Farm" },
+        timestamp = DateTime.now():ToIsoDate()
+    }
+
+    local payload = {
+        username = "CTS PvE Auto-Farm",
+        avatar_url = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. tostring(userId) .. "&width=150&height=150&format=png",
+        content = msgText,
+        embeds = { embed }
+    }
+
+    SendDiscordWebhook(payload)
+end
+
 local Window
 local function BuildGUI()
     local t = Localization[Localization.CurrentLanguage] or Localization.EN
@@ -2419,28 +2645,66 @@ local function BuildGUI()
     Window = Rayfield:CreateWindow({ Name = t.WindowTitle })
     Rayfield:Notify({ Title = t.LoadedTitle, Content = t.LoadedContent, Duration = 5 })
 
+    local inPvE = IsPvEMode()
+
     local MainTab     = Window:CreateTab(t.MainTab)
     local VisualTab   = Window:CreateTab(t.VisualTab)
-    local WeaponTab   = Window:CreateTab(t.WeaponTab)
+    local WeaponTab   = inPvE and Window:CreateTab(t.WeaponTab) or nil
     local FlyTab      = Window:CreateTab(t.FlyTab)
     local SettingsTab = Window:CreateTab(t.SettingsTab)
-    local PvETab      = Window:CreateTab(t.PvETab)
+    local PvETab      = inPvE and Window:CreateTab(t.PvETab) or nil
 
-    PvETab:CreateSection("Auto-Farm")
-    PvETab:CreateToggle({ Name = t.EnablePvE, CurrentValue = PvE.Enabled, Flag = "PvEEnabledFlag",
-        Callback = function(v) if IsRebuildingUI then return end; PvE.Enabled = v; SaveConfig() end })
-    PvETab:CreateDropdown({ Name = t.PvETankSlot, Options = {"slot1", "slot2", "slot3", "slot4"},
-        CurrentOption = {PvE.TankSlot}, MultipleOptions = false, Flag = "PvETankSlotFlag",
-        Callback = function(opt) if IsRebuildingUI then return end; if opt and opt[1] then PvE.TankSlot = opt[1]; SaveConfig() end end })
-    PvETab:CreateSlider({ Name = t.PvEFlyHeight, Range = {100, 3000}, Increment = 50,
-        Suffix = " studs", CurrentValue = PvE.FlyHeight, Flag = "PvEFlyHeightFlag",
-        Callback = function(v) if IsRebuildingUI then return end; PvE.FlyHeight = v; SaveConfig() end })
-    PvETab:CreateSlider({ Name = t.PvEShootInterval, Range = {0.05, 1.0}, Increment = 0.05,
-        Suffix = "s", CurrentValue = PvE.ShootInterval, Flag = "PvEShootIntervalFlag",
-        Callback = function(v) if IsRebuildingUI then return end; PvE.ShootInterval = v; SaveConfig() end })
-    PvETab:CreateToggle({ Name = t.PvEAutoRestart, CurrentValue = PvE.AutoRestart, Flag = "PvEAutoRestartFlag",
-        Callback = function(v) if IsRebuildingUI then return end; PvE.AutoRestart = v; SaveConfig() end })
-    PvETab:CreateLabel(t.PvEStatus .. PvE._statusText)
+    if PvETab then
+        PvETab:CreateSection("Auto-Farm")
+        PvETab:CreateToggle({ Name = t.EnablePvE, CurrentValue = PvE.Enabled, Flag = "PvEEnabledFlag",
+            Callback = function(v) if IsRebuildingUI then return end; PvE.Enabled = v; SaveConfig() end })
+        PvETab:CreateDropdown({ Name = t.PvETankSlot, Options = {"slot1", "slot2", "slot3", "slot4"},
+            CurrentOption = {PvE.TankSlot}, MultipleOptions = false, Flag = "PvETankSlotFlag",
+            Callback = function(opt) if IsRebuildingUI then return end; if opt and opt[1] then PvE.TankSlot = opt[1]; SaveConfig() end end })
+        PvETab:CreateSlider({ Name = t.PvEFlyHeight, Range = {100, 3000}, Increment = 50,
+            Suffix = " studs", CurrentValue = PvE.FlyHeight, Flag = "PvEFlyHeightFlag",
+            Callback = function(v) if IsRebuildingUI then return end; PvE.FlyHeight = v; SaveConfig() end })
+        PvETab:CreateSlider({ Name = t.PvEShootInterval, Range = {0.05, 1.0}, Increment = 0.05,
+            Suffix = "s", CurrentValue = PvE.ShootInterval, Flag = "PvEShootIntervalFlag",
+            Callback = function(v) if IsRebuildingUI then return end; PvE.ShootInterval = v; SaveConfig() end })
+        PvETab:CreateToggle({ Name = t.PvEAutoRestart, CurrentValue = PvE.AutoRestart, Flag = "PvEAutoRestartFlag",
+            Callback = function(v) if IsRebuildingUI then return end; PvE.AutoRestart = v; SaveConfig() end })
+
+        local PVE_ALL_MODS = {"LARP", "TERMINATORS", "FOG", "NIGHT", "REINFORCEMENTS", "SLOW MO", "HEAVY RAIN", "MIRROR", "LOW GRAVITY", "FREE WAVE", "CLOUDY", "RAIN"}
+        PvETab:CreateSection(t.PvEModSection or "Modifiers")
+        PvETab:CreateDropdown({
+            Name = t.PvESelectedModifiers or "Auto-Vote Modifiers",
+            Options = PVE_ALL_MODS,
+            CurrentOption = PvE.SelectedModifiers,
+            MultipleOptions = true,
+            Flag = "PvEModifiersFlag",
+            Callback = function(opts)
+                if IsRebuildingUI then return end
+                if type(opts) == "table" then
+                    PvE.SelectedModifiers = opts
+                    SaveConfig()
+                end
+            end
+        })
+
+        PvETab:CreateSection(t.PvEWebhookSection or "Discord Webhook")
+        PvETab:CreateToggle({ Name = t.PvEWebhookEnabled or "Enable Webhook", CurrentValue = Webhook.Enabled, Flag = "PvEWebhookEnabledFlag",
+            Callback = function(v) if IsRebuildingUI then return end; Webhook.Enabled = v; SaveConfig() end })
+        PvETab:CreateInput({ Name = t.PvEWebhookUrl or "Webhook URL", PlaceholderText = "https://discord.com/api/webhooks/...",
+            RemoveTextAfterFocusLost = false, CurrentValue = Webhook.Url, Flag = "PvEWebhookUrlFlag",
+            Callback = function(v) if IsRebuildingUI then return end; Webhook.Url = v; SaveConfig() end })
+        PvETab:CreateButton({ Name = t.PvETestWebhook or "Test Webhook",
+            Callback = function()
+                local ok, err = Webhook_SendTest()
+                if ok then
+                    Rayfield:Notify({ Title = "Webhook", Content = t.PvEWebhookSuccess or "Webhook sent successfully!", Duration = 3 })
+                else
+                    Rayfield:Notify({ Title = "Webhook Error", Content = (t.PvEWebhookFail or "Failed: ") .. tostring(err), Duration = 4 })
+                end
+            end })
+
+        PvETab:CreateLabel(t.PvEStatus .. PvE._statusText)
+    end
 
     MainTab:CreateSection(t.ControlSection)
     MainTab:CreateLabel(t.HideShowLabel)
@@ -2542,37 +2806,39 @@ local function BuildGUI()
         Callback = function(v) if IsRebuildingUI then return end; Other.PenView = v
             if v then PenView_Start() else PenView_Stop() end; SaveConfig() end })
 
-    WeaponTab:CreateSection("Penetration")
-    WeaponTab:CreateToggle({ Name = t.PenetrationHack, CurrentValue = HACKS.Penetration.active, Flag = "HackPenetrationFlag",
-        Callback = function(v) if IsRebuildingUI then return end; HACKS.Penetration.active = v; task.defer(InitWeapon); SaveConfig() end })
-    WeaponTab:CreateSlider({ Name = t.PenetrationVal, Range = {0,9999}, Increment = 1,
-        CurrentValue = HACKS.Penetration.target, Flag = "PenetrationValueFlag",
-        Callback = function(v) if IsRebuildingUI then return end; HACKS.Penetration.target = v; if HACKS.Penetration.active then task.defer(InitWeapon) end; SaveConfig() end })
-    WeaponTab:CreateSection("Ricochet Angle")
-    WeaponTab:CreateToggle({ Name = t.RicochetHack, CurrentValue = HACKS.Ricochet.active, Flag = "HackRicochetFlag",
-        Callback = function(v) if IsRebuildingUI then return end; HACKS.Ricochet.active = v; task.defer(InitWeapon); SaveConfig() end })
-    WeaponTab:CreateSlider({ Name = t.RicochetVal, Range = {0,9999}, Increment = 1,
-        CurrentValue = HACKS.Ricochet.target, Flag = "RicochetValueFlag",
-        Callback = function(v) if IsRebuildingUI then return end; HACKS.Ricochet.target = v; if HACKS.Ricochet.active then task.defer(InitWeapon) end; SaveConfig() end })
-    WeaponTab:CreateSection("Bullet Gravity")
-    WeaponTab:CreateToggle({ Name = t.BulletGravHack, CurrentValue = HACKS.BulletGravity.active, Flag = "HackBulletGravityFlag",
-        Callback = function(v) if IsRebuildingUI then return end; HACKS.BulletGravity.active = v; task.defer(InitWeapon); SaveConfig() end })
-    WeaponTab:CreateSlider({ Name = t.BulletGravVal, Range = {-500,500}, Increment = 1,
-        CurrentValue = HACKS.BulletGravity.target, Flag = "BulletGravityValueFlag",
-        Callback = function(v) if IsRebuildingUI then return end; HACKS.BulletGravity.target = v; if HACKS.BulletGravity.active then task.defer(InitWeapon) end; SaveConfig() end })
-    WeaponTab:CreateSection("Shell Speed")
-    WeaponTab:CreateToggle({ Name = t.ShellSpeedHack, CurrentValue = HACKS.ShellSpeed.active, Flag = "HackShellSpeedFlag",
-        Callback = function(v) if IsRebuildingUI then return end; HACKS.ShellSpeed.active = v; task.defer(InitWeapon); SaveConfig() end })
-    WeaponTab:CreateSlider({ Name = t.ShellSpeedVal, Range = {0,9999}, Increment = 1,
-        CurrentValue = HACKS.ShellSpeed.target, Flag = "ShellSpeedValueFlag",
-        Callback = function(v) if IsRebuildingUI then return end; HACKS.ShellSpeed.target = v; if HACKS.ShellSpeed.active then task.defer(InitWeapon) end; SaveConfig() end })
+    if WeaponTab then
+        WeaponTab:CreateSection("Penetration")
+        WeaponTab:CreateToggle({ Name = t.PenetrationHack, CurrentValue = HACKS.Penetration.active, Flag = "HackPenetrationFlag",
+            Callback = function(v) if IsRebuildingUI then return end; HACKS.Penetration.active = v; task.defer(InitWeapon); SaveConfig() end })
+        WeaponTab:CreateSlider({ Name = t.PenetrationVal, Range = {0,9999}, Increment = 1,
+            CurrentValue = HACKS.Penetration.target, Flag = "PenetrationValueFlag",
+            Callback = function(v) if IsRebuildingUI then return end; HACKS.Penetration.target = v; if HACKS.Penetration.active then task.defer(InitWeapon) end; SaveConfig() end })
+        WeaponTab:CreateSection("Ricochet Angle")
+        WeaponTab:CreateToggle({ Name = t.RicochetHack, CurrentValue = HACKS.Ricochet.active, Flag = "HackRicochetFlag",
+            Callback = function(v) if IsRebuildingUI then return end; HACKS.Ricochet.active = v; task.defer(InitWeapon); SaveConfig() end })
+        WeaponTab:CreateSlider({ Name = t.RicochetVal, Range = {0,9999}, Increment = 1,
+            CurrentValue = HACKS.Ricochet.target, Flag = "RicochetValueFlag",
+            Callback = function(v) if IsRebuildingUI then return end; HACKS.Ricochet.target = v; if HACKS.Ricochet.active then task.defer(InitWeapon) end; SaveConfig() end })
+        WeaponTab:CreateSection("Bullet Gravity")
+        WeaponTab:CreateToggle({ Name = t.BulletGravHack, CurrentValue = HACKS.BulletGravity.active, Flag = "HackBulletGravityFlag",
+            Callback = function(v) if IsRebuildingUI then return end; HACKS.BulletGravity.active = v; task.defer(InitWeapon); SaveConfig() end })
+        WeaponTab:CreateSlider({ Name = t.BulletGravVal, Range = {-500,500}, Increment = 1,
+            CurrentValue = HACKS.BulletGravity.target, Flag = "BulletGravityValueFlag",
+            Callback = function(v) if IsRebuildingUI then return end; HACKS.BulletGravity.target = v; if HACKS.BulletGravity.active then task.defer(InitWeapon) end; SaveConfig() end })
+        WeaponTab:CreateSection("Shell Speed")
+        WeaponTab:CreateToggle({ Name = t.ShellSpeedHack, CurrentValue = HACKS.ShellSpeed.active, Flag = "HackShellSpeedFlag",
+            Callback = function(v) if IsRebuildingUI then return end; HACKS.ShellSpeed.active = v; task.defer(InitWeapon); SaveConfig() end })
+        WeaponTab:CreateSlider({ Name = t.ShellSpeedVal, Range = {0,9999}, Increment = 1,
+            CurrentValue = HACKS.ShellSpeed.target, Flag = "ShellSpeedValueFlag",
+            Callback = function(v) if IsRebuildingUI then return end; HACKS.ShellSpeed.target = v; if HACKS.ShellSpeed.active then task.defer(InitWeapon) end; SaveConfig() end })
 
-    WeaponTab:CreateSection(t.TraverseSection or "Turret Traverse")
-    WeaponTab:CreateToggle({ Name = t.InstantTraverseHack, CurrentValue = HACKS.InstantTraverse.active, Flag = "HackInstantTraverseFlag",
-        Callback = function(v) if IsRebuildingUI then return end; HACKS.InstantTraverse.active = v; task.defer(InitWeapon); SaveConfig() end })
-    WeaponTab:CreateSlider({ Name = t.InstantTraverseVal or "Traverse Speed", Range = {10,9999}, Increment = 10,
-        CurrentValue = HACKS.InstantTraverse.target, Flag = "InstantTraverseValueFlag",
-        Callback = function(v) if IsRebuildingUI then return end; HACKS.InstantTraverse.target = v; if HACKS.InstantTraverse.active then task.defer(InitWeapon) end; SaveConfig() end })
+        WeaponTab:CreateSection(t.TraverseSection or "Turret Traverse")
+        WeaponTab:CreateToggle({ Name = t.InstantTraverseHack, CurrentValue = HACKS.InstantTraverse.active, Flag = "HackInstantTraverseFlag",
+            Callback = function(v) if IsRebuildingUI then return end; HACKS.InstantTraverse.active = v; task.defer(InitWeapon); SaveConfig() end })
+        WeaponTab:CreateSlider({ Name = t.InstantTraverseVal or "Traverse Speed", Range = {10,9999}, Increment = 10,
+            CurrentValue = HACKS.InstantTraverse.target, Flag = "InstantTraverseValueFlag",
+            Callback = function(v) if IsRebuildingUI then return end; HACKS.InstantTraverse.target = v; if HACKS.InstantTraverse.active then task.defer(InitWeapon) end; SaveConfig() end })
+    end
 
     FlyTab:CreateSection(t.FlightControlSection)
     do
@@ -2731,10 +2997,8 @@ local function BuildGUI()
             end
         end })
 
-    SettingsTab:CreateSection(t.ProjectSection)
-    SettingsTab:CreateButton({ Name = t.CopyGitHub,
-        Callback = function() setclipboard("https://github.com/qwiix21/Cursed-Tank-Simulator-Script")
-            Rayfield:Notify({ Title = t.CopiedTitle, Content = t.CopiedContent, Duration = 3 }) end })
+    SettingsTab:CreateSection(t.ProjectSection or "Credits")
+    SettingsTab:CreateLabel("made by iluhasigma223 in discord")
     SettingsTab:CreateButton({ Name = t.CopyDiscord,
         Callback = function() setclipboard("https://discord.gg/gHg5g7eDC4")
             Rayfield:Notify({ Title = t.CopiedTitle, Content = t.CopiedContent, Duration = 3 }) end })
@@ -3663,6 +3927,79 @@ task.spawn(function()
     end
 end)
 
+-- Discord Webhook Rewards Tracker & 10-Minute Periodic Reporter
+task.spawn(function()
+    local RS = game:GetService("ReplicatedStorage")
+
+    -- 1. Listen for Crate rewards
+    local crateGiver = RS:WaitForChild("CrateGiver", 15)
+    if crateGiver then
+        safeConnect(crateGiver.OnClientEvent, function(count)
+            local c = tonumber(count) or 1
+            Webhook.TotalCrates = Webhook.TotalCrates + c
+        end)
+    end
+
+    -- 2. Listen for SummaryRE rewards
+    local summaryRE = RS:WaitForChild("SummaryRE", 15)
+    if summaryRE then
+        safeConnect(summaryRE.OnClientEvent, function(arg5, _, _, arg8, arg9, arg10)
+            if type(arg9) == "table" then
+                local mainCurr = tonumber(arg9.maincurr) or 0
+                local bonus = (type(arg10) == "table" and tonumber(arg10[1])) or 0
+                local modTotals = 0
+                pcall(function()
+                    local totals = RS:FindFirstChild("get_modifier_totals") and RS.get_modifier_totals:InvokeServer()
+                    if type(totals) == "table" and totals[1] then
+                        modTotals = tonumber(totals[1]) or 0
+                    end
+                end)
+                local earned = mainCurr + bonus + modTotals
+                if earned > 0 then
+                    Webhook.TotalMoney = Webhook.TotalMoney + earned
+                end
+                if arg9.crates and type(arg9.crates) == "table" and arg9.crates.amount then
+                    local ca = tonumber(arg9.crates.amount) or 0
+                    if ca > 0 then
+                        Webhook.TotalCrates = Webhook.TotalCrates + ca
+                    end
+                end
+            end
+        end)
+    end
+
+    -- 3. Live Balance change poller (fallback)
+    task.spawn(function()
+        while true do
+            task.wait(2)
+            if shared.totalMoney2 and type(shared.totalMoney2) == "number" then
+                if Webhook._lastBalance == nil then
+                    Webhook._lastBalance = shared.totalMoney2
+                elseif shared.totalMoney2 > Webhook._lastBalance then
+                    local diff = shared.totalMoney2 - Webhook._lastBalance
+                    if diff > 0 and diff < 10000000 then
+                        Webhook.TotalMoney = Webhook.TotalMoney + diff
+                    end
+                    Webhook._lastBalance = shared.totalMoney2
+                else
+                    Webhook._lastBalance = shared.totalMoney2
+                end
+            end
+        end
+    end)
+
+    -- 4. 10-minute Periodic Report Loop
+    while true do
+        task.wait(5)
+        if Webhook.Enabled and Webhook.Url ~= "" and PvE.Enabled then
+            if tick() - Webhook.LastReportTime >= Webhook.ReportInterval then
+                Webhook.LastReportTime = tick()
+                task.spawn(Webhook_SendReport)
+            end
+        end
+    end
+end)
+
 local function RunStartup()
     if getgenv then
         if getgenv().CleanUpKolyanchikScript then
@@ -3671,7 +4008,7 @@ local function RunStartup()
         getgenv().CleanUpKolyanchikScript = CleanUpScript
     end
 
-    LoadConfig()
+        LoadConfig()
     -- Easter egg: quietly play background music
     task.spawn(PlayEasterEggMusic)
     ShowLoadingScreen(function()
