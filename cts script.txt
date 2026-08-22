@@ -1,3 +1,4075 @@
---don't try to do anything skid
+print("kolyanchik script loading...")
 
-loadstring(game:HttpGet("https://api.jnkie.com/api/v1/luascripts/public/d24dc7d203b6cfcb9bf774dc10f7aa0a6d2220ded1bb8d9b6d60970e56ba42ea/download"))()
+if not game:IsLoaded() then
+    game.Loaded:Wait()
+end
+
+local Rayfield = { Flags = {} }
+
+local Services = {
+    RunService  = game:GetService("RunService"),
+    UserInput   = game:GetService("UserInputService"),
+    Players     = game:GetService("Players"),
+    CoreGui     = game:GetService("CoreGui"),
+    Workspace   = game:GetService("Workspace"),
+    Lighting    = game:GetService("Lighting"),
+    HttpService = game:GetService("HttpService")
+}
+
+while not Services.Players.LocalPlayer do
+    task.wait(0.1)
+end
+local LocalPlayer = Services.Players.LocalPlayer
+local TweenService = game:GetService("TweenService")
+local UserInputSvc = Services.UserInput
+local isMobile = UserInputSvc.TouchEnabled and not UserInputSvc.KeyboardEnabled
+
+local ScriptConnections = {}
+local function safeConnect(signal, callback)
+    local conn = signal:Connect(callback)
+    table.insert(ScriptConnections, conn)
+    return conn
+end
+
+local Keys = {
+    Toggle = Enum.KeyCode.F,
+    Fly = Enum.KeyCode.M,
+    GUI = Enum.KeyCode.K,
+    Flip = Enum.KeyCode.T
+}
+
+local T = {
+    BG      = Color3.fromRGB(14, 14, 20),
+    Sidebar = Color3.fromRGB(18, 18, 26),
+    Card    = Color3.fromRGB(24, 24, 34),
+    Stroke  = Color3.fromRGB(50, 50, 66),
+    Accent  = Color3.fromRGB(110, 75, 250),
+    Text    = Color3.fromRGB(235, 235, 245),
+    Sub     = Color3.fromRGB(148, 148, 164),
+    Hover   = Color3.fromRGB(34, 34, 48),
+    Red     = Color3.fromRGB(218, 68, 68),
+}
+
+local ESP = {
+    Enabled = true,
+    TeamCheck = false,
+    ShowDistance = false,
+    EnableFill = true,
+    EnableOutline = true,
+    Instances = {},
+    HullColor = Color3.new(0.8, 0.2, 0.9),
+    TurretColor = Color3.new(0.2, 0.9, 0.4),
+    FillTransparency = 0.5,
+    OutlineTransparency = 0.2,
+    CrewEnabled = false,
+    ModulesEnabled = false,
+    CrewColor = Color3.fromRGB(255, 230, 50),
+    ModuleColor = Color3.fromRGB(255, 75, 75),
+    InternalInstances = {}
+}
+
+local function matchPart(name)
+    if not name or type(name) ~= "string" then return nil end
+    local lname = name:lower():gsub("%s+", "")
+    if lname:find("seat") then return nil end
+
+    if lname:find("driver") or lname:find("loader") or lname:find("gunner") or lname:find("commander") then
+        return "Crew", ESP.CrewColor
+    end
+
+    if lname:find("ammu") or lname:find("amui") or lname:find("ammo") or lname:find("engine") or lname:find("fuel") or lname:find("transmission") or lname:find("radiator") then
+        return "Module", ESP.ModuleColor
+    end
+
+    return nil
+end
+
+local Mark = {
+    Enabled = false,
+    Distance = 1000,
+    DecalID = "11552476728",
+    OffsetY = 50,
+    Size = 25,
+    UpdateInterval = 0.016,
+    TimeSinceUpdate = 0
+}
+
+local Timers = {
+    VehicleScan = 0,
+    Cleanup = 0,
+    ScanInterval = 0.5,
+    CleanupInterval = 2
+}
+
+local Fly = {
+    Active = false,
+    Speed = 70,
+    Root = nil,
+    IsRebinding = false,
+    LastRebindTime = 0
+}
+
+local MobileFly = {
+    Touch = nil,
+    StartPos = Vector2.new(0,0),
+    Delta = Vector2.new(0,0),
+    MaxRadius = 75,
+}
+
+local MobileFlyButton = {
+    Enabled = false,
+    Locked = false,
+    Position = UDim2.new(0, 150, 0, 450),
+    Size = UDim2.new(0, 64, 0, 64),
+    Transparency = 0.15,
+    Ui = nil
+}
+
+local Other = {
+    RemoveFog = false,
+    PenView = false
+}
+
+local Graphics = {
+    DegradationLevel = "None",
+    OriginalMaterials = setmetatable({}, { __mode = "k" }),
+    OriginalDecals = setmetatable({}, { __mode = "k" }),
+    OriginalShadows = Services.Lighting.GlobalShadows,
+    AddedConnection = nil
+}
+
+local GraphicsLevelsDisplayName = {
+    EN = { ["None"] = "None", ["Low"] = "Low", ["Medium"] = "Medium", ["High"] = "High" },
+    RU = { ["None"] = "Отсутствует", ["Low"] = "Низкая", ["Medium"] = "Средняя", ["High"] = "Высокая" }
+}
+
+local AntiLag = {
+    NoSmoke = false,
+    NoDeathEffect = false,
+    TerrainConnection = nil,
+    VehiclesConnection = nil
+}
+
+local PvE = {
+    Enabled = false,
+    TankSlot = "slot1",
+    FlyHeight = 2500,
+    ShootInterval = 0.15,
+    AutoRestart = true,
+    SelectedModifiers = {"LARP", "TERMINATORS", "FOG", "NIGHT", "REINFORCEMENTS", "SLOW MO", "HEAVY RAIN", "MIRROR", "LOW GRAVITY"},
+    PostVictoryWait = 10,
+    SpawnDelay = 5,
+    _running = false,
+    _connections = {},
+    _currentTarget = nil,
+    _phase = "IDLE",
+    _statusText = "Idle",
+    _statusLabel = nil,
+    _inSight = false,
+    _lastTargetName = nil
+}
+
+local Webhook = {
+    Enabled = false,
+    Url = "",
+    StartTime = tick(),
+    TotalMoney = 0,
+    TotalCrates = 0,
+    LastReportTime = tick(),
+    ReportInterval = 600, -- 10 minutes
+    _lastBalance = nil
+}
+
+local Localization = {
+    CurrentLanguage = "EN",
+    EN = {
+        WindowTitle = "kolyanchik script",
+        LoadedTitle = "kolyanchik script Loaded",
+        LoadedContent = "Press K to hide/show interface",
+        MainTab = "Main", VisualTab = "Visual", WeaponTab = "Weapon", FlyTab = "Fly", SettingsTab = "Settings",
+        ControlSection = "Control",
+        HideShowLabel = "Press K to hide/show interface",
+        ESPSection = "ESP",
+        EnableESP = "Enable ESP",
+        TeamCheck = "Team Check (enemies only)",
+        ShowDistance = "Show Distance",
+        MarkSettingsSection = "Mark Settings",
+        EnableMark = "Enable Mark",
+        DistanceToShowMark = "Distance to show mark",
+        MarkDistance = "Mark Distance",
+        MarkAppearance = "Mark appearance",
+        MarkDecalID = "Mark Decal ID",
+        MarkOffsetY = "Mark Offset Y",
+        MarkSize = "Mark Size",
+        FogSection = "Fog", RemoveFog = "Remove Fog",
+        PenViewSection = "Penetration View", EnablePenView = "Enable Penetration View",
+        ColorsSection = "ESP Colors", HullColor = "Hull Color", TurretColor = "Turret Color",
+        HighlightSettingsSection = "Highlight Settings",
+        FillTransparency = "Fill Transparency", OutlineTransparency = "Outline Transparency",
+        EnableFill = "Enable Fill", EnableOutline = "Enable Outline",
+        WeaponSection = "Weapon Modifiers",
+        PenetrationHack = "Enable Penetration Hack", PenetrationVal = "Penetration Value",
+        RicochetHack = "Enable Ricochet Hack", RicochetVal = "Ricochet Value",
+        BulletGravHack = "Enable Bullet Gravity Hack", BulletGravVal = "Bullet Gravity Value",
+        ShellSpeedHack = "Enable Shell Speed Hack", ShellSpeedVal = "Shell Speed Value",
+        TraverseSection = "Turret Traverse",
+        InstantTraverseHack = "Instant Turret Traverse", InstantTraverseVal = "Traverse Speed",
+        FlightControlSection = "Flight Control",
+        FlightControlLabel = "W/A/S/D - Move  |  Space - Up  |  LControl - Down",
+        FlightControlLabelMobile = "Joystick - Move  |  Up/down unavailable on mobile",
+        MobileFlyButtonSection = "Mobile Fly Button",
+        MobileFlyButtonEnabled = "Enable On-Screen Fly Button",
+        MobileFlyButtonLock = "Lock Button Position",
+        MobileFlyButtonSize = "Fly Button Size",
+        MobileFlyButtonTransparency = "Fly Button Transparency",
+        ToggleFly = "Toggle Fly", FlySpeed = "Fly Speed",
+        FlipTank = "Unflip / Flip Tank", FlipKey = "Flip Tank Keybind",
+        FlipSuccess = "Tank flipped upright!", FlipNoTank = "Tank not found",
+        KeybindSection = "Keybind", ToggleFlyKey = "Toggle Fly Key", ToggleGUIKey = "Toggle GUI Key",
+        PerformanceSection = "Performance",
+        MarkUpdateRate = "Mark Update Rate", ScanInterval = "Scan Interval",
+        GraphicsDegradation = "Graphics Degradation",
+        AntiLagSection = "Anti Lag", NoSmoke = "Disable All Smoke", NoDeathEffect = "Disable Death Effects",
+        ThemeSection = "Theme",
+        ThemeBGColor = "Background Color",
+        ThemeStrokeColor = "Border Color",
+        ThemeSection = "GUI Appearance",
+        PresetThemesOption = "Preset Theme",
+        CustomBackgroundOption = "Custom Background Image ID",
+        ControlsSection = "Controls", ToggleESPKey = "Toggle ESP Key",
+        ProjectSection = "Credits", CopyDiscord = "Copy Discord Link",
+        AuthorSign = "made by iluhasigma223 in discord",
+        Language = "Language / Язык",
+        MarkUpdatedTitle = "Mark Updated", MarkUpdatedContent = "Decal ID: ",
+        InvalidIDTitle = "Invalid ID", InvalidIDContent = "Please enter a valid number",
+        FlyEnabled = "Flight enabled", FlyDisabled = "Flight disabled",
+        ESPEnabled = "ESP Enabled", ESPDisabled = "ESP Disabled",
+        CopiedTitle = "Copied", CopiedContent = "Link copied to clipboard!",
+        CrewSection = "Crew ESP", EnableCrewESP = "Enable Crew ESP",
+        ModulesSection = "Modules ESP", EnableModulesESP = "Enable Modules ESP",
+        CrewColor = "Crew Color", ModuleColor = "Module Color",
+        PvETab = "PvE Farm", EnablePvE = "Enable PvE Auto-Farm", PvETankSlot = "Tank Slot",
+        PvEFlyHeight = "Fly Height", PvEShootInterval = "Shoot Interval", PvEAutoRestart = "Auto-Restart",
+        PvEModSection = "Modifiers", PvESelectedModifiers = "Auto-Vote Modifiers",
+        PvEWebhookSection = "Discord Webhook", PvEWebhookEnabled = "Enable Webhook", PvEWebhookUrl = "Webhook URL",
+        PvETestWebhook = "Test Webhook", PvEWebhookSuccess = "Webhook test sent successfully!", PvEWebhookFail = "Failed to send webhook: ",
+        PvEStatus = "Status: ",
+    },
+    RU = {
+        WindowTitle = "kolyanchik script",
+        LoadedTitle = "kolyanchik script Загружен",
+        LoadedContent = "Нажмите K, чтобы скрыть/показать интерфейс",
+        MainTab = "Главное", VisualTab = "Визуальное", WeaponTab = "Оружие", FlyTab = "Полёт", SettingsTab = "Настройки",
+        ControlSection = "Управление",
+        HideShowLabel = "Нажмите K, чтобы скрыть/показать интерфейс",
+        ESPSection = "ESP",
+        EnableESP = "Включить ESP",
+        TeamCheck = "Проверка команды (только враги)",
+        ShowDistance = "Показывать дистанцию",
+        MarkSettingsSection = "Настройки метки",
+        EnableMark = "Включить метку",
+        DistanceToShowMark = "Дистанция для отображения метки",
+        MarkDistance = "Дистанция метки",
+        MarkAppearance = "Внешний вид метки",
+        MarkDecalID = "ID Декаля метки",
+        MarkOffsetY = "Смещение метки по Y",
+        MarkSize = "Размер метки",
+        FogSection = "Туман", RemoveFog = "Убрать туман",
+        PenViewSection = "Просмотр пробития", EnablePenView = "Включить просмотр пробития",
+        ColorsSection = "Цвета ESP", HullColor = "Цвет корпуса", TurretColor = "Цвет башни",
+        HighlightSettingsSection = "Настройки подсветки",
+        FillTransparency = "Прозрачность заливки", OutlineTransparency = "Прозрачность контура",
+        EnableFill = "Включить заливку", EnableOutline = "Включить контур",
+        WeaponSection = "Модификаторы оружия",
+        PenetrationHack = "Включить хак пробития", PenetrationVal = "Значение пробития",
+        RicochetHack = "Включить хак рикошета", RicochetVal = "Значение рикошета",
+        BulletGravHack = "Включить хак гравитации пуль", BulletGravVal = "Значение гравитации пуль",
+        ShellSpeedHack = "Включить хак скорости снаряда", ShellSpeedVal = "Значение скорости снаряда",
+        TraverseSection = "Поворот башни",
+        InstantTraverseHack = "Включить мгновенный поворот башни", InstantTraverseVal = "Скорость поворота",
+        FlightControlSection = "Управление полётом",
+        FlightControlLabel = "W/A/S/D - движение  | Пробел - вверх  |  LControl - вниз",
+        FlightControlLabelMobile = "Джойстик - движение  | Вверх/вниз недоступно на мобильном",
+        MobileFlyButtonSection = "Мобильная кнопка полёта",
+        MobileFlyButtonEnabled = "Включить кнопку полёта на экране",
+        MobileFlyButtonLock = "Зафиксировать позицию кнопки",
+        MobileFlyButtonSize = "Размер кнопки полёта",
+        MobileFlyButtonTransparency = "Прозрачность кнопки",
+        ToggleFly = "Переключить полёт", FlySpeed = "Скорость полёта",
+        FlipTank = "Перевернуть танк", FlipKey = "Клавиша переворота",
+        FlipSuccess = "Танк перевернут на колёса!", FlipNoTank = "Танк не найден",
+        KeybindSection = "Клавиша активации", ToggleFlyKey = "Клавиша полёта", ToggleGUIKey = "Клавиша GUI",
+        PerformanceSection = "Производительность",
+        MarkUpdateRate = "Частота обновления метки", ScanInterval = "Интервал сканирования",
+        GraphicsDegradation = "Деградация графики",
+        AntiLagSection = "Анти-лаг", NoSmoke = "Отключить весь дым", NoDeathEffect = "Отключить эффекты смерти",
+        ThemeSection = "Внешний вид GUI",
+        PresetThemesOption = "Готовая тема",
+        CustomBackgroundOption = "ID картинки фона",
+        ControlsSection = "Клавиши управления", ToggleESPKey = "Клавиша ESP",
+        ProjectSection = "Создатели", CopyDiscord = "Скопировать ссылку Discord",
+        AuthorSign = "made by iluhasigma223 in discord",
+        Language = "Язык / Language",
+        MarkUpdatedTitle = "Метка обновлена", MarkUpdatedContent = "ID Декаля: ",
+        InvalidIDTitle = "Неверный ID", InvalidIDContent = "Пожалуйста, введите корректное число",
+        FlyEnabled = "Полёт включен", FlyDisabled = "Полёт выключен",
+        ESPEnabled = "ESP Включен", ESPDisabled = "ESP Выключен",
+        CopiedTitle = "Скопировано", CopiedContent = "Ссылка скопирована в буфер обмена!",
+        CrewSection = "ESP Экипажа", EnableCrewESP = "Включить ESP Экипажа",
+        ModulesSection = "ESP Модулей", EnableModulesESP = "Включить ESP Модулей",
+        CrewColor = "Цвет экипажа", ModuleColor = "Цвет модулей",
+        PvETab = "PvE Фарм", EnablePvE = "Включить PvE Фарм", PvETankSlot = "Слот Танка",
+        PvEFlyHeight = "Высота полёта", PvEShootInterval = "Интервал стрельбы", PvEAutoRestart = "Авто-рестарт",
+        PvEModSection = "Модификаторы", PvESelectedModifiers = "Авто-выбор модификаторов",
+        PvEWebhookSection = "Discord Вебхук", PvEWebhookEnabled = "Включить Вебхук", PvEWebhookUrl = "URL Вебхука",
+        PvETestWebhook = "Тест Вебхука", PvEWebhookSuccess = "Тестовое сообщение успешно отправлено!", PvEWebhookFail = "Ошибка отправки вебхука: ",
+        PvEStatus = "Статус: ",
+    }
+}
+
+local HACKS = {
+    Penetration     = { target = 9999, active = true, names = {"Penetration","Penetrate"}, patched = {}, origPatched = {} },
+    Ricochet        = { target = 9999, active = true, names = {"RicochetAngle"}, patched = {}, origPatched = {} },
+    BulletGravity   = { target = 0, active = true, names = {"BulletGravity"}, patched = {}, origPatched = {} },
+    ShellSpeed      = { target = 9999, active = true, names = {"ShellSpeed"}, patched = {}, origPatched = {} },
+    InstantTraverse = { target = 9999, active = true, names = {"HzTraverse","VtTraverse","TraverseSpeed","HorizontalTraverse","VerticalTraverse"}, patched = {}, origPatched = {} },
+}
+
+local WeaponConnections = {}
+local ChassisDescendantConn = nil
+
+local PenView = {
+    UI = nil, HeartbeatConnection = nil, LastPart = nil, LastChassisName = nil,
+    ArmorTypes = {
+        "Structural Steel","RHA","HHRA","CHA","NERA","Internal RHA","Internal HHRA",
+        "Internal CHA","Composite Screen","Rubber-fabric Screen","Internal Aluminium",
+        "Aluminium","Aluminium Alloy","Internal Aluminium Alloy","Internal Structural Steel",
+        "ERA","Wood","Armour"
+    }
+}
+
+local Camera = Services.Workspace.CurrentCamera
+local IsRebuildingUI = false
+local SelectedTheme = "Dark Mode"
+local CustomBgImage = ""
+
+local PresetThemes = {
+    ["Dark Mode"] = {
+        BG = Color3.fromRGB(14, 14, 20), Sidebar = Color3.fromRGB(18, 18, 26), Card = Color3.fromRGB(24, 24, 34),
+        Stroke = Color3.fromRGB(50, 50, 66), Accent = Color3.fromRGB(110, 75, 250), Text = Color3.fromRGB(235, 235, 245),
+        Sub = Color3.fromRGB(148, 148, 164), Hover = Color3.fromRGB(34, 34, 48)
+    },
+    ["White-Black"] = {
+        BG = Color3.fromRGB(245, 245, 247), Sidebar = Color3.fromRGB(235, 235, 238), Card = Color3.fromRGB(255, 255, 255),
+        Stroke = Color3.fromRGB(200, 200, 205), Accent = Color3.fromRGB(20, 20, 20), Text = Color3.fromRGB(20, 20, 20),
+        Sub = Color3.fromRGB(110, 110, 115), Hover = Color3.fromRGB(220, 220, 225)
+    },
+    ["White-Gold"] = {
+        BG = Color3.fromRGB(248, 247, 244), Sidebar = Color3.fromRGB(240, 238, 232), Card = Color3.fromRGB(255, 255, 255),
+        Stroke = Color3.fromRGB(225, 220, 205), Accent = Color3.fromRGB(212, 175, 55), Text = Color3.fromRGB(35, 30, 20),
+        Sub = Color3.fromRGB(135, 125, 110), Hover = Color3.fromRGB(245, 240, 225)
+    },
+    ["Purple-Black"] = {
+        BG = Color3.fromRGB(10, 8, 18), Sidebar = Color3.fromRGB(14, 11, 26), Card = Color3.fromRGB(20, 16, 36),
+        Stroke = Color3.fromRGB(56, 44, 88), Accent = Color3.fromRGB(155, 80, 255), Text = Color3.fromRGB(240, 235, 250),
+        Sub = Color3.fromRGB(160, 150, 180), Hover = Color3.fromRGB(32, 26, 56)
+    },
+    ["Purple-White"] = {
+        BG = Color3.fromRGB(250, 247, 255), Sidebar = Color3.fromRGB(240, 232, 252), Card = Color3.fromRGB(255, 255, 255),
+        Stroke = Color3.fromRGB(218, 200, 245), Accent = Color3.fromRGB(130, 50, 220), Text = Color3.fromRGB(40, 20, 70),
+        Sub = Color3.fromRGB(125, 100, 160), Hover = Color3.fromRGB(243, 233, 255)
+    },
+    ["Baby Blue-Black"] = {
+        BG = Color3.fromRGB(10, 14, 18), Sidebar = Color3.fromRGB(14, 20, 26), Card = Color3.fromRGB(20, 28, 36),
+        Stroke = Color3.fromRGB(46, 64, 82), Accent = Color3.fromRGB(137, 207, 240), Text = Color3.fromRGB(230, 242, 250),
+        Sub = Color3.fromRGB(150, 172, 190), Hover = Color3.fromRGB(28, 40, 52)
+    },
+    ["✡ Jewish"] = {
+        BG = Color3.fromRGB(10, 20, 60), Sidebar = Color3.fromRGB(8, 16, 50), Card = Color3.fromRGB(14, 28, 72),
+        Stroke = Color3.fromRGB(40, 80, 160), Accent = Color3.fromRGB(255, 255, 255), Text = Color3.fromRGB(240, 245, 255),
+        Sub = Color3.fromRGB(140, 170, 220), Hover = Color3.fromRGB(20, 40, 90)
+    }
+}
+
+local HttpService = game:GetService("HttpService")
+local CONFIG_FILE = "kolyanchik_script_config.json"
+local FLOATING_ICON = "rbxthumb://type=Asset&id=15771263462&w=420&h=420"
+
+local function parseKeyCode(str)
+    if not str or str == "" then return nil end
+    local name = str:match("KeyCode%.(.+)") or str
+    for _, item in ipairs(Enum.KeyCode:GetEnumItems()) do
+        if item.Name == name then return item end
+    end
+    return nil
+end
+
+local function SaveConfig()
+    if IsRebuildingUI then return end
+    local data = {
+        Language = Localization.CurrentLanguage,
+        ESPEnabled = ESP.Enabled, TeamCheck = ESP.TeamCheck, ShowDistance = ESP.ShowDistance,
+        EnableFill = ESP.EnableFill, EnableOutline = ESP.EnableOutline,
+        HullColor = {ESP.HullColor.R, ESP.HullColor.G, ESP.HullColor.B},
+        TurretColor = {ESP.TurretColor.R, ESP.TurretColor.G, ESP.TurretColor.B},
+        FillTransparency = ESP.FillTransparency, OutlineTransparency = ESP.OutlineTransparency,
+        MarkEnabled = Mark.Enabled, MarkDistance = Mark.Distance, MarkDecalID = Mark.DecalID,
+        MarkOffsetY = Mark.OffsetY, MarkSize = Mark.Size, MarkUpdateInterval = Mark.UpdateInterval,
+        RemoveFog = Other.RemoveFog, PenView = Other.PenView,
+        PenetrationActive = HACKS.Penetration.active, PenetrationTarget = HACKS.Penetration.target,
+        RicochetActive = HACKS.Ricochet.active, RicochetTarget = HACKS.Ricochet.target,
+        BulletGravityActive = HACKS.BulletGravity.active, BulletGravityTarget = HACKS.BulletGravity.target,
+        ShellSpeedActive = HACKS.ShellSpeed.active, ShellSpeedTarget = HACKS.ShellSpeed.target,
+        InstantTraverseActive = HACKS.InstantTraverse.active, InstantTraverseTarget = HACKS.InstantTraverse.target,
+        FlySpeed = Fly.Speed, ScanInterval = Timers.ScanInterval,
+        GraphicsDegradationLevel = Graphics.DegradationLevel,
+        NoSmoke = AntiLag.NoSmoke,
+        NoDeathEffect = AntiLag.NoDeathEffect,
+        ToggleESPKey = Keys.Toggle.Name, ToggleFlyKey = Keys.Fly.Name, ToggleGUIKey = Keys.GUI.Name,
+        FlipKey = Keys.Flip.Name,
+        CrewEnabled = ESP.CrewEnabled, ModulesEnabled = ESP.ModulesEnabled,
+        CrewColor = {ESP.CrewColor.R, ESP.CrewColor.G, ESP.CrewColor.B},
+        ModuleColor = {ESP.ModuleColor.R, ESP.ModuleColor.G, ESP.ModuleColor.B},
+        SelectedTheme = SelectedTheme,
+        CustomBgImage = CustomBgImage,
+        MobileFlyButtonEnabled = MobileFlyButton.Enabled,
+        MobileFlyButtonLocked = MobileFlyButton.Locked,
+        MobileFlyButtonPosition = {MobileFlyButton.Position.X.Scale, MobileFlyButton.Position.X.Offset, MobileFlyButton.Position.Y.Scale, MobileFlyButton.Position.Y.Offset},
+        MobileFlyButtonSize = {MobileFlyButton.Size.X.Offset, MobileFlyButton.Size.Y.Offset},
+        MobileFlyButtonTransparency = MobileFlyButton.Transparency,
+        PvEEnabled = PvE.Enabled, PvETankSlot = PvE.TankSlot, PvEFlyHeight = PvE.FlyHeight,
+        PvEShootInterval = PvE.ShootInterval, PvEAutoRestart = PvE.AutoRestart,
+        PvESelectedModifiers = PvE.SelectedModifiers,
+        WebhookEnabled = Webhook.Enabled, WebhookUrl = Webhook.Url
+    }
+    pcall(function()
+        if writefile then writefile(CONFIG_FILE, HttpService:JSONEncode(data)) end
+    end)
+end
+
+local function LoadConfig()
+    local success, content = pcall(function()
+        if readfile and isfile and isfile(CONFIG_FILE) then return readfile(CONFIG_FILE) end
+    end)
+    if success and content then
+        local ok, data = pcall(function() return HttpService:JSONDecode(content) end)
+        if ok and data then
+            Localization.CurrentLanguage = data.Language or "EN"
+            ESP.Enabled = (data.ESPEnabled ~= nil) and data.ESPEnabled or true
+            ESP.TeamCheck = data.TeamCheck or false
+            ESP.ShowDistance = data.ShowDistance or false
+            ESP.EnableFill = (data.EnableFill ~= nil) and data.EnableFill or true
+            ESP.EnableOutline = (data.EnableOutline ~= nil) and data.EnableOutline or true
+            if data.HullColor then ESP.HullColor = Color3.new(data.HullColor[1], data.HullColor[2], data.HullColor[3]) end
+            if data.TurretColor then ESP.TurretColor = Color3.new(data.TurretColor[1], data.TurretColor[2], data.TurretColor[3]) end
+            ESP.FillTransparency = data.FillTransparency or 0.5
+            ESP.OutlineTransparency = data.OutlineTransparency or 0.2
+            Mark.Enabled = data.MarkEnabled or false
+            Mark.Distance = data.MarkDistance or 1000
+            Mark.DecalID = data.MarkDecalID or "11552476728"
+            Mark.OffsetY = data.MarkOffsetY or 50
+            Mark.Size = data.MarkSize or 25
+            Mark.UpdateInterval = data.MarkUpdateInterval or 0.016
+            Other.RemoveFog = data.RemoveFog or false
+            Other.PenView = data.PenView or false
+            HACKS.Penetration.active = (data.PenetrationActive ~= nil) and data.PenetrationActive or true
+            HACKS.Penetration.target = data.PenetrationTarget or 9999
+            HACKS.Ricochet.active = (data.RicochetActive ~= nil) and data.RicochetActive or true
+            HACKS.Ricochet.target = data.RicochetTarget or 9999
+            HACKS.BulletGravity.active = (data.BulletGravityActive ~= nil) and data.BulletGravityActive or true
+            HACKS.BulletGravity.target = data.BulletGravityTarget or 0
+            HACKS.ShellSpeed.active = (data.ShellSpeedActive ~= nil) and data.ShellSpeedActive or true
+            HACKS.ShellSpeed.target = data.ShellSpeedTarget or 9999
+            HACKS.InstantTraverse.active = (data.InstantTraverseActive ~= nil) and data.InstantTraverseActive or true
+            HACKS.InstantTraverse.target = data.InstantTraverseTarget or 9999
+            Fly.Speed = data.FlySpeed or 70
+            Timers.ScanInterval = data.ScanInterval or 0.5
+            AntiLag.NoSmoke = data.NoSmoke or false
+            AntiLag.NoDeathEffect = data.NoDeathEffect or false
+            if data.GraphicsDegradationLevel then
+                Graphics.DegradationLevel = data.GraphicsDegradationLevel
+            elseif data.GraphicsDegradation ~= nil then
+                Graphics.DegradationLevel = data.GraphicsDegradation and "High" or "None"
+            else
+                 Graphics.DegradationLevel = "None"
+            end
+            if data.ToggleESPKey then local k = parseKeyCode(data.ToggleESPKey) if k then Keys.Toggle = k end end
+            if data.ToggleFlyKey then local k = parseKeyCode(data.ToggleFlyKey) if k then Keys.Fly = k end end
+            if data.ToggleGUIKey then local k = parseKeyCode(data.ToggleGUIKey) if k then Keys.GUI = k end end
+            if data.FlipKey then local k = parseKeyCode(data.FlipKey) if k then Keys.Flip = k end end
+            ESP.CrewEnabled = (data.CrewEnabled ~= nil) and data.CrewEnabled or false
+            ESP.ModulesEnabled = (data.ModulesEnabled ~= nil) and data.ModulesEnabled or false
+            if data.CrewColor then ESP.CrewColor = Color3.new(data.CrewColor[1], data.CrewColor[2], data.CrewColor[3]) end
+            if data.ModuleColor then ESP.ModuleColor = Color3.new(data.ModuleColor[1], data.ModuleColor[2], data.ModuleColor[3]) end
+            SelectedTheme = data.SelectedTheme or "Dark Mode"
+            CustomBgImage = data.CustomBgImage or ""
+            MobileFlyButton.Enabled = data.MobileFlyButtonEnabled or false
+            MobileFlyButton.Locked = data.MobileFlyButtonLocked or false
+            if data.MobileFlyButtonPosition and type(data.MobileFlyButtonPosition) == "table" and #data.MobileFlyButtonPosition == 4 then
+                MobileFlyButton.Position = UDim2.new(data.MobileFlyButtonPosition[1], data.MobileFlyButtonPosition[2], data.MobileFlyButtonPosition[3], data.MobileFlyButtonPosition[4])
+            end
+            if data.MobileFlyButtonSize and type(data.MobileFlyButtonSize) == "table" and #data.MobileFlyButtonSize == 2 then
+                MobileFlyButton.Size = UDim2.new(0, math.clamp(data.MobileFlyButtonSize[1], 40, 140), 0, math.clamp(data.MobileFlyButtonSize[2], 40, 140))
+            end
+            MobileFlyButton.Transparency = (type(data.MobileFlyButtonTransparency) == "number") and math.clamp(data.MobileFlyButtonTransparency, 0, 0.8) or 0.15
+            PvE.Enabled = data.PvEEnabled or false
+            PvE.TankSlot = data.PvETankSlot or "slot1"
+            PvE.FlyHeight = data.PvEFlyHeight or 300
+            PvE.ShootInterval = data.PvEShootInterval or 0.15
+            PvE.AutoRestart = (data.PvEAutoRestart ~= nil) and data.PvEAutoRestart or true
+            if data.PvESelectedModifiers and type(data.PvESelectedModifiers) == "table" then
+                PvE.SelectedModifiers = data.PvESelectedModifiers
+            end
+            Webhook.Enabled = data.WebhookEnabled or false
+            Webhook.Url = data.WebhookUrl or ""
+            local th = PresetThemes[SelectedTheme]
+            if th then
+                for k, v in pairs(th) do
+                    T[k] = v
+                end
+            end
+        end
+    else
+        Localization.CurrentLanguage = "EN"
+    end
+end
+
+local function PenView_CreateUI()
+    for _, v in ipairs(LocalPlayer.PlayerGui:GetChildren()) do
+        if v.Name == "PenViewport" then v:Destroy() end
+    end
+    local sg = Instance.new("ScreenGui")
+    sg.ResetOnSpawn = false; sg.IgnoreGuiInset = true; sg.DisplayOrder = -100
+    sg.Name = "PenViewport"; sg.Parent = LocalPlayer.PlayerGui
+    local vp = Instance.new("ViewportFrame", sg)
+    vp.Size = UDim2.new(1,0,1,0); vp.BackgroundTransparency = 1
+    vp.ImageTransparency = 0.25; vp.ZIndex = -100
+    local cam = Instance.new("Camera"); vp.CurrentCamera = cam
+    cam.CameraType = Enum.CameraType.Scriptable
+    return {viewport = vp, vpcam = cam}
+end
+
+local function PenView_GetPenetration()
+    local vehicles = Services.Workspace:FindFirstChild("Vehicles")
+    if not vehicles then return 200 end
+    local chassis = vehicles:FindFirstChild("Chassis" .. LocalPlayer.Name)
+    if not chassis then return 200 end
+    local gunFolder = chassis:FindFirstChild("Gun")
+    if not gunFolder then return 200 end
+    for _, gunWeapon in ipairs(gunFolder:GetChildren()) do
+        local config = gunWeapon:FindFirstChild("Config")
+        if config then
+            local shells = config:FindFirstChild("Shells")
+            if shells then
+                for _, folder in ipairs(shells:GetChildren()) do
+                    local penVal = folder:FindFirstChild("Penetration")
+                    if penVal then return penVal.Value end
+                end
+            end
+        end
+    end
+    return 200
+end
+
+local function PenView_FindGunBrick(chassis)
+    local gun = chassis:FindFirstChild("Gun", true)
+    if not gun then return nil end
+    for _, obj in ipairs(gun:GetDescendants()) do
+        if obj.Name == "GunBrick" then return obj end
+    end
+    return nil
+end
+
+local function PenView_GetArmorThickness(hitPart, hitPos, direction, hitNormal)
+    if not hitPart or not hitPos then return 0 end
+    local params = RaycastParams.new()
+    params.FilterType = Enum.RaycastFilterType.Whitelist
+    params.FilterDescendantsInstances = {hitPart}
+    local result = Services.Workspace:Raycast(hitPos + direction * 4, -direction * 50, params)
+    if result and result.Instance == hitPart then
+        local thickness = (hitPos - result.Position).Magnitude / 0.00357
+        if hitNormal then
+            local cos = math.abs(hitNormal:Dot(-direction.Unit))
+            thickness = thickness / math.max(cos, 0.05)
+        end
+        return thickness
+    end
+    return 0
+end
+
+local function PenView_UpdateViewport(ui, part, thickness, pen)
+    if not ui or not ui.viewport or not ui.viewport.Parent then return end
+    if not part or not part.Parent then
+        if ui.viewport then ui.viewport:ClearAllChildren() end
+        PenView.LastPart = nil; return
+    end
+    local mesh = ui.viewport:FindFirstChildWhichIsA("BasePart")
+    if PenView.LastPart ~= part or not mesh then
+        PenView.LastPart = part; ui.viewport:ClearAllChildren()
+        local clone = part:Clone()
+        clone.Transparency = 0.3; clone.CanCollide = false; clone.Anchored = true
+        clone.Parent = ui.viewport; mesh = clone
+    end
+    if not mesh then return end
+    local ok = pcall(function() mesh.CFrame = part.CFrame end)
+    if not ok then ui.viewport:ClearAllChildren(); PenView.LastPart = nil; return end
+    ui.vpcam.CFrame = Services.Workspace.CurrentCamera.CFrame
+    ui.vpcam.FieldOfView = Services.Workspace.CurrentCamera.FieldOfView
+    local color
+    if thickness <= 0.1 or pen <= 0 then color = Color3.fromRGB(90,90,90)
+    elseif thickness <= pen * 0.5 then color = Color3.fromRGB(0,255,0)
+    elseif thickness < pen then
+        local t = (thickness - pen*0.5) / (pen*0.5)
+        color = Color3.new(1, 1-t, 0)
+    else color = Color3.fromRGB(255,0,0) end
+    mesh.Color = color
+end
+
+local function PenView_StartHeartbeat(ui)
+    if PenView.HeartbeatConnection then PenView.HeartbeatConnection:Disconnect() end
+    PenView.LastPart = nil
+    PenView.HeartbeatConnection = Services.RunService.Heartbeat:Connect(function()
+        if not ui or not ui.viewport or not ui.viewport.Parent then
+            if PenView.HeartbeatConnection then PenView.HeartbeatConnection:Disconnect(); PenView.HeartbeatConnection = nil end; return
+        end
+        local vehicles = Services.Workspace:FindFirstChild("Vehicles")
+        if not vehicles then if ui.viewport then ui.viewport:ClearAllChildren() end; return end
+        local chassis = vehicles:FindFirstChild("Chassis" .. LocalPlayer.Name)
+        if not chassis then if ui.viewport then ui.viewport:ClearAllChildren() end; PenView.LastPart = nil; PenView.LastChassisName = nil; return end
+        if chassis.Name ~= PenView.LastChassisName then PenView.LastChassisName = chassis.Name; PenView.LastPart = nil end
+        local gunBrick = PenView_FindGunBrick(chassis)
+        if not gunBrick then return end
+        local pen = PenView_GetPenetration()
+        local origin = gunBrick.Position + gunBrick.CFrame.LookVector * 2
+        local dir = gunBrick.CFrame.LookVector
+        local rayParams = RaycastParams.new()
+        rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+        rayParams.FilterDescendantsInstances = {chassis, Services.Workspace:FindFirstChild("Projectiles")}
+        rayParams.IgnoreWater = true
+        local result = Services.Workspace:Raycast(origin, dir * 3000, rayParams)
+        if result and result.Instance and table.find(PenView.ArmorTypes, result.Instance.Name) and result.Instance.CanCollide then
+            local thickness = PenView_GetArmorThickness(result.Instance, result.Position, dir, result.Normal)
+            PenView_UpdateViewport(ui, result.Instance, thickness, pen)
+        else
+            if ui.viewport then ui.viewport:ClearAllChildren() end; PenView.LastPart = nil
+        end
+    end)
+end
+
+local function PenView_Reset()
+    if PenView.HeartbeatConnection then PenView.HeartbeatConnection:Disconnect(); PenView.HeartbeatConnection = nil end
+    PenView.LastPart = nil; PenView.LastChassisName = nil
+    PenView.UI = PenView_CreateUI()
+    PenView_StartHeartbeat(PenView.UI)
+end
+
+local function PenView_Monitor()
+    task.spawn(function()
+        while Other.PenView do
+            local vehicles = Services.Workspace:FindFirstChild("Vehicles")
+            local chassis = vehicles and vehicles:FindFirstChild("Chassis" .. LocalPlayer.Name)
+            if chassis and not PenView.HeartbeatConnection then PenView_Reset()
+            elseif not chassis and PenView.HeartbeatConnection then
+                if PenView.UI and PenView.UI.viewport then PenView.UI.viewport:ClearAllChildren() end
+            end
+            task.wait(0.5)
+        end
+    end)
+end
+
+local PenView_VehiclesAddedConn, PenView_VehiclesRemovedConn
+
+local function PenView_Start()
+    PenView_Reset(); PenView_Monitor()
+    local vehiclesFolder = Services.Workspace:FindFirstChild("Vehicles")
+    if vehiclesFolder then
+        PenView_VehiclesAddedConn = vehiclesFolder.ChildAdded:Connect(function(child)
+            if child.Name == "Vehicles" then task.wait(0.8); PenView_Reset() end
+        end)
+        PenView_VehiclesRemovedConn = vehiclesFolder.ChildRemoved:Connect(function(child)
+            if child.Name == "Vehicles" then
+                if PenView.UI and PenView.UI.viewport then PenView.UI.viewport:ClearAllChildren() end
+            end
+        end)
+    end
+end
+
+local function PenView_Stop()
+    if PenView.HeartbeatConnection then PenView.HeartbeatConnection:Disconnect(); PenView.HeartbeatConnection = nil end
+    if PenView_VehiclesAddedConn then PenView_VehiclesAddedConn:Disconnect(); PenView_VehiclesAddedConn = nil end
+    if PenView_VehiclesRemovedConn then PenView_VehiclesRemovedConn:Disconnect(); PenView_VehiclesRemovedConn = nil end
+    local vp = LocalPlayer.PlayerGui:FindFirstChild("PenViewport")
+    if vp then vp:Destroy() end
+    PenView.UI = nil; PenView.LastPart = nil; PenView.LastChassisName = nil
+end
+
+local ESPFolder = Instance.new("Folder")
+ESPFolder.Name = "PerfData"; ESPFolder.Parent = Services.CoreGui
+
+local MarkScreenGui = Instance.new("ScreenGui")
+MarkScreenGui.Name = "MarkDisplay"; MarkScreenGui.ResetOnSpawn = false
+MarkScreenGui.Parent = Services.CoreGui
+
+local function UpdateESPInstance(espData)
+    if not espData.Instance then return end
+    espData.Instance.FillColor = ESP.EnableFill and espData.Color or Color3.new(0,0,0)
+    local fillTrans = ESP.FillTransparency
+    if ESP.CrewEnabled or ESP.ModulesEnabled then
+        fillTrans = 0.85
+    end
+    espData.Instance.FillTransparency = ESP.EnableFill and fillTrans or 1
+    espData.Instance.OutlineColor = ESP.EnableOutline and espData.Color or Color3.new(0,0,0)
+    espData.Instance.OutlineTransparency = ESP.EnableOutline and ESP.OutlineTransparency or 1
+    espData.Instance.Enabled = ESP.Enabled
+    if espData.DistanceBillboard then
+        espData.DistanceBillboard.Enabled = ESP.Enabled and ESP.ShowDistance and espData.IsHull
+    end
+end
+
+local function UpdateAllESPInstances()
+    for _, espData in pairs(ESP.Instances) do UpdateESPInstance(espData) end
+end
+
+local function ClearAllESP()
+    for _, espData in pairs(ESP.Instances) do
+        if espData.Instance then espData.Instance:Destroy() end
+        if espData.DistanceBillboard then espData.DistanceBillboard:Destroy() end
+        if espData.MarkBillboard then espData.MarkBillboard:Destroy() end
+    end
+    ESP.Instances = {}
+    for _, iData in pairs(ESP.InternalInstances) do
+        if iData.Highlight and iData.Highlight.Parent then iData.Highlight:Destroy() end
+    end
+    ESP.InternalInstances = {}
+end
+
+local function GetModelPosition(model)
+    if model:IsA("BasePart") then return model.Position end
+    if model.PrimaryPart then return model.PrimaryPart.Position end
+    local cf, _ = model:GetBoundingBox(); return cf.Position
+end
+
+local function findChassis(obj)
+    local cur = obj
+    while cur and cur ~= workspace do
+        if cur:IsA("Model") and cur.Name:match("^Chassis") then
+            return cur
+        end
+        cur = cur.Parent
+    end
+    return nil
+end
+
+local function findAdorneePart(object)
+    if not object then return nil end
+    if object:IsA("BasePart") then return object end
+    if object:IsA("Model") and object.PrimaryPart then return object.PrimaryPart end
+    for _, desc in ipairs(object:GetDescendants()) do
+        if desc:IsA("BasePart") then
+            return desc
+        end
+    end
+    return nil
+end
+
+local function CreateESP(targetObject, color, isHull)
+    if ESP.Instances[targetObject] then return ESP.Instances[targetObject] end
+    local highlight = Instance.new("Highlight")
+    highlight.FillColor = ESP.EnableFill and color or Color3.new(0,0,0)
+    local fillTrans = ESP.FillTransparency
+    if ESP.CrewEnabled or ESP.ModulesEnabled then
+        fillTrans = 0.85
+    end
+    highlight.FillTransparency = ESP.EnableFill and fillTrans or 1
+    highlight.OutlineColor = ESP.EnableOutline and color or Color3.new(0,0,0)
+    highlight.OutlineTransparency = ESP.EnableOutline and ESP.OutlineTransparency or 1
+    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    highlight.Adornee = targetObject; highlight.Parent = ESPFolder
+    local distanceBillboard, distanceLabel, markBillboard, turretAdornee
+    local adorneePart = findAdorneePart(targetObject)
+    if isHull then
+        distanceBillboard = Instance.new("BillboardGui")
+        distanceBillboard.Name = "DistanceDisplay"; distanceBillboard.Adornee = adorneePart or targetObject
+        distanceBillboard.Size = UDim2.new(0,200,0,50); distanceBillboard.StudsOffset = Vector3.new(0,-3,0)
+        distanceBillboard.AlwaysOnTop = true
+        distanceBillboard.Enabled = ESP.Enabled and ESP.ShowDistance
+        distanceBillboard.Parent = ESPFolder
+        distanceLabel = Instance.new("TextLabel")
+        distanceLabel.BackgroundTransparency = 1; distanceLabel.Size = UDim2.new(1,0,1,0)
+        distanceLabel.Font = Enum.Font.SourceSansBold; distanceLabel.TextSize = 18
+        distanceLabel.TextColor3 = color; distanceLabel.TextStrokeTransparency = 0
+        distanceLabel.TextStrokeColor3 = Color3.new(0,0,0); distanceLabel.Text = "0 m"
+        distanceLabel.Parent = distanceBillboard
+        local chassis = findChassis(targetObject)
+        if chassis then
+            local turret = chassis:FindFirstChild("Turret")
+            if turret then for _, obj in ipairs(turret:GetChildren()) do if obj:IsA("Model") then turretAdornee = obj; break end end end
+        end
+        markBillboard = Instance.new("Frame")
+        markBillboard.Name = "MarkDisplay"; markBillboard.Size = UDim2.new(0, Mark.Size, 0, Mark.Size)
+        markBillboard.Position = UDim2.new(0,0,0,0); markBillboard.BackgroundTransparency = 1
+        markBillboard.Visible = false; markBillboard.Parent = MarkScreenGui
+        local img = Instance.new("ImageLabel")
+        img.Name = "MarkImage"
+        img.BackgroundTransparency = 1; img.Size = UDim2.new(1,0,1,0)
+        img.Image = "rbxassetid://" .. tostring(Mark.DecalID); img.Parent = markBillboard
+    end
+    local turretPart = findAdorneePart(turretAdornee)
+    ESP.Instances[targetObject] = {
+        Instance = highlight, DistanceLabel = distanceLabel, DistanceBillboard = distanceBillboard,
+        MarkBillboard = markBillboard, TurretAdornee = turretPart or turretAdornee,
+        Target = targetObject, Color = color, IsHull = isHull, AdorneePart = adorneePart
+    }
+    return ESP.Instances[targetObject]
+end
+
+local function UpdateMarkPositions()
+    if not Camera then return end; if not Mark.Enabled then return end
+    local camPos = Camera.CFrame.Position; local vpSize = Camera.ViewportSize
+    for _, espData in pairs(ESP.Instances) do
+        if espData.MarkBillboard and espData.IsHull then
+            local target = espData.TurretAdornee or espData.AdorneePart or espData.Target
+            if target and target.Parent then
+                local ok, pos = pcall(GetModelPosition, target)
+                if not ok or not pos then
+                    local fallback = espData.AdorneePart or espData.Target
+                    pos = fallback:IsA("BasePart") and fallback.Position or (fallback:IsA("Model") and fallback:GetBoundingBox().Position) or fallback.Position
+                end
+                if (pos - camPos).Magnitude >= Mark.Distance then
+                    local sp, onScreen = Camera:WorldToViewportPoint(pos)
+                    if onScreen and sp.Z > 0 then
+                        local x = math.clamp(sp.X - Mark.Size/2, 0, vpSize.X - Mark.Size)
+                        local y = math.clamp(sp.Y - Mark.OffsetY - Mark.Size/2, 0, vpSize.Y - Mark.Size)
+                        espData.MarkBillboard.Position = UDim2.new(0, x, 0, y)
+                        espData.MarkBillboard.Visible = true
+                    else espData.MarkBillboard.Visible = false end
+                else espData.MarkBillboard.Visible = false end
+            else espData.MarkBillboard.Visible = false end
+        end
+    end
+end
+
+local function UpdateDistanceLabels()
+    if not Camera then return end
+    local camPos = Camera.CFrame.Position
+    for _, espData in pairs(ESP.Instances) do
+        if espData.IsHull and espData.DistanceLabel and espData.Target and espData.Target.Parent then
+            local target = espData.AdorneePart or espData.Target
+            if target and target.Parent then
+                local ok, pos = pcall(GetModelPosition, target)
+                if not ok or not pos then
+                    pos = target:IsA("BasePart") and target.Position or (target:IsA("Model") and target:GetBoundingBox().Position) or target.Position
+                end
+                espData.DistanceLabel.Text = math.floor((pos-camPos).Magnitude/3) .. " m"
+            end
+        end
+    end
+end
+
+local function CleanupESP()
+    local toRemove = {}
+    for obj, espData in pairs(ESP.Instances) do
+        if not obj or not obj.Parent then
+            table.insert(toRemove, obj)
+            if espData.Instance then espData.Instance:Destroy() end
+            if espData.DistanceBillboard then espData.DistanceBillboard:Destroy() end
+            if espData.MarkBillboard then espData.MarkBillboard:Destroy() end
+        end
+    end
+    for _, obj in ipairs(toRemove) do ESP.Instances[obj] = nil end
+    local intRemove = {}
+    for obj, iData in pairs(ESP.InternalInstances) do
+        if not obj or not obj.Parent then
+            table.insert(intRemove, obj)
+            if iData.Highlight and iData.Highlight.Parent then iData.Highlight:Destroy() end
+        end
+    end
+    for _, obj in ipairs(intRemove) do ESP.InternalInstances[obj] = nil end
+end
+
+local function UpdateAllInternalESP()
+    for part, iData in pairs(ESP.InternalInstances) do
+        if part and part.Parent then
+            local isCrew = iData.IsCrew
+            local enabled = isCrew and ESP.CrewEnabled or ESP.ModulesEnabled
+            local color = isCrew and ESP.CrewColor or ESP.ModuleColor
+            if iData.Highlight then
+                iData.Highlight.Enabled = enabled and (part.Transparency < 1)
+                iData.Highlight.FillColor = color
+                iData.Highlight.OutlineColor = color
+                iData.Highlight.FillTransparency = 0.15
+                iData.Highlight.OutlineTransparency = 0.05
+            end
+        end
+    end
+end
+
+local function ProcessInternalParts(chassis)
+    for _, part in ipairs(chassis:GetDescendants()) do
+        if part:IsA("BasePart") then
+            if part.Transparency < 1 then
+                local partType, color = matchPart(part.Name)
+                if partType then
+                    local isCrew = (partType == "Crew")
+                    if not ESP.InternalInstances[part] then
+                        local highlight = Instance.new("Highlight")
+                        highlight.FillColor = color
+                        highlight.FillTransparency = 0.15
+                        highlight.OutlineColor = color
+                        highlight.OutlineTransparency = 0.05
+                        highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                        highlight.Adornee = part
+                        highlight.Parent = ESPFolder
+
+                        local enabled = isCrew and ESP.CrewEnabled or ESP.ModulesEnabled
+                        highlight.Enabled = enabled and (part.Transparency < 1)
+
+                        ESP.InternalInstances[part] = {
+                            Highlight = highlight,
+                            Color = color, IsCrew = isCrew
+                        }
+                    end
+                end
+            end
+        end
+    end
+end
+
+local function findHighlightTarget(model)
+    if not model then return nil end
+    for _, child in ipairs(model:GetDescendants()) do
+        if child:IsA("Model") or child:IsA("Folder") then
+            local name = child.Name:lower()
+            if name == "armour" or name == "armor" then
+                return child
+            end
+        end
+    end
+    return model
+end
+
+function ProcessChassis(chassis)
+    if not LocalPlayer then LocalPlayer = Services.Players.LocalPlayer end
+    if not LocalPlayer then return end
+    if not chassis:IsA("Model") or not chassis.Name:match("^Chassis") then return end
+    local playerName = chassis.Name:match("^Chassis(.+)$")
+    if not playerName or playerName == "" then return end
+    if playerName == LocalPlayer.Name then return end
+
+    local targetPlayer = Services.Players:FindFirstChild(playerName)
+    local isTeammate = false
+    if targetPlayer then
+        local localTeam = LocalPlayer.Team; local targetTeam = targetPlayer.Team
+        if localTeam and targetTeam and localTeam == targetTeam then isTeammate = true end
+    end
+
+    if ESP.TeamCheck and isTeammate then
+        local function tryRemove(obj)
+            if not obj then return end
+            local ed = ESP.Instances[obj]
+            if not ed then
+                local armor = findHighlightTarget(obj)
+                if armor then ed = ESP.Instances[armor] end
+            end
+            if ed then
+                if ed.Instance then ed.Instance:Destroy() end
+                if ed.DistanceBillboard then ed.DistanceBillboard:Destroy() end
+                if ed.MarkBillboard then ed.MarkBillboard:Destroy() end
+                ESP.Instances[ed.Target] = nil
+            end
+        end
+        for part, iData in pairs(ESP.InternalInstances) do
+            if part and part:IsDescendantOf(chassis) then
+                if iData.Highlight then iData.Highlight:Destroy() end
+                ESP.InternalInstances[part] = nil
+            end
+        end
+        local hull = chassis:FindFirstChild("Hull")
+        if hull then for _, obj in ipairs(hull:GetChildren()) do if obj:IsA("Model") then tryRemove(obj) end end end
+        local turret = chassis:FindFirstChild("Turret")
+        if turret then for _, obj in ipairs(turret:GetChildren()) do if obj:IsA("Model") then tryRemove(obj) end end end
+        return
+    end
+
+    local hull = chassis:FindFirstChild("Hull")
+    if hull then
+        for _, obj in ipairs(hull:GetChildren()) do
+            if obj:IsA("Model") then
+                CreateESP(findHighlightTarget(obj), ESP.HullColor, true)
+                break
+            end
+        end
+    end
+    local turret = chassis:FindFirstChild("Turret")
+    if turret then
+        for _, obj in ipairs(turret:GetChildren()) do
+            if obj:IsA("Model") then
+                CreateESP(findHighlightTarget(obj), ESP.TurretColor, false)
+                break
+            end
+        end
+    end
+
+    if ESP.CrewEnabled or ESP.ModulesEnabled then
+        ProcessInternalParts(chassis)
+    end
+end
+
+local function ScanVehicles()
+    local vehiclesFolder = workspace:FindFirstChild("Vehicles")
+    if not vehiclesFolder then return end
+    for _, chassis in ipairs(vehiclesFolder:GetChildren()) do ProcessChassis(chassis) end
+end
+
+local function RestoreGraphics()
+    Services.Lighting.GlobalShadows = Graphics.OriginalShadows
+    for part, mat in pairs(Graphics.OriginalMaterials) do if part and part.Parent then part.Material = mat end end
+    table.clear(Graphics.OriginalMaterials)
+    for obj, val in pairs(Graphics.OriginalDecals) do
+        if obj and obj.Parent then
+            if obj:IsA("Decal") or obj:IsA("Texture") then obj.Transparency = val
+            else obj.Enabled = val end
+        end
+    end
+    table.clear(Graphics.OriginalDecals)
+end
+
+local function DegradeInstance(v, level)
+    if level == "Low" then
+        return
+    end
+    if level == "Medium" then
+        if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Smoke") or v:IsA("Fire") or v:IsA("Sparkles") then
+            if Graphics.OriginalDecals[v] == nil then Graphics.OriginalDecals[v] = v.Enabled end
+            v.Enabled = false
+        end
+        return
+    end
+    if level == "High" then
+        if v:IsA("BasePart") then
+            if not Graphics.OriginalMaterials[v] then Graphics.OriginalMaterials[v] = v.Material end
+            v.Material = Enum.Material.SmoothPlastic
+        elseif v:IsA("Decal") or v:IsA("Texture") then
+            if Graphics.OriginalDecals[v] == nil then Graphics.OriginalDecals[v] = v.Transparency end
+            v.Transparency = 1
+        elseif v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Smoke") or v:IsA("Fire") or v:IsA("Sparkles") then
+            if Graphics.OriginalDecals[v] == nil then Graphics.OriginalDecals[v] = v.Enabled end
+            v.Enabled = false
+        end
+    end
+end
+
+local function SetGraphicsDegradation(level)
+    if Graphics.DegradationLevel == "None" and level ~= "None" then
+        Graphics.OriginalShadows = Services.Lighting.GlobalShadows
+    end
+    
+    Graphics.DegradationLevel = level
+    if Graphics.AddedConnection then Graphics.AddedConnection:Disconnect(); Graphics.AddedConnection = nil end
+    
+    RestoreGraphics()
+    
+    if level == "None" then return end
+    
+    Services.Lighting.GlobalShadows = false
+    for _, v in ipairs(Services.Workspace:GetDescendants()) do DegradeInstance(v, level) end
+    
+    Graphics.AddedConnection = Services.Workspace.DescendantAdded:Connect(function(v)
+        DegradeInstance(v, level)
+    end)
+end
+
+local function ProcessTerrainSmoke(desc)
+    if not AntiLag.NoSmoke then return end
+    pcall(function()
+        -- 1. All ParticleEmitters (Smoke, Exhaust, Muzzle, Dust, Explosions, Fire)
+        if desc:IsA("ParticleEmitter") then
+            desc.Enabled = false
+            desc.Rate = 0
+            desc.Lifetime = NumberRange.new(0)
+            desc.Speed = NumberRange.new(0)
+            desc.Transparency = NumberSequence.new(1)
+            desc.Size = NumberSequence.new(0)
+            pcall(function() desc:Clear() end)
+        -- 2. Legacy Smoke objects
+        elseif desc:IsA("Smoke") then
+            desc.Enabled = false
+            desc.Opacity = 0
+            desc.Size = 0
+        -- 3. Legacy Fire & Sparkles
+        elseif desc:IsA("Fire") or desc:IsA("Sparkles") then
+            desc.Enabled = false
+            desc.Size = 0
+        -- 4. Beams & Trails (SmokeTrail, Tracer smoke, bullet vapor)
+        elseif desc:IsA("Beam") or desc:IsA("Trail") then
+            local n = desc.Name:lower()
+            if n:find("smoke") or n:find("trail") or n:find("dust") or n:find("cloud") then
+                desc.Enabled = false
+                desc.Transparency = NumberSequence.new(1)
+            end
+        -- 5. Smoke Flipbook / 2D Billboard images (Smoke Grenades in CTS)
+        -- Note: Do NOT set BillboardGui.Enabled = false (triggers anti-tamper kick)
+        -- Instead, make the ImageLabel completely invisible
+        elseif desc:IsA("ImageLabel") or desc:IsA("Decal") or desc:IsA("Texture") then
+            local n = desc.Name:lower()
+            local pName = desc.Parent and desc.Parent.Name:lower() or ""
+            if n:find("smoke") or n:find("flipbook") or n:find("dust") or n:find("cloud") or
+               pName:find("smoke") or pName:find("smokeobj") or pName:find("debris") or pName:find("projectiles") then
+                if desc:IsA("ImageLabel") then
+                    desc.ImageTransparency = 1
+                    desc.Visible = false
+                else
+                    desc.Transparency = 1
+                end
+            end
+        -- 6. 3D Smoke Sphere / SmokeObj mesh parts
+        elseif desc:IsA("BasePart") then
+            local n = desc.Name:lower()
+            if desc:HasTag("SmokeObj") or desc.CollisionGroup == "10SMOKE" or
+               n:find("smokepart") or n:find("smokecloud") or n:find("smokesphere") or n:find("smokegrenade") then
+                desc.Transparency = 1
+                desc.LocalTransparencyModifier = 1
+                desc.CanCollide = false
+            end
+        -- 7. Explosions
+        elseif desc:IsA("Explosion") then
+            desc.Visible = false
+        end
+    end)
+end
+
+local function SetNoSmoke(value)
+    AntiLag.NoSmoke = value
+    if value then
+        -- Process all existing objects in Workspace
+        for _, desc in ipairs(Services.Workspace:GetDescendants()) do
+            ProcessTerrainSmoke(desc)
+        end
+
+        -- Clear atmospheric fog and visual blurs
+        pcall(function()
+            Services.Lighting.FogEnd = 100000
+            Services.Lighting.FogStart = 99999
+            for _, eff in ipairs(Services.Lighting:GetChildren()) do
+                if eff:IsA("Atmosphere") then
+                    eff.Haze = 0
+                    eff.Density = 0
+                    eff.Glare = 0
+                elseif eff:IsA("BloomEffect") or eff:IsA("DepthOfFieldEffect") or eff:IsA("BlurEffect") or eff:IsA("SunRaysEffect") then
+                    eff.Enabled = false
+                end
+            end
+        end)
+
+        if not AntiLag.TerrainConnection then
+            AntiLag.TerrainConnection = Services.Workspace.DescendantAdded:Connect(function(desc)
+                ProcessTerrainSmoke(desc)
+            end)
+        end
+
+        -- Active background watchdog for continuous smoke grenade projectile spawns
+        if not AntiLag.SmokeLoop then
+            AntiLag.SmokeLoop = task.spawn(function()
+                while AntiLag.NoSmoke do
+                    task.wait(0.3)
+                    local proj = Services.Workspace:FindFirstChild("Projectiles")
+                    if proj then
+                        for _, child in ipairs(proj:GetChildren()) do
+                            if child:HasTag("SmokeObj") or child.CollisionGroup == "10SMOKE" or child.Name:lower():find("smoke") then
+                                pcall(function()
+                                    if child:IsA("BasePart") then
+                                        child.Transparency = 1
+                                        child.LocalTransparencyModifier = 1
+                                    end
+                                    for _, sub in ipairs(child:GetDescendants()) do
+                                        ProcessTerrainSmoke(sub)
+                                    end
+                                end)
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+    else
+        if AntiLag.TerrainConnection then
+            AntiLag.TerrainConnection:Disconnect()
+            AntiLag.TerrainConnection = nil
+        end
+        if AntiLag.SmokeLoop then
+            task.cancel(AntiLag.SmokeLoop)
+            AntiLag.SmokeLoop = nil
+        end
+    end
+end
+
+local function ProcessDeathEffect(desc)
+    if AntiLag.NoDeathEffect then
+        pcall(function()
+            if desc:IsA("ParticleEmitter") then
+                local lname = desc.Name:lower()
+                if lname:find("^death") or lname:find("death$") then
+                    desc.Enabled = false
+                    desc.Rate = 0
+                    desc.Lifetime = NumberRange.new(0)
+                    desc.Speed = NumberRange.new(0)
+                    desc.Transparency = NumberSequence.new(1)
+                end
+            end
+        end)
+    end
+end
+
+local function SetNoDeathEffect(value)
+    AntiLag.NoDeathEffect = value
+    if value then
+        for _, desc in ipairs(Services.Workspace:GetDescendants()) do
+            ProcessDeathEffect(desc)
+        end
+        if not AntiLag.VehiclesConnection then
+            AntiLag.VehiclesConnection = Services.Workspace.DescendantAdded:Connect(function(desc)
+                ProcessDeathEffect(desc)
+            end)
+        end
+    else
+        if AntiLag.VehiclesConnection then
+            AntiLag.VehiclesConnection:Disconnect()
+            AntiLag.VehiclesConnection = nil
+        end
+    end
+end
+
+local bv = Instance.new("BodyVelocity")
+bv.Name = "TankFlyVelocity"; bv.MaxForce = Vector3.new(500000,500000,500000)
+local bg = Instance.new("BodyGyro")
+bg.Name = "TankFlyGyro"; bg.MaxTorque = Vector3.new(500000,500000,500000); bg.D = 120
+
+local function findFlyPart(model)
+    local candidates = {}
+    for _, part in ipairs(model:GetDescendants()) do
+        if part:IsA("BasePart") and not part:IsA("VehicleSeat") then table.insert(candidates, part) end
+    end
+    for _, part in ipairs(candidates) do if part.Name:lower():find("hull") then return part end end
+    if #candidates > 0 then
+        table.sort(candidates, function(a, b) return (a.Size.X*a.Size.Y*a.Size.Z) > (b.Size.X*b.Size.Y*b.Size.Z) end)
+        return candidates[1]
+    end
+    return nil
+end
+
+local function initFlyRoot()
+    if not LocalPlayer then LocalPlayer = Services.Players.LocalPlayer end
+    if not LocalPlayer then return end
+    local vehicles = workspace:FindFirstChild("Vehicles"); if not vehicles then return end
+    local tankModel = vehicles:FindFirstChild("Chassis" .. LocalPlayer.Name); if not tankModel then return end
+    Fly.Root = findFlyPart(tankModel)
+    if Fly.Root then
+        bv.Parent = Fly.Root
+        bg.Parent = Fly.Root
+    end
+end
+
+local function startFly()
+    if Fly.Active then return end; initFlyRoot(); Fly.Active = true
+    if Fly.Root then bv.Parent = Fly.Root; bg.Parent = Fly.Root end
+    if RefreshMobileFlyButton then pcall(RefreshMobileFlyButton) end
+end
+
+local function stopFly()
+    if not Fly.Active then return end; Fly.Active = false; bv.Parent = nil; bg.Parent = nil
+    MobileFly.Touch = nil; MobileFly.Delta = Vector2.new(0,0)
+    if RefreshMobileFlyButton then pcall(RefreshMobileFlyButton) end
+end
+
+local function FlipTank()
+    if Fly._flipping then return end
+    
+    local t = Localization[Localization.CurrentLanguage] or Localization.EN
+    local ch = GetOwnChassis()
+    if not ch then
+        Rayfield:Notify({ Title = "Flip", Content = t.FlipNoTank or "Tank not found", Duration = 2 })
+        return
+    end
+
+    initFlyRoot()
+    if not Fly.Root or not Fly.Root.Parent then
+        Rayfield:Notify({ Title = "Flip", Content = t.FlipNoTank or "Tank root part not found", Duration = 2 })
+        return
+    end
+
+    Fly._flipping = true
+    local wasFlyActive = Fly.Active
+    local curPos = Fly.Root.Position
+    local _, yaw, _ = Fly.Root.CFrame:ToOrientation()
+    -- Lift +4 studs upright without roll or pitch
+    local targetCF = CFrame.new(curPos.X, curPos.Y + 4, curPos.Z) * CFrame.Angles(0, yaw, 0)
+
+    bv.Parent = Fly.Root
+    bg.Parent = Fly.Root
+    bv.MaxForce = Vector3.new(1e8, 1e8, 1e8)
+    bv.Velocity = Vector3.new(0, 0, 0)
+    bg.MaxTorque = Vector3.new(1e8, 1e8, 1e8)
+    bg.P = 1e5
+    bg.D = 500
+    bg.CFrame = targetCF
+
+    pcall(function()
+        Fly.Root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+        Fly.Root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+        Fly.Root.CFrame = targetCF
+    end)
+
+    playSound(TOGGLE_SOUND_ID)
+    Rayfield:Notify({ Title = "Flip", Content = t.FlipSuccess or "Tank flipped upright!", Duration = 1.5 })
+
+    -- Freeze for 1.0 second so it completely stabilizes
+    task.spawn(function()
+        local start = tick()
+        while tick() - start < 1.0 do
+            if Fly.Root and Fly.Root.Parent and bg.Parent == Fly.Root then
+                bg.CFrame = targetCF
+                bv.Velocity = Vector3.new(0, 0, 0)
+                pcall(function()
+                    Fly.Root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                    Fly.Root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                end)
+            end
+            task.wait(0.05)
+        end
+
+        -- Release cleanly
+        if not wasFlyActive then
+            bv.Parent = nil
+            bg.Parent = nil
+            bg.MaxTorque = Vector3.new(500000, 500000, 500000)
+            bg.D = 120
+            bg.P = 3000
+        else
+            bg.MaxTorque = Vector3.new(500000, 500000, 500000)
+            bg.D = 120
+            bg.P = 3000
+        end
+        Fly._flipping = false
+    end)
+end
+
+local function GetOwnChassis()
+    if not LocalPlayer then LocalPlayer = Services.Players.LocalPlayer end
+    if not LocalPlayer then return nil end
+    local vehicles = Services.Workspace:FindFirstChild("Vehicles"); if not vehicles then return nil end
+    return vehicles:FindFirstChild("Chassis" .. LocalPlayer.Name)
+end
+
+local function ForceValue(obj, hack)
+    if not hack.patched[obj] then hack.patched[obj] = obj.Value end
+    if obj:GetAttribute("Orig") ~= nil then
+        if not hack.origPatched[obj] then hack.origPatched[obj] = obj:GetAttribute("Orig") end
+        obj:SetAttribute("Orig", hack.target)
+    end
+    obj.Value = hack.target
+end
+
+local function IsPvEMode()
+    -- Check challenge attribute or wave attributes
+    if workspace:GetAttribute("challenge") ~= nil or workspace:GetAttribute("wave") ~= nil or workspace:GetAttribute("wave_abs") ~= nil then
+        return true
+    end
+    -- Check place ID
+    local placeId = tostring(game.PlaceId)
+    if game.PlaceId ~= 6925857548 and (placeId:sub(1, 1) == "4" or placeId:sub(1, 1) == "9") then
+        return true
+    end
+    -- Check specific challenge / PvE folders
+    if workspace:FindFirstChild("Challenges") then
+        return true
+    end
+    return false
+end
+
+local function WatchWeaponObject(obj)
+    local inPvE = IsPvEMode()
+    for hackKey, hack in pairs(HACKS) do
+        -- Only apply dangerous weapon hacks in PvE mode to avoid PvP server "invalid damage pocket" kicks!
+        if (inPvE or hackKey == "InstantTraverse") and hack.active and hack.names then
+            for _, name in ipairs(hack.names) do
+                if obj.Name == name then
+                    ForceValue(obj, hack)
+                    WeaponConnections[obj] = obj:GetPropertyChangedSignal("Value"):Connect(function()
+                        if obj.Value ~= hack.target then ForceValue(obj, hack) end
+                    end)
+                    return
+                end
+            end
+        end
+    end
+end
+
+local function ClearWeaponConnections()
+    for _, conn in pairs(WeaponConnections) do conn:Disconnect() end
+    table.clear(WeaponConnections)
+end
+
+local function SetupWeaponChassis(chassis)
+    if ChassisDescendantConn then ChassisDescendantConn:Disconnect(); ChassisDescendantConn = nil end
+    ClearWeaponConnections()
+    
+    local function applyTo(container)
+        if not container then return end
+        for _, obj in ipairs(container:GetDescendants()) do
+            if obj:IsA("IntValue") or obj:IsA("NumberValue") then
+                WatchWeaponObject(obj)
+            end
+        end
+    end
+
+    if chassis then applyTo(chassis) end
+    pcall(function()
+        applyTo(Services.Workspace:FindFirstChild("Vehicles"))
+        applyTo(Services.ReplicatedStorage:FindFirstChild("Shells"))
+        applyTo(Services.ReplicatedStorage:FindFirstChild("VehicleModuleScripts"))
+    end)
+
+    if chassis then
+        ChassisDescendantConn = chassis.DescendantAdded:Connect(function(obj)
+            if obj:IsA("IntValue") or obj:IsA("NumberValue") then WatchWeaponObject(obj) end
+        end)
+    end
+end
+
+local function InitWeapon()
+    local chassis = GetOwnChassis()
+    SetupWeaponChassis(chassis)
+end
+
+local TOGGLE_SOUND_ID = "140231021022259"
+local LOAD_SOUND_ID   = "876941152"
+
+local function playSound(soundId)
+    local sound = Instance.new("Sound")
+    sound.SoundId = "rbxassetid://" .. tostring(soundId)
+    sound.Volume = 0.5
+    sound.Parent = game:GetService("SoundService")
+    sound:Play()
+    task.spawn(function()
+        sound.Ended:Wait()
+        sound:Destroy()
+    end)
+end
+
+local function mkCorner(p, r)
+    local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, r or 8); c.Parent = p; return c
+end
+
+local function theme(inst, bgType, textType, strokeType)
+    if bgType then
+        inst:SetAttribute("ThemeBG", bgType)
+        if bgType == "BG" then inst.BackgroundColor3 = T.BG
+        elseif bgType == "Sidebar" then inst.BackgroundColor3 = T.Sidebar
+        elseif bgType == "Card" then inst.BackgroundColor3 = T.Card
+        elseif bgType == "Hover" then inst.BackgroundColor3 = T.Hover
+        elseif bgType == "Stroke" then inst.BackgroundColor3 = T.Stroke
+        elseif bgType == "Accent" then inst.BackgroundColor3 = T.Accent
+        end
+    end
+    if textType then
+        inst:SetAttribute("ThemeText", textType)
+        if textType == "Text" then inst.TextColor3 = T.Text
+        elseif textType == "Sub" then inst.TextColor3 = T.Sub
+        elseif textType == "Accent" then inst.TextColor3 = T.Accent
+        end
+    end
+    if strokeType then
+        inst:SetAttribute("ThemeStroke", strokeType)
+        if strokeType == "Stroke" then
+            if inst:IsA("UIStroke") then inst.Color = T.Stroke else inst.BackgroundColor3 = T.Stroke end
+        elseif strokeType == "Accent" then
+            if inst:IsA("UIStroke") then inst.Color = T.Accent else inst.BackgroundColor3 = T.Accent end
+        end
+    end
+    return inst
+end
+
+local function mkStroke(p, col, th)
+    local s = Instance.new("UIStroke"); s.Color = col or T.Stroke; s.Thickness = th or 1; s.Parent = p
+    if col == T.Stroke or col == nil then
+        theme(s, nil, nil, "Stroke")
+    end
+    return s
+end
+
+local function ApplyTheme()
+    if not Rayfield.ScreenGui then return end
+    local win = Rayfield.ScreenGui:FindFirstChild("Window")
+    local hasImg = (CustomBgImage ~= "")
+    local trans = hasImg and 0.25 or 0
+    local sideTrans = hasImg and 0.4 or 0
+    local cardTrans = hasImg and 0.45 or 0
+
+    if win then
+        local bgImg = win:FindFirstChild("BgImage")
+        if bgImg then
+            if hasImg then
+                bgImg.Image = "rbxassetid://" .. tostring(CustomBgImage)
+                bgImg.ImageTransparency = 0.25
+            else
+                bgImg.Image = ""
+                bgImg.ImageTransparency = 1
+            end
+        end
+    end
+
+    for _, inst in ipairs(Rayfield.ScreenGui:GetDescendants()) do
+        local bgType = inst:GetAttribute("ThemeBG")
+        local textType = inst:GetAttribute("ThemeText")
+        local strokeType = inst:GetAttribute("ThemeStroke")
+        if bgType then
+            if bgType == "BG" then
+                inst.BackgroundColor3 = T.BG
+                inst.BackgroundTransparency = trans
+            elseif bgType == "Sidebar" then
+                inst.BackgroundColor3 = T.Sidebar
+                inst.BackgroundTransparency = sideTrans
+            elseif bgType == "Card" then
+                inst.BackgroundColor3 = T.Card
+                inst.BackgroundTransparency = cardTrans
+            elseif bgType == "Hover" then
+                inst.BackgroundColor3 = T.Hover
+                inst.BackgroundTransparency = hasImg and 0.5 or 0
+            elseif bgType == "Stroke" then
+                inst.BackgroundColor3 = T.Stroke
+                inst.BackgroundTransparency = 0
+            elseif bgType == "Accent" then
+                inst.BackgroundColor3 = T.Accent
+                if not inst:GetAttribute("IgnoreThemeTrans") then
+                    inst.BackgroundTransparency = 0
+                end
+            end
+        end
+        if textType then
+            if textType == "Text" then inst.TextColor3 = T.Text
+            elseif textType == "Sub" then inst.TextColor3 = T.Sub
+            elseif textType == "Accent" then inst.TextColor3 = T.Accent
+            end
+        end
+        if strokeType then
+            if strokeType == "Stroke" then
+                if inst:IsA("UIStroke") then inst.Color = T.Stroke else inst.BackgroundColor3 = T.Stroke end
+            elseif strokeType == "Accent" then
+                if inst:IsA("UIStroke") then inst.Color = T.Accent else inst.BackgroundColor3 = T.Accent end
+            end
+        end
+    end
+    if RefreshMobileFlyButton then pcall(RefreshMobileFlyButton) end
+end
+
+local loadingTexts = {
+    EN = { "Loading Config...", "Initializing ESP...", "Applying Patches...", "Applying Fly Engine...", "Preparing UI...", "Done!" },
+    RU = { "Загрузка конфига...", "Инициализация ESP...", "Применение патчей...", "Настройка полёта...", "Подготовка GUI...", "Готово!" }
+}
+
+local function GetUserAvatarUrl(userId)
+    return "https://www.roblox.com/headshot-thumbnail/image?userId=" .. tostring(userId) .. "&width=150&height=150&format=png"
+end
+
+local function ShowLoadingScreen(callback)
+    local lang = Localization.CurrentLanguage or "EN"
+    local texts = loadingTexts[lang] or loadingTexts.EN
+
+    local sg = Instance.new("ScreenGui")
+    sg.Name = "KolyanchikLoading"; sg.ResetOnSpawn = false; sg.IgnoreGuiInset = true
+    sg.Parent = Services.CoreGui
+
+    local overlay = Instance.new("Frame")
+    overlay.Size = UDim2.new(1,0,1,0); overlay.BackgroundColor3 = Color3.new(0,0,0)
+    overlay.BackgroundTransparency = 1; overlay.Parent = sg
+    TweenService:Create(overlay, TweenInfo.new(0.4), {BackgroundTransparency = 0.5}):Play()
+
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 340, 0, 220)
+    frame.Position = UDim2.new(0.5, 0, 0.5, 0)
+    frame.AnchorPoint = Vector2.new(0.5, 0.5)
+    frame.BackgroundColor3 = T.BG; frame.BorderSizePixel = 0; frame.Parent = sg
+    frame.BackgroundTransparency = 1
+    mkCorner(frame, 14); mkStroke(frame, T.Stroke, 1)
+
+    local avatarCircle = Instance.new("Frame")
+    avatarCircle.Size = UDim2.new(0, 64, 0, 64)
+    avatarCircle.Position = UDim2.new(0.5, -32, 0, 18)
+    avatarCircle.BackgroundColor3 = T.Card
+    avatarCircle.BorderSizePixel = 0; avatarCircle.ClipsDescendants = true
+    avatarCircle.Parent = frame
+    mkCorner(avatarCircle, 32)
+    mkStroke(avatarCircle, T.Accent, 2)
+
+    local avatarImg = Instance.new("ImageLabel")
+    avatarImg.Size = UDim2.new(1,0,1,0)
+    avatarImg.BackgroundTransparency = 1
+    local uid = (LocalPlayer and LocalPlayer.UserId) or (Services.Players.LocalPlayer and Services.Players.LocalPlayer.UserId) or 0
+    avatarImg.Image = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(uid) .. "&w=150&h=150"
+    avatarImg.Parent = avatarCircle
+
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, 0, 0, 32)
+    title.Position = UDim2.new(0, 0, 0, 88)
+    title.BackgroundTransparency = 1; title.Font = Enum.Font.GothamBold
+    title.TextSize = 17; title.TextColor3 = T.Accent; title.Text = "kolyanchik script"
+    title.TextTransparency = 1; title.Parent = frame
+
+    local status = Instance.new("TextLabel")
+    status.Size = UDim2.new(1, 0, 0, 22)
+    status.Position = UDim2.new(0, 0, 0, 124)
+    status.BackgroundTransparency = 1; status.Font = Enum.Font.GothamMedium
+    status.TextSize = 12; status.TextColor3 = T.Sub; status.Text = texts[1]
+    status.TextTransparency = 1; status.Parent = frame
+
+    local barBg = Instance.new("Frame")
+    barBg.Size = UDim2.new(0, 280, 0, 6)
+    barBg.Position = UDim2.new(0.5, 0, 0, 158)
+    barBg.AnchorPoint = Vector2.new(0.5, 0)
+    barBg.BackgroundColor3 = Color3.fromRGB(34, 34, 48); barBg.BorderSizePixel = 0
+    barBg.BackgroundTransparency = 1; barBg.Parent = frame
+    mkCorner(barBg, 3)
+
+    local barFill = Instance.new("Frame")
+    barFill.Size = UDim2.new(0, 0, 1, 0)
+    barFill.BackgroundColor3 = T.Accent; barFill.BorderSizePixel = 0
+    barFill.Parent = barBg; mkCorner(barFill, 3)
+
+    local pctLbl = Instance.new("TextLabel")
+    pctLbl.Size = UDim2.new(1,0,0,18); pctLbl.Position = UDim2.new(0,0,0,172)
+    pctLbl.BackgroundTransparency = 1; pctLbl.Font = Enum.Font.Gotham; pctLbl.TextSize = 11
+    pctLbl.TextColor3 = T.Sub; pctLbl.Text = "0%"; pctLbl.TextTransparency = 1; pctLbl.Parent = frame
+
+    local ti = TweenInfo.new(0.4, Enum.EasingStyle.Quad)
+    TweenService:Create(frame, ti, {BackgroundTransparency = 0}):Play()
+    TweenService:Create(title, ti, {TextTransparency = 0}):Play()
+    TweenService:Create(status, ti, {TextTransparency = 0}):Play()
+    TweenService:Create(barBg, ti, {BackgroundTransparency = 0}):Play()
+    TweenService:Create(pctLbl, ti, {TextTransparency = 0}):Play()
+    task.wait(0.4)
+
+    local steps = #texts
+    for i = 1, steps do
+        status.Text = texts[i]
+        pctLbl.Text = math.floor((i/steps)*100) .. "%"
+        local pct = i / steps
+        TweenService:Create(barFill, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(pct, 0, 1, 0)}):Play()
+        task.wait(0.3)
+    end
+
+    playSound(LOAD_SOUND_ID)
+
+    TweenService:Create(frame, ti, {BackgroundTransparency = 1}):Play()
+    TweenService:Create(title, ti, {TextTransparency = 1}):Play()
+    TweenService:Create(status, ti, {TextTransparency = 1}):Play()
+    TweenService:Create(barBg, ti, {BackgroundTransparency = 1}):Play()
+    TweenService:Create(barFill, ti, {BackgroundTransparency = 1}):Play()
+    TweenService:Create(pctLbl, ti, {TextTransparency = 1}):Play()
+    local fadeBg = TweenService:Create(overlay, ti, {BackgroundTransparency = 1})
+    fadeBg:Play()
+    fadeBg.Completed:Wait()
+    sg:Destroy()
+
+    if callback then callback() end
+end
+
+local function mkDrag(frame, handle)
+    local dragging, ds, fp = false, nil, nil
+    handle.InputBegan:Connect(function(inp)
+        if inp.UserInputType ~= Enum.UserInputType.MouseButton1 and inp.UserInputType ~= Enum.UserInputType.Touch then return end
+        dragging = true; ds = inp.Position; fp = frame.Position
+        inp.Changed:Connect(function() if inp.UserInputState == Enum.UserInputState.End then dragging = false end end)
+    end)
+    UserInputSvc.InputChanged:Connect(function(inp)
+        if not dragging then return end
+        if inp.UserInputType ~= Enum.UserInputType.MouseMovement and inp.UserInputType ~= Enum.UserInputType.Touch then return end
+        local d = inp.Position - ds
+        frame.Position = UDim2.new(fp.X.Scale, fp.X.Offset + d.X, fp.Y.Scale, fp.Y.Offset + d.Y)
+    end)
+end
+
+local function IsMobileDevice()
+    return Services.UserInput.TouchEnabled and not Services.UserInput.KeyboardEnabled
+end
+
+local function ClampMobileButtonPosition(pos, size)
+    local cam = Services.Workspace.CurrentCamera
+    local vp = cam and cam.ViewportSize or Vector2.new(1920,1080)
+    local width = size and size.X or MobileFlyButton.Size.X.Offset
+    local height = size and size.Y or MobileFlyButton.Size.Y.Offset
+    local x = math.clamp(pos.X.Offset, 0, math.max(vp.X - width, 0))
+    local y = math.clamp(pos.Y.Offset, 0, math.max(vp.Y - height, 0))
+    return UDim2.new(0, x, 0, y)
+end
+
+local function RefreshMobileFlyButton()
+    if not MobileFlyButton.Ui then return end
+    local btn = MobileFlyButton.Ui.Button
+    if btn then
+        btn.Size = MobileFlyButton.Size
+        btn.Position = ClampMobileButtonPosition(MobileFlyButton.Position, btn.AbsoluteSize)
+        btn.Text = Fly.Active and "FLY\nON" or "FLY"
+        btn.BackgroundColor3 = Fly.Active and Color3.fromRGB(88, 214, 141) or T.Accent
+        btn.BackgroundTransparency = MobileFlyButton.Transparency
+        btn.TextColor3 = T.Text
+    end
+    local lockBtn = MobileFlyButton.Ui.LockBtn
+    if lockBtn then
+        lockBtn.Text = MobileFlyButton.Locked and "🔒" or "🔓"
+        lockBtn.TextColor3 = T.Text
+        lockBtn.BackgroundColor3 = T.Card
+    end
+end
+
+local function DestroyMobileFlyButton()
+    if MobileFlyButton.Ui then
+        if MobileFlyButton.Ui.ScreenGui and MobileFlyButton.Ui.ScreenGui.Parent then
+            MobileFlyButton.Ui.ScreenGui:Destroy()
+        end
+        if MobileFlyButton.Ui.Connections then
+            for _, conn in ipairs(MobileFlyButton.Ui.Connections) do
+                if conn and conn.Connected then conn:Disconnect() end
+            end
+        end
+    end
+    MobileFlyButton.Ui = nil
+end
+
+local function CreateMobileFlyButton()
+    if not IsMobileDevice() then return end
+    if not MobileFlyButton.Enabled then return end
+    DestroyMobileFlyButton()
+    local sg = Instance.new("ScreenGui")
+    sg.Name = "KolyanchikMobileFly"
+    sg.ResetOnSpawn = false
+    sg.IgnoreGuiInset = true
+    sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    sg.Parent = Services.CoreGui
+
+    local button = Instance.new("TextButton")
+    button.Name = "FlyButton"
+    button.Size = MobileFlyButton.Size
+    button.Position = ClampMobileButtonPosition(MobileFlyButton.Position)
+    button.AnchorPoint = Vector2.new(0, 0)
+    button.BackgroundColor3 = Fly.Active and Color3.fromRGB(88, 214, 141) or T.Accent
+    button.BackgroundTransparency = MobileFlyButton.Transparency
+    button.BorderSizePixel = 0
+    button.Font = Enum.Font.GothamBold
+    button.TextSize = 16
+    button.TextColor3 = T.Text
+    button.Text = Fly.Active and "FLY\nON" or "FLY"
+    button.TextWrapped = true
+    button.Parent = sg
+    mkCorner(button, 16)
+    mkStroke(button, T.Stroke, 1)
+
+    local lockBtn = Instance.new("TextButton")
+    lockBtn.Name = "FlyButtonLock"
+    lockBtn.Size = UDim2.new(0, 20, 0, 20)
+    lockBtn.Position = UDim2.new(1, -22, 1, -22)
+    lockBtn.AnchorPoint = Vector2.new(0, 0)
+    lockBtn.BackgroundColor3 = T.Card
+    lockBtn.BorderSizePixel = 0
+    lockBtn.Font = Enum.Font.GothamBold
+    lockBtn.TextSize = 14
+    lockBtn.TextColor3 = T.Text
+    lockBtn.Text = MobileFlyButton.Locked and "🔒" or "🔓"
+    lockBtn.Parent = button
+    mkCorner(lockBtn, 5)
+    mkStroke(lockBtn, T.Stroke, 1)
+
+    local connections = {}
+    local dragging = false
+    local dragStart = Vector2.new(0,0)
+    local startPos = button.Position
+
+    local function stopDragging()
+        dragging = false
+    end
+
+    table.insert(connections, button.InputBegan:Connect(function(inp)
+        if MobileFlyButton.Locked then return end
+        if inp.UserInputType ~= Enum.UserInputType.MouseButton1 and inp.UserInputType ~= Enum.UserInputType.Touch then return end
+        dragging = true
+        dragStart = inp.Position
+        startPos = button.Position
+        inp.Changed:Connect(function()
+            if inp.UserInputState == Enum.UserInputState.End then
+                stopDragging()
+                SaveConfig()
+            end
+        end)
+    end))
+
+    table.insert(connections, UserInputSvc.InputChanged:Connect(function(inp)
+        if not dragging then return end
+        if inp.UserInputType ~= Enum.UserInputType.MouseMovement and inp.UserInputType ~= Enum.UserInputType.Touch then return end
+        local d = inp.Position - dragStart
+        local newPos = UDim2.new(0, startPos.X.Offset + d.X, 0, startPos.Y.Offset + d.Y)
+        newPos = ClampMobileButtonPosition(newPos, button.AbsoluteSize)
+        MobileFlyButton.Position = newPos
+        button.Position = newPos
+    end))
+
+    table.insert(connections, UserInputSvc.InputEnded:Connect(function(inp)
+        if not dragging then return end
+        if inp.UserInputType ~= Enum.UserInputType.MouseButton1 and inp.UserInputType ~= Enum.UserInputType.Touch then return end
+        stopDragging()
+        SaveConfig()
+    end))
+
+    table.insert(connections, button.MouseButton1Click:Connect(function()
+        if Fly.Active then
+            stopFly()
+        else
+            startFly()
+        end
+        RefreshMobileFlyButton()
+    end))
+
+    table.insert(connections, lockBtn.MouseButton1Click:Connect(function()
+        MobileFlyButton.Locked = not MobileFlyButton.Locked
+        RefreshMobileFlyButton()
+        SaveConfig()
+    end))
+
+    MobileFlyButton.Ui = {
+        ScreenGui = sg,
+        Button = button,
+        LockBtn = lockBtn,
+        Connections = connections
+    }
+end
+
+local function UpdateMobileFlyButton()
+    if MobileFlyButton.Enabled and IsMobileDevice() then
+        CreateMobileFlyButton()
+    else
+        DestroyMobileFlyButton()
+    end
+end
+
+Rayfield.ScreenGui = nil
+local ESPToggle = nil
+
+function Rayfield:Destroy()
+    if self.ScreenGui and self.ScreenGui.Parent then self.ScreenGui:Destroy() end
+    self.ScreenGui = nil
+    ESPToggle = nil
+end
+
+function Rayfield:Notify(data)
+    if not (self.ScreenGui and self.ScreenGui.Parent) then return end
+    local sg = self.ScreenGui
+    local nh = sg:FindFirstChild("__Notifs")
+    if not nh then
+        nh = Instance.new("Frame"); nh.Name = "__Notifs"; nh.AnchorPoint = Vector2.new(1,1)
+        nh.Size = UDim2.new(0, 270, 1, -20); nh.Position = UDim2.new(1,-15,1,-10)
+        nh.BackgroundTransparency = 1; nh.Parent = sg
+        local lyt = Instance.new("UIListLayout"); lyt.HorizontalAlignment = Enum.HorizontalAlignment.Right
+        lyt.VerticalAlignment = Enum.VerticalAlignment.Bottom; lyt.Padding = UDim.new(0,8); lyt.Parent = nh
+    end
+    local card = Instance.new("Frame"); card.Size = UDim2.new(1,0,0,66)
+    card.BackgroundColor3 = T.Card; card.BackgroundTransparency = 1; card.BorderSizePixel = 0; card.Parent = nh
+    theme(card, "Card")
+    mkCorner(card, 8); local cs = mkStroke(card, T.Accent, 1); cs.Transparency = 1
+    local lbl = Instance.new("TextLabel"); lbl.Size = UDim2.new(1,-16,0,22); lbl.Position = UDim2.new(0,10,0,5)
+    lbl.BackgroundTransparency = 1; lbl.Font = Enum.Font.GothamBold; lbl.TextSize = 13
+    lbl.TextColor3 = T.Accent; lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.Text = data.Title or ""; lbl.TextTransparency = 1; lbl.Parent = card
+    theme(lbl, nil, "Accent")
+    local body = Instance.new("TextLabel"); body.Size = UDim2.new(1,-16,0,34); body.Position = UDim2.new(0,10,0,26)
+    body.BackgroundTransparency = 1; body.Font = Enum.Font.Gotham; body.TextSize = 12
+    body.TextColor3 = T.Text; body.TextXAlignment = Enum.TextXAlignment.Left
+    body.TextYAlignment = Enum.TextYAlignment.Top; body.TextWrapped = true
+    body.Text = data.Content or ""; body.TextTransparency = 1; body.Parent = card
+    theme(body, nil, "Text")
+    local ti = TweenInfo.new(0.3, Enum.EasingStyle.Quad)
+    TweenService:Create(card, ti, {BackgroundTransparency = 0.12}):Play()
+    TweenService:Create(lbl, ti, {TextTransparency = 0}):Play()
+    TweenService:Create(body, ti, {TextTransparency = 0}):Play()
+    TweenService:Create(cs, ti, {Transparency = 0.5}):Play()
+    task.delay(data.Duration or 3, function()
+        if not card.Parent then return end
+        local f = TweenService:Create(card, ti, {BackgroundTransparency = 1})
+        TweenService:Create(lbl, ti, {TextTransparency = 1}):Play()
+        TweenService:Create(body, ti, {TextTransparency = 1}):Play()
+        TweenService:Create(cs, ti, {Transparency = 1}):Play()
+        f:Play(); f.Completed:Wait(); if card.Parent then card:Destroy() end
+    end)
+end
+
+function Rayfield:CreateWindow(cfg)
+    self:Destroy()
+    local sg = Instance.new("ScreenGui"); sg.Name = "KolyanchikGUI"
+    sg.ResetOnSpawn = false; sg.IgnoreGuiInset = true
+    sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling; sg.Parent = Services.CoreGui
+    self.ScreenGui = sg
+
+    local vpW = Camera and Camera.ViewportSize.X or 800
+    local vpH = Camera and Camera.ViewportSize.Y or 600
+    if vpW < 100 then vpW = 800 end
+    if vpH < 100 then vpH = 600 end
+
+    local W = math.min(math.clamp(math.floor(vpW * 0.82), 400, 660), vpW - 20)
+    local H = math.min(math.clamp(math.floor(vpH * 0.76), 340, 450), vpH - 20)
+    local SW = 120
+
+    local win = Instance.new("Frame"); win.Name = "Window"
+    win.AnchorPoint = Vector2.new(0.5, 0.5)
+    win.Size = UDim2.new(0, W, 0, H); win.Position = UDim2.new(0.5, 0, 0.5, 0)
+    win.BackgroundColor3 = T.BG; win.BorderSizePixel = 0; win.Visible = false; win.Parent = sg
+    theme(win, "BG")
+    mkCorner(win, 12); mkStroke(win, T.Stroke, 1)
+
+    local winBgImage = Instance.new("ImageLabel")
+    winBgImage.Name = "BgImage"
+    winBgImage.Size = UDim2.new(1, 0, 1, 0)
+    winBgImage.Position = UDim2.new(0, 0, 0, 0)
+    winBgImage.BackgroundTransparency = 1
+    winBgImage.ImageTransparency = 1
+    winBgImage.ScaleType = Enum.ScaleType.Crop
+    winBgImage.ZIndex = 0
+    winBgImage.Parent = win
+    mkCorner(winBgImage, 12)
+
+    -- Star of David decorations for Jewish theme
+    local starContainer = Instance.new("Frame")
+    starContainer.Name = "StarDecor"
+    starContainer.Size = UDim2.new(1, 0, 1, 0)
+    starContainer.BackgroundTransparency = 1
+    starContainer.ClipsDescendants = true
+    starContainer.ZIndex = 1
+    starContainer.Parent = win
+    mkCorner(starContainer, 12)
+    local starPositions = {
+        {0.08, 0.12, 28, 0.88}, {0.85, 0.08, 22, 0.92}, {0.45, 0.82, 18, 0.9},
+        {0.92, 0.75, 24, 0.85}, {0.15, 0.88, 16, 0.93}, {0.7, 0.45, 14, 0.91},
+        {0.3, 0.35, 20, 0.87}, {0.55, 0.15, 16, 0.9}, {0.78, 0.9, 20, 0.86},
+    }
+    for _, sp in ipairs(starPositions) do
+        local star = Instance.new("TextLabel")
+        star.Name = "Star"
+        star.Size = UDim2.new(0, sp[3], 0, sp[3])
+        star.Position = UDim2.new(sp[1], 0, sp[2], 0)
+        star.BackgroundTransparency = 1
+        star.Text = "✡"
+        star.TextSize = sp[3]
+        star.TextColor3 = Color3.fromRGB(255, 255, 255)
+        star.TextTransparency = sp[4]
+        star.Font = Enum.Font.SourceSans
+        star.ZIndex = 1
+        star.Parent = starContainer
+        star.Visible = (SelectedTheme == "✡ Jewish")
+    end
+
+    local bar = Instance.new("Frame"); bar.Name = "TitleBar"
+    bar.Size = UDim2.new(1,0,0,44)
+    bar.BackgroundColor3 = T.Sidebar; bar.BorderSizePixel = 0; bar.Parent = win
+    theme(bar, "Sidebar")
+    mkCorner(bar, 12)
+    local barFix = Instance.new("Frame"); barFix.Size = UDim2.new(1,0,0,12)
+    barFix.Position = UDim2.new(0,0,1,-12); barFix.BackgroundColor3 = T.Sidebar
+    barFix.BorderSizePixel = 0; barFix.Parent = bar
+    theme(barFix, "Sidebar")
+
+    local titleLbl = Instance.new("TextLabel"); titleLbl.Size = UDim2.new(1, -SW - 60, 1, 0)
+    titleLbl.Position = UDim2.new(0, SW + 10, 0, 0); titleLbl.BackgroundTransparency = 1
+    titleLbl.Font = Enum.Font.GothamBold; titleLbl.TextSize = 14; titleLbl.TextColor3 = T.Text
+    titleLbl.TextXAlignment = Enum.TextXAlignment.Left; titleLbl.Text = cfg.Name or "kolyanchik script"
+    titleLbl.Parent = bar
+    theme(titleLbl, nil, "Text")
+
+    local xBtn = Instance.new("TextButton"); xBtn.Size = UDim2.new(0,28,0,28)
+    xBtn.Position = UDim2.new(1,-38,0.5,-14); xBtn.BackgroundColor3 = Color3.fromRGB(36,22,42)
+    xBtn.Font = Enum.Font.GothamBold; xBtn.TextSize = 14; xBtn.TextColor3 = T.Red
+    xBtn.Text = "X"; xBtn.Parent = bar; mkCorner(xBtn, 7); mkStroke(xBtn, T.Stroke, 1)
+    xBtn.MouseButton1Click:Connect(function() win.Visible = false end)
+    mkDrag(win, bar)
+
+    local barLine = Instance.new("Frame"); barLine.Size = UDim2.new(1,-SW,0,1)
+    barLine.Position = UDim2.new(0,SW,0,44); barLine.BackgroundColor3 = T.Stroke
+    barLine.BorderSizePixel = 0; barLine.Parent = win
+    theme(barLine, nil, nil, "Stroke")
+
+    local sidePanel = Instance.new("Frame"); sidePanel.Name = "Sidebar"
+    sidePanel.Size = UDim2.new(0,SW,1,0); sidePanel.BackgroundColor3 = T.Sidebar
+    sidePanel.BorderSizePixel = 0; sidePanel.Parent = win
+    theme(sidePanel, "Sidebar")
+    mkCorner(sidePanel, 12)
+    local sfix = Instance.new("Frame"); sfix.Size = UDim2.new(0,12,1,0)
+    sfix.Position = UDim2.new(1,-12,0,0); sfix.BackgroundColor3 = T.Sidebar
+    sfix.BorderSizePixel = 0; sfix.Parent = sidePanel
+    theme(sfix, "Sidebar")
+    local sdiv = Instance.new("Frame"); sdiv.Size = UDim2.new(0,1,1,0)
+    sdiv.Position = UDim2.new(1,-1,0,0); sdiv.BackgroundColor3 = T.Stroke
+    sdiv.BorderSizePixel = 0; sdiv.Parent = sidePanel
+    theme(sdiv, nil, nil, "Stroke")
+
+    local userProfile = Instance.new("Frame")
+    userProfile.Name = "UserProfile"
+    userProfile.Size = UDim2.new(1, 0, 0, 80)
+    userProfile.Position = UDim2.new(0, 0, 1, -85)
+    userProfile.BackgroundTransparency = 1
+    userProfile.Parent = sidePanel
+
+    local avatarFrame = Instance.new("Frame")
+    avatarFrame.Size = UDim2.new(0, 42, 0, 42)
+    avatarFrame.Position = UDim2.new(0.5, -21, 0, 5)
+    avatarFrame.BackgroundColor3 = T.Card
+    avatarFrame.BorderSizePixel = 0
+    avatarFrame.Parent = userProfile
+    theme(avatarFrame, "Card")
+    mkCorner(avatarFrame, 21)
+    mkStroke(avatarFrame, T.Accent, 1.5)
+
+    local avatarImg2 = Instance.new("ImageLabel")
+    avatarImg2.Size = UDim2.new(1, 0, 1, 0)
+    avatarImg2.BackgroundTransparency = 1
+    local uid2 = (LocalPlayer and LocalPlayer.UserId) or (Services.Players.LocalPlayer and Services.Players.LocalPlayer.UserId) or 0
+    avatarImg2.Image = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(uid2) .. "&w=150&h=150"
+    avatarImg2.Parent = avatarFrame
+    mkCorner(avatarImg2, 21)
+
+    local welcomeLbl = Instance.new("TextLabel")
+    welcomeLbl.Size = UDim2.new(1, -10, 0, 24)
+    welcomeLbl.Position = UDim2.new(0, 5, 0, 50)
+    welcomeLbl.BackgroundTransparency = 1
+    welcomeLbl.Font = Enum.Font.GothamMedium; welcomeLbl.TextSize = 10
+    welcomeLbl.TextXAlignment = Enum.TextXAlignment.Center
+    local myName = (LocalPlayer and LocalPlayer.Name) or (Services.Players.LocalPlayer and Services.Players.LocalPlayer.Name) or "Player"
+    welcomeLbl.Text = "Welcome, " .. myName
+    welcomeLbl.TextTruncate = Enum.TextTruncate.AtEnd
+    welcomeLbl.Parent = userProfile
+    theme(welcomeLbl, nil, "Sub")
+
+    local menuHdr = Instance.new("TextLabel"); menuHdr.Size = UDim2.new(1,0,0,44)
+    menuHdr.BackgroundTransparency = 1; menuHdr.Font = Enum.Font.GothamBold
+    menuHdr.TextSize = 10; menuHdr.TextColor3 = T.Accent; menuHdr.Text = "MENU"; menuHdr.Parent = sidePanel
+    theme(menuHdr, nil, "Accent")
+
+    local tabList = Instance.new("Frame"); tabList.Name = "TabList"
+    tabList.Size = UDim2.new(1,0,1,-48 - 85); tabList.Position = UDim2.new(0,0,0,48)
+    tabList.BackgroundTransparency = 1; tabList.Parent = sidePanel
+    local tabLayout = Instance.new("UIListLayout"); tabLayout.Padding = UDim.new(0,4)
+    tabLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center; tabLayout.Parent = tabList
+    local tabPad = Instance.new("UIPadding"); tabPad.PaddingLeft = UDim.new(0,7)
+    tabPad.PaddingRight = UDim.new(0,7); tabPad.Parent = tabList
+
+    local contentArea = Instance.new("Frame"); contentArea.Name = "Content"
+    contentArea.Size = UDim2.new(1,-SW,1,-45); contentArea.Position = UDim2.new(0,SW,0,45)
+    contentArea.BackgroundTransparency = 1; contentArea.ClipsDescendants = true; contentArea.Parent = win
+
+    local floatBtn = Instance.new("ImageButton"); floatBtn.Name = "FloatToggle"
+    floatBtn.Size = UDim2.new(0, 48, 0, 48); floatBtn.AnchorPoint = Vector2.new(0.5, 0.5)
+    floatBtn.Position = UDim2.new(0.5, 0, 0, 32)
+    floatBtn.BackgroundColor3 = T.BG; floatBtn.BackgroundTransparency = 0.1
+    floatBtn.ClipsDescendants = true
+    floatBtn.Image = FLOATING_ICON
+    floatBtn.ScaleType = Enum.ScaleType.Fit
+    floatBtn.Parent = sg; mkCorner(floatBtn, 24); mkStroke(floatBtn, T.Accent, 2)
+    theme(floatBtn, "BG")
+    floatBtn.MouseButton1Click:Connect(function() win.Visible = not win.Visible end)
+    mkDrag(floatBtn, floatBtn)
+
+    local winObj = { Tabs = {}, ActiveTab = nil }
+
+    function winObj:CreateTab(name)
+        local scroll = Instance.new("ScrollingFrame"); scroll.Name = name.."_Scroll"
+        scroll.Size = UDim2.new(1,0,1,0); scroll.BackgroundTransparency = 1
+        scroll.ScrollBarThickness = 4; scroll.ScrollBarImageColor3 = T.Accent
+        scroll.CanvasSize = UDim2.new(0,0,0,0); scroll.Visible = false; scroll.Parent = contentArea
+        local sLayout = Instance.new("UIListLayout"); sLayout.Padding = UDim.new(0,6)
+        sLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center; sLayout.Parent = scroll
+        local sPad = Instance.new("UIPadding"); sPad.PaddingTop = UDim.new(0,10)
+        sPad.PaddingBottom = UDim.new(0,14); sPad.PaddingLeft = UDim.new(0,10); sPad.PaddingRight = UDim.new(0,10)
+        sPad.Parent = scroll
+
+        sLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+            scroll.CanvasSize = UDim2.new(0, 0, 0, sLayout.AbsoluteContentSize.Y + sPad.PaddingTop.Offset + sPad.PaddingBottom.Offset)
+        end)
+
+        local btn = Instance.new("TextButton"); btn.Name = name.."_Btn"
+        btn.Size = UDim2.new(1,0,0,32); btn.BackgroundColor3 = T.Accent; btn.BackgroundTransparency = 1
+        btn.Font = Enum.Font.GothamMedium; btn.TextSize = 12; btn.TextColor3 = T.Sub
+        btn.TextXAlignment = Enum.TextXAlignment.Left; btn.Text = "  "..name; btn.Parent = tabList
+        theme(btn, "Accent", "Sub")
+        btn:SetAttribute("IgnoreThemeTrans", true)
+        mkCorner(btn, 7)
+        local indicator = Instance.new("Frame"); indicator.Size = UDim2.new(0,3,0.55,0)
+        indicator.Position = UDim2.new(0,3,0.225,0); indicator.BackgroundColor3 = T.Accent
+        indicator.BorderSizePixel = 0; indicator.Visible = false; indicator.Parent = btn; mkCorner(indicator, 2)
+        theme(indicator, "Accent")
+
+        local tabObj = { scroll = scroll, btn = btn, indicator = indicator }
+        table.insert(winObj.Tabs, tabObj)
+
+        local function activate()
+            if winObj.ActiveTab == tabObj then return end
+            if winObj.ActiveTab then
+                winObj.ActiveTab.scroll.Visible = false
+                theme(winObj.ActiveTab.btn, nil, "Sub")
+                winObj.ActiveTab.btn.BackgroundTransparency = 1
+                winObj.ActiveTab.indicator.Visible = false
+            end
+            winObj.ActiveTab = tabObj; scroll.Visible = true
+            theme(btn, nil, "Text")
+            btn.BackgroundTransparency = 0.83; indicator.Visible = true
+        end
+        btn.MouseButton1Click:Connect(activate)
+        if #winObj.Tabs == 1 then activate() end
+
+        function tabObj:CreateSection(secName)
+            local f = Instance.new("Frame"); f.Size = UDim2.new(1,0,0,22)
+            f.BackgroundTransparency = 1; f.Parent = scroll
+            local lbl = Instance.new("TextLabel"); lbl.Size = UDim2.new(1,0,0,16)
+            lbl.BackgroundTransparency = 1; lbl.Font = Enum.Font.GothamBold; lbl.TextSize = 10
+            lbl.TextColor3 = T.Accent; lbl.TextXAlignment = Enum.TextXAlignment.Left
+            lbl.Text = secName:upper(); lbl.Parent = f
+            theme(lbl, nil, "Accent")
+            local line = Instance.new("Frame"); line.Size = UDim2.new(1,0,0,1)
+            line.Position = UDim2.new(0,0,1,-1); line.BackgroundColor3 = T.Stroke
+            line.BorderSizePixel = 0; line.Parent = f
+            theme(line, nil, nil, "Stroke")
+        end
+
+        function tabObj:CreateLabel(text)
+            local lbl = Instance.new("TextLabel"); lbl.Size = UDim2.new(1,0,0,20)
+            lbl.BackgroundTransparency = 1; lbl.Font = Enum.Font.Gotham; lbl.TextSize = 12
+            lbl.TextColor3 = T.Sub; lbl.TextXAlignment = Enum.TextXAlignment.Left
+            lbl.TextWrapped = true; lbl.Text = text; lbl.Parent = scroll
+            theme(lbl, nil, "Sub")
+        end
+
+        function tabObj:CreateButton(data)
+            local b = Instance.new("TextButton"); b.Size = UDim2.new(1,0,0,36)
+            b.BackgroundColor3 = T.Card; b.BorderSizePixel = 0; b.Font = Enum.Font.GothamMedium
+            b.TextSize = 13; b.TextColor3 = T.Text; b.Text = data.Name or "Button"; b.Parent = scroll
+            theme(b, "Card", "Text")
+            mkCorner(b, 7); mkStroke(b, T.Stroke, 1)
+            b.MouseEnter:Connect(function() TweenService:Create(b, TweenInfo.new(0.14), {BackgroundColor3 = T.Hover}):Play() end)
+            b.MouseLeave:Connect(function() TweenService:Create(b, TweenInfo.new(0.14), {BackgroundColor3 = T.Card}):Play() end)
+            b.MouseButton1Click:Connect(function() if data.Callback then data.Callback() end end)
+        end
+
+        function tabObj:CreateToggle(data)
+            local flag = data.Flag; local val = data.CurrentValue == true
+            local card = Instance.new("Frame"); card.Size = UDim2.new(1,0,0,36)
+            card.BackgroundColor3 = T.Card; card.BorderSizePixel = 0; card.Parent = scroll
+            theme(card, "Card")
+            mkCorner(card, 7); mkStroke(card, T.Stroke, 1)
+            local lbl = Instance.new("TextLabel"); lbl.Size = UDim2.new(1,-60,1,0)
+            lbl.Position = UDim2.new(0,12,0,0); lbl.BackgroundTransparency = 1
+            lbl.Font = Enum.Font.GothamMedium; lbl.TextSize = 13; lbl.TextColor3 = T.Text
+            lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.TextWrapped = true
+            lbl.Text = data.Name or "Toggle"; lbl.Parent = card
+            theme(lbl, nil, "Text")
+            local track = Instance.new("Frame"); track.Size = UDim2.new(0,38,0,20)
+            track.Position = UDim2.new(1,-50,0.5,-10)
+            track.BackgroundColor3 = val and T.Accent or Color3.fromRGB(48,48,62)
+            track.BorderSizePixel = 0; track.Parent = card; mkCorner(track, 10)
+            local knob = Instance.new("Frame"); knob.Size = UDim2.new(0,16,0,16)
+            knob.Position = val and UDim2.new(1,-18,0.5,-8) or UDim2.new(0,2,0.5,-8)
+            knob.BackgroundColor3 = Color3.fromRGB(234,234,244); knob.BorderSizePixel = 0
+            knob.Parent = track; mkCorner(knob, 8)
+            if flag then Rayfield.Flags[flag] = val end
+            local tabRef = tabObj
+            local function setVal(v)
+                val = v; if flag then Rayfield.Flags[flag] = val end
+                local ti = TweenInfo.new(0.18, Enum.EasingStyle.Quad)
+                TweenService:Create(track, ti, {BackgroundColor3 = v and T.Accent or Color3.fromRGB(48,48,62)}):Play()
+                TweenService:Create(knob,  ti, {Position = v and UDim2.new(1,-18,0.5,-8) or UDim2.new(0,2,0.5,-8)}):Play()
+                playSound(TOGGLE_SOUND_ID)
+                if data.Callback then data.Callback(val) end
+            end
+            function tabRef:Set(v) setVal(v) end
+            local hit = Instance.new("TextButton"); hit.Size = UDim2.new(1,0,1,0)
+            hit.BackgroundTransparency = 1; hit.Text = ""; hit.Parent = card
+            hit.MouseButton1Click:Connect(function() setVal(not val) end)
+            return tabRef
+        end
+
+        function tabObj:CreateSlider(data)
+            local flag = data.Flag; local sMin = data.Range[1]; local sMax = data.Range[2]
+            local sInc = data.Increment or 1; local suf = data.Suffix or ""
+            local val = math.clamp(data.CurrentValue or sMin, sMin, sMax)
+            local card = Instance.new("Frame"); card.Size = UDim2.new(1,0,0,52)
+            card.BackgroundColor3 = T.Card; card.BorderSizePixel = 0; card.Parent = scroll
+            theme(card, "Card")
+            mkCorner(card, 7); mkStroke(card, T.Stroke, 1)
+            local nameLbl = Instance.new("TextLabel"); nameLbl.Size = UDim2.new(0.6,0,0,24)
+            nameLbl.Position = UDim2.new(0,12,0,2); nameLbl.BackgroundTransparency = 1
+            nameLbl.Font = Enum.Font.GothamMedium; nameLbl.TextSize = 13; nameLbl.TextColor3 = T.Text
+            nameLbl.TextXAlignment = Enum.TextXAlignment.Left; nameLbl.Text = data.Name or "Slider"; nameLbl.Parent = card
+            theme(nameLbl, nil, "Text")
+            local valLbl = Instance.new("TextLabel"); valLbl.Size = UDim2.new(0.38,0,0,24)
+            valLbl.Position = UDim2.new(0.62,0,0,2); valLbl.BackgroundTransparency = 1
+            valLbl.Font = Enum.Font.Gotham; valLbl.TextSize = 12; valLbl.TextColor3 = T.Accent
+            valLbl.TextXAlignment = Enum.TextXAlignment.Right
+            local displayVal = (sInc % 1 == 0 and tostring(val) or string.format("%.2f", val))
+            valLbl.Text = displayVal..suf; valLbl.Parent = card
+            theme(valLbl, nil, "Accent")
+            local track = Instance.new("Frame"); track.Name = "SliderTrack"
+            track.Size = UDim2.new(1,-24,0,6)
+            track.Position = UDim2.new(0,12,0,36); track.BackgroundColor3 = Color3.fromRGB(44,44,58)
+            track.BorderSizePixel = 0; track.Parent = card; mkCorner(track, 3)
+            local fill = Instance.new("Frame"); fill.Size = UDim2.new((val-sMin)/math.max(sMax-sMin,0.0001),0,1,0)
+            fill.BackgroundColor3 = T.Accent; fill.BorderSizePixel = 0; fill.Parent = track; mkCorner(fill, 3)
+            theme(fill, "Accent")
+            local knob = Instance.new("Frame"); knob.Size = UDim2.new(0,14,0,14)
+            knob.Position = UDim2.new(1,-7,0.5,-7); knob.BackgroundColor3 = Color3.fromRGB(234,234,244)
+            knob.BorderSizePixel = 0; knob.Parent = fill; mkCorner(knob, 7)
+            if flag then Rayfield.Flags[flag] = val end
+
+            local isDragging = false
+            local function upd(px)
+                local pct = math.clamp((px - track.AbsolutePosition.X) / math.max(track.AbsoluteSize.X, 1), 0, 1)
+                local raw = sMin + (sMax - sMin) * pct
+                local rounded = math.clamp(math.round((raw - sMin) / sInc) * sInc + sMin, sMin, sMax)
+                val = rounded
+                if flag then Rayfield.Flags[flag] = val end
+                local dv = (sInc % 1 == 0 and tostring(val) or string.format("%.2f", val))
+                valLbl.Text = dv..suf
+                fill.Size = UDim2.new((val-sMin)/math.max(sMax-sMin,0.0001),0,1,0)
+                if data.Callback then data.Callback(val) end
+            end
+
+            local hit = Instance.new("TextButton"); hit.Size = UDim2.new(1,0,0,22)
+            hit.Position = UDim2.new(0,0,0,30); hit.BackgroundTransparency = 1; hit.Text = ""; hit.Parent = card
+            hit.InputBegan:Connect(function(inp)
+                if inp.UserInputType == Enum.UserInputType.MouseButton1
+                or inp.UserInputType == Enum.UserInputType.Touch then
+                    isDragging = true
+                    upd(inp.Position.X)
+                end
+            end)
+            local movedConn = UserInputSvc.InputChanged:Connect(function(inp)
+                if not isDragging then return end
+                if inp.UserInputType == Enum.UserInputType.MouseMovement
+                or inp.UserInputType == Enum.UserInputType.Touch then
+                    upd(inp.Position.X)
+                end
+            end)
+            local endConn = UserInputSvc.InputEnded:Connect(function(inp)
+                if inp.UserInputType == Enum.UserInputType.MouseButton1
+                or inp.UserInputType == Enum.UserInputType.Touch then
+                    isDragging = false
+                end
+            end)
+            scroll.Destroying:Connect(function()
+                movedConn:Disconnect()
+                endConn:Disconnect()
+            end)
+        end
+
+        function tabObj:CreateInput(data)
+            local flag = data.Flag; local val = data.CurrentValue or ""
+            local card = Instance.new("Frame"); card.Size = UDim2.new(1,0,0,36)
+            card.BackgroundColor3 = T.Card; card.BorderSizePixel = 0; card.Parent = scroll
+            card.ClipsDescendants = true
+            theme(card, "Card")
+            mkCorner(card, 7); mkStroke(card, T.Stroke, 1)
+            local lbl = Instance.new("TextLabel"); lbl.Size = UDim2.new(1,-175,1,0)
+            lbl.Position = UDim2.new(0,12,0,0); lbl.BackgroundTransparency = 1
+            lbl.Font = Enum.Font.GothamMedium; lbl.TextSize = 13; lbl.TextColor3 = T.Text
+            lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.Text = data.Name or "Input"; lbl.Parent = card
+            theme(lbl, nil, "Text")
+            local box = Instance.new("TextBox"); box.Size = UDim2.new(0,155,0,24)
+            box.Position = UDim2.new(1,-165,0.5,-12); box.BackgroundColor3 = Color3.fromRGB(30,30,44)
+            box.BorderSizePixel = 0; box.Font = Enum.Font.Gotham; box.TextSize = 11; box.TextColor3 = T.Text
+            box.ClipsDescendants = true; box.TextTruncate = Enum.TextTruncate.AtEnd
+            box.PlaceholderText = data.PlaceholderText or "..."; box.PlaceholderColor3 = T.Sub
+            box.Text = val; box.ClearTextOnFocus = false; box.Parent = card; mkCorner(box, 5); mkStroke(box, T.Stroke, 1)
+            theme(box, nil, "Text")
+            if flag then Rayfield.Flags[flag] = val end
+            box.FocusLost:Connect(function()
+                if flag then Rayfield.Flags[flag] = box.Text end
+                if data.Callback then data.Callback(box.Text) end
+                if data.RemoveTextAfterFocusLost then box.Text = "" end
+            end)
+        end
+
+        function tabObj:CreateDropdown(data)
+            local flag = data.Flag; local opts = data.Options or {}
+            local isMulti = (data.MultipleOptions == true)
+            local curList = {}
+            if isMulti then
+                if type(data.CurrentOption) == "table" then
+                    for _, v in ipairs(data.CurrentOption) do curList[v] = true end
+                end
+            else
+                local single = (data.CurrentOption and data.CurrentOption[1]) or opts[1] or ""
+                curList[single] = true
+            end
+            local open = false
+            local card = Instance.new("Frame"); card.Size = UDim2.new(1,0,0,36)
+            card.BackgroundColor3 = T.Card; card.BorderSizePixel = 0
+            card.ClipsDescendants = true; card.Parent = scroll; mkCorner(card, 7); mkStroke(card, T.Stroke, 1)
+            theme(card, "Card")
+            local lbl = Instance.new("TextLabel"); lbl.Size = UDim2.new(1,-148,0,36)
+            lbl.Position = UDim2.new(0,12,0,0); lbl.BackgroundTransparency = 1
+            lbl.Font = Enum.Font.GothamMedium; lbl.TextSize = 13; lbl.TextColor3 = T.Text
+            lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.Text = data.Name or "Dropdown"; lbl.Parent = card
+            theme(lbl, nil, "Text")
+            local selBtn = Instance.new("TextButton"); selBtn.Size = UDim2.new(0,128,0,24)
+            selBtn.Position = UDim2.new(1,-140,0,6); selBtn.BackgroundColor3 = Color3.fromRGB(30,30,44)
+            selBtn.Font = Enum.Font.Gotham; selBtn.TextSize = 11; selBtn.TextColor3 = T.Text
+
+            local function getDisplayText()
+                if isMulti then
+                    local count = 0
+                    for _ in pairs(curList) do count = count + 1 end
+                    return tostring(count) .. " selected"
+                else
+                    for k in pairs(curList) do return tostring(k) end
+                    return ""
+                end
+            end
+
+            local function getSelectedTable()
+                local res = {}
+                for _, opt in ipairs(opts) do
+                    if curList[opt] then table.insert(res, opt) end
+                end
+                return res
+            end
+
+            selBtn.Text = getDisplayText() .. " v"; selBtn.Parent = card; mkCorner(selBtn, 5); mkStroke(selBtn, T.Stroke, 1)
+            theme(selBtn, nil, "Text")
+            local listFrame = Instance.new("Frame"); listFrame.Size = UDim2.new(1,-22,0,#opts*29)
+            listFrame.Position = UDim2.new(0,11,0,40); listFrame.BackgroundTransparency = 1
+            listFrame.Visible = false; listFrame.Parent = card
+            local ll = Instance.new("UIListLayout"); ll.Padding = UDim.new(0,3); ll.Parent = listFrame
+            if flag then Rayfield.Flags[flag] = getSelectedTable() end
+
+            local function toggleDD()
+                open = not open; listFrame.Visible = open
+                local h = open and (36 + #opts*32 + 6) or 36
+                TweenService:Create(card, TweenInfo.new(0.18, Enum.EasingStyle.Quad), {Size = UDim2.new(1,0,0,h)}):Play()
+                selBtn.Text = getDisplayText() .. (open and " ^" or " v")
+            end
+            selBtn.MouseButton1Click:Connect(toggleDD)
+
+            for _, opt in ipairs(opts) do
+                local ob = Instance.new("TextButton"); ob.Size = UDim2.new(1,0,0,29)
+                ob.BackgroundColor3 = Color3.fromRGB(26,26,40); ob.BorderSizePixel = 0
+                ob.Font = Enum.Font.Gotham; ob.TextSize = 12
+                local isSel = (curList[opt] == true)
+                ob.TextColor3 = isSel and T.Accent or T.Text
+                ob.Text = (isSel and "  [+] " or "  [ ] ") .. opt; ob.TextXAlignment = Enum.TextXAlignment.Left; ob.Parent = listFrame; mkCorner(ob, 5)
+                theme(ob, nil, isSel and "Accent" or "Text")
+                ob.MouseButton1Click:Connect(function()
+                    if isMulti then
+                        if curList[opt] then
+                            curList[opt] = nil
+                        else
+                            curList[opt] = true
+                        end
+                        local nowSel = (curList[opt] == true)
+                        ob.Text = (nowSel and "  [+] " or "  [ ] ") .. opt
+                        theme(ob, nil, nowSel and "Accent" or "Text")
+                        selBtn.Text = getDisplayText() .. (open and " ^" or " v")
+                        local res = getSelectedTable()
+                        if flag then Rayfield.Flags[flag] = res end
+                        if data.Callback then data.Callback(res) end
+                    else
+                        table.clear(curList)
+                        curList[opt] = true
+                        selBtn.Text = opt .. " v"
+                        for _, ch in ipairs(listFrame:GetChildren()) do
+                            if ch:IsA("TextButton") then
+                                local isThis = (ch.Text:find(opt, 1, true) ~= nil)
+                                ch.Text = (isThis and "  [+] " or "  [ ] ") .. opt
+                                theme(ch, nil, isThis and "Accent" or "Text")
+                            end
+                        end
+                        local res = {opt}
+                        if flag then Rayfield.Flags[flag] = res end
+                        if data.Callback then data.Callback(res) end
+                        toggleDD()
+                    end
+                end)
+            end
+        end
+
+        function tabObj:CreateColorPicker(data)
+            local flag = data.Flag; local curColor = data.Color or Color3.fromRGB(200,200,200)
+            local sv = {R = math.round(curColor.R*255), G = math.round(curColor.G*255), B = math.round(curColor.B*255)}
+            local expanded = false
+            local card = Instance.new("Frame"); card.Size = UDim2.new(1,0,0,36)
+            card.BackgroundColor3 = T.Card; card.BorderSizePixel = 0
+            card.ClipsDescendants = true; card.Parent = scroll; mkCorner(card, 7); mkStroke(card, T.Stroke, 1)
+            theme(card, "Card")
+            local lbl = Instance.new("TextLabel"); lbl.Size = UDim2.new(1,-58,0,36)
+            lbl.Position = UDim2.new(0,12,0,0); lbl.BackgroundTransparency = 1
+            lbl.Font = Enum.Font.GothamMedium; lbl.TextSize = 13; lbl.TextColor3 = T.Text
+            lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.Text = data.Name or "Color"; lbl.Parent = card
+            theme(lbl, nil, "Text")
+            local preview = Instance.new("TextButton"); preview.Size = UDim2.new(0,34,0,22)
+            preview.Position = UDim2.new(1,-46,0,7); preview.BackgroundColor3 = curColor
+            preview.BorderSizePixel = 0; preview.Text = ""; preview.Parent = card; mkCorner(preview, 5); mkStroke(preview, T.Stroke, 1)
+            local panel = Instance.new("Frame"); panel.Size = UDim2.new(1,-22,0,82)
+            panel.Position = UDim2.new(0,11,0,38); panel.BackgroundTransparency = 1
+            panel.Visible = false; panel.Parent = card
+            if flag then Rayfield.Flags[flag] = curColor end
+            
+            local function updateColor()
+                curColor = Color3.fromRGB(sv.R, sv.G, sv.B); preview.BackgroundColor3 = curColor
+                if flag then Rayfield.Flags[flag] = curColor end
+                if data.Callback then data.Callback(curColor) end
+            end
+            
+            local chanColors = {R=Color3.fromRGB(238,78,78), G=Color3.fromRGB(78,218,78), B=Color3.fromRGB(78,118,238)}
+            for idx, chan in ipairs({"R","G","B"}) do
+                local row = Instance.new("Frame"); row.Size = UDim2.new(1,0,0,22)
+                row.Position = UDim2.new(0,0,0,(idx-1)*27); row.BackgroundTransparency = 1; row.Parent = panel
+                local cLbl = Instance.new("TextLabel"); cLbl.Size = UDim2.new(0,14,1,0)
+                cLbl.BackgroundTransparency = 1; cLbl.Font = Enum.Font.GothamBold; cLbl.TextSize = 11
+                cLbl.TextColor3 = chanColors[chan]; cLbl.Text = chan; cLbl.Parent = row
+                local bar = Instance.new("Frame"); bar.Size = UDim2.new(1,-52,0,5)
+                bar.Position = UDim2.new(0,18,0.5,-2); bar.BackgroundColor3 = Color3.fromRGB(42,42,56)
+                bar.BorderSizePixel = 0; bar.Parent = row; mkCorner(bar, 2)
+                local fillC = Instance.new("Frame"); fillC.Size = UDim2.new(sv[chan]/255,0,1,0)
+                fillC.BackgroundColor3 = chanColors[chan]; fillC.BorderSizePixel = 0; fillC.Parent = bar; mkCorner(fillC, 2)
+                local vLbl = Instance.new("TextLabel"); vLbl.Size = UDim2.new(0,28,1,0)
+                vLbl.Position = UDim2.new(1,-28,0,0); vLbl.BackgroundTransparency = 1
+                vLbl.Font = Enum.Font.SourceSans; vLbl.TextSize = 12; vLbl.TextColor3 = T.Sub
+                vLbl.Text = tostring(sv[chan]); vLbl.Parent = row
+                theme(vLbl, nil, "Sub")
+                
+                local colorDragging = false
+                local function updC(px)
+                    local pct = math.clamp((px-bar.AbsolutePosition.X)/math.max(bar.AbsoluteSize.X,1),0,1)
+                    sv[chan] = math.round(pct*255); fillC.Size = UDim2.new(pct,0,1,0)
+                    vLbl.Text = tostring(sv[chan]); updateColor()
+                end
+                
+                local hit = Instance.new("TextButton"); hit.Size = UDim2.new(1,0,1.5,0)
+                hit.Position = UDim2.new(0,0,-0.25,0); hit.BackgroundTransparency = 1; hit.Text = ""; hit.Parent = bar
+                hit.InputBegan:Connect(function(inp)
+                    if inp.UserInputType == Enum.UserInputType.MouseButton1
+                    or inp.UserInputType == Enum.UserInputType.Touch then colorDragging = true; updC(inp.Position.X) end
+                end)
+                local cmConn = UserInputSvc.InputChanged:Connect(function(inp)
+                    if not colorDragging then return end
+                    if inp.UserInputType == Enum.UserInputType.MouseMovement
+                    or inp.UserInputType == Enum.UserInputType.Touch then updC(inp.Position.X) end
+                end)
+                local ceConn = UserInputSvc.InputEnded:Connect(function(inp)
+                    if inp.UserInputType == Enum.UserInputType.MouseButton1
+                    or inp.UserInputType == Enum.UserInputType.Touch then colorDragging = false end
+                end)
+                scroll.Destroying:Connect(function() cmConn:Disconnect(); ceConn:Disconnect() end)
+            end
+            
+            preview.MouseButton1Click:Connect(function()
+                expanded = not expanded; panel.Visible = expanded
+                local h = expanded and 128 or 36
+                TweenService:Create(card, TweenInfo.new(0.18, Enum.EasingStyle.Quad), {Size = UDim2.new(1,0,0,h)}):Play()
+            end)
+        end
+
+        function tabObj:CreateKeybind(data)
+            local flag = data.Flag; local key = data.CurrentKeybind or "None"
+            if isMobile then if flag then Rayfield.Flags[flag] = {CurrentKeybind = key} end; return end
+            local card = Instance.new("Frame"); card.Size = UDim2.new(1,0,0,36)
+            card.BackgroundColor3 = T.Card; card.BorderSizePixel = 0; card.Parent = scroll; mkCorner(card, 7); mkStroke(card, T.Stroke, 1)
+            theme(card, "Card")
+            local lbl = Instance.new("TextLabel"); lbl.Size = UDim2.new(1,-108,1,0)
+            lbl.Position = UDim2.new(0,12,0,0); lbl.BackgroundTransparency = 1
+            lbl.Font = Enum.Font.GothamMedium; lbl.TextSize = 13; lbl.TextColor3 = T.Text
+            lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.Text = data.Name or "Keybind"; lbl.Parent = card
+            theme(lbl, nil, "Text")
+            local bindBtn = Instance.new("TextButton"); bindBtn.Size = UDim2.new(0,90,0,24)
+            bindBtn.Position = UDim2.new(1,-100,0.5,-12); bindBtn.BackgroundColor3 = Color3.fromRGB(30,30,44)
+            bindBtn.Font = Enum.Font.Gotham; bindBtn.TextSize = 11; bindBtn.TextColor3 = T.Text
+            bindBtn.Text = "[ "..key.." ]"; bindBtn.Parent = card; mkCorner(bindBtn, 5); mkStroke(bindBtn, T.Stroke, 1)
+            theme(bindBtn, nil, "Text")
+            if flag then Rayfield.Flags[flag] = {CurrentKeybind = key} end
+            local listening = false; local conn = nil
+            bindBtn.MouseButton1Click:Connect(function()
+                if listening then return end; listening = true
+                bindBtn.Text = "[ ... ]"; bindBtn.TextColor3 = T.Accent
+                conn = UserInputSvc.InputBegan:Connect(function(inp)
+                    if inp.UserInputType ~= Enum.UserInputType.Keyboard then return end
+                    local n = inp.KeyCode.Name; if n == "Unknown" then return end
+                    conn:Disconnect(); conn = nil; listening = false; key = n
+                    bindBtn.Text = "[ "..key.." ]"; bindBtn.TextColor3 = T.Text
+                    if flag then Rayfield.Flags[flag] = {CurrentKeybind = key} end
+                    if data.Callback then data.Callback(key) end
+                end)
+            end)
+        end
+
+        return tabObj
+    end
+
+    return winObj
+end
+
+safeConnect(UserInputSvc.InputBegan, function(inp, gp)
+    if gp then return end
+    if inp.KeyCode == Keys.GUI then
+        local sg = Rayfield.ScreenGui
+        if sg then local w = sg:FindFirstChild("Window"); if w then w.Visible = not w.Visible end end
+    end
+end)
+
+local function Webhook_FormatNumber(n)
+    local formatted = tostring(math.floor(tonumber(n) or 0))
+    local k
+    while true do
+        formatted, k = string.gsub(formatted, "^(-?%d+)(%d%d%d)", "%1,%2")
+        if k == 0 then break end
+    end
+    return formatted
+end
+
+local function SendDiscordWebhook(payload)
+    if not Webhook.Url or Webhook.Url == "" or not Webhook.Url:find("https://") then
+        return false, "Invalid URL"
+    end
+
+    local req = (syn and syn.request) or (http and http.request) or http_request or request
+    if not req then
+        return false, "Executor does not support HTTP requests"
+    end
+
+    local ok, res = pcall(function()
+        local httpSvc = Services.HttpService or game:GetService("HttpService")
+        return req({
+            Url = Webhook.Url,
+            Method = "POST",
+            Headers = { ["Content-Type"] = "application/json" },
+            Body = httpSvc:JSONEncode(payload)
+        })
+    end)
+
+    if ok and res and (res.StatusCode == 200 or res.StatusCode == 204) then
+        return true, "Success"
+    else
+        local errCode = (res and res.StatusCode) or (tostring(res))
+        return false, tostring(errCode)
+    end
+end
+
+local function Webhook_SendTest()
+    local userName = LocalPlayer and LocalPlayer.Name or "Unknown"
+    local dispName = LocalPlayer and LocalPlayer.DisplayName or userName
+    local userId = LocalPlayer and LocalPlayer.UserId or 1
+
+    local embed = {
+        title = "CTS PvE Farm - Webhook Test",
+        description = "Webhook successfully connected!\nStats will be reported automatically every 10 minutes.",
+        color = 0x3ED456,
+        fields = {
+            { name = "Account", value = "`" .. userName .. "` (" .. dispName .. ")", inline = true },
+            { name = "User ID", value = tostring(userId), inline = true },
+            { name = "Status", value = "Connected & Active", inline = false }
+        },
+        footer = { text = "kolyanchik script | CTS PvE Auto-Farm" },
+        timestamp = DateTime.now():ToIsoDate()
+    }
+
+    local payload = {
+        username = "CTS PvE Auto-Farm",
+        avatar_url = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. tostring(userId) .. "&width=150&height=150&format=png",
+        content = "**Discord Webhook Test Successful!**",
+        embeds = { embed }
+    }
+
+    return SendDiscordWebhook(payload)
+end
+
+local function Webhook_SendReport()
+    if not Webhook.Enabled or Webhook.Url == "" then return end
+
+    local elapsedSec = math.max(tick() - Webhook.StartTime, 1)
+    local hours = elapsedSec / 3600
+    local moneyPerHour = math.floor(Webhook.TotalMoney / hours)
+    local cratesPerHour = math.floor((Webhook.TotalCrates / hours) * 10) / 10
+
+    local userName = LocalPlayer and LocalPlayer.Name or "Unknown"
+    local dispName = LocalPlayer and LocalPlayer.DisplayName or userName
+    local userId = LocalPlayer and LocalPlayer.UserId or 1
+
+    local elapsedMin = math.floor(elapsedSec / 60)
+    local elapsedHours = math.floor(elapsedMin / 60)
+    local uptimeStr = string.format("%dh %02dm", elapsedHours, elapsedMin % 60)
+
+    local waveAbs = workspace:GetAttribute("wave_abs") or "?"
+    local wavesTotal = workspace:GetAttribute("waves_total") or "?"
+
+    local moneyHrStr = Webhook_FormatNumber(moneyPerHour) .. " / hr"
+    local cratesHrStr = tostring(cratesPerHour) .. " / hr"
+    local totalMoneyStr = Webhook_FormatNumber(Webhook.TotalMoney) .. " YEN"
+    local totalCratesStr = tostring(Webhook.TotalCrates) .. " Crates"
+
+    local msgText = string.format(
+        "money: %s\ncrates: %s\naccount being farmed on: %s",
+        moneyHrStr,
+        cratesHrStr,
+        userName
+    )
+
+    local embed = {
+        title = "CTS PvE Farm - 10 Minute Report",
+        description = msgText,
+        color = 0x5865F2,
+        fields = {
+            { name = "Money Rate", value = "`" .. moneyHrStr .. "`\n*(Total: " .. totalMoneyStr .. ")*", inline = true },
+            { name = "Crates Rate", value = "`" .. cratesHrStr .. "`\n*(Total: " .. totalCratesStr .. ")*", inline = true },
+            { name = "Account", value = "`" .. userName .. "` (" .. dispName .. ")", inline = true },
+            { name = "Session Uptime", value = uptimeStr, inline = true },
+            { name = "Current Wave", value = tostring(waveAbs) .. " / " .. tostring(wavesTotal), inline = true },
+            { name = "Farm Status", value = PvE._statusText or "Active", inline = true }
+        },
+        footer = { text = "kolyanchik script | CTS PvE Auto-Farm" },
+        timestamp = DateTime.now():ToIsoDate()
+    }
+
+    local payload = {
+        username = "CTS PvE Auto-Farm",
+        avatar_url = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. tostring(userId) .. "&width=150&height=150&format=png",
+        content = msgText,
+        embeds = { embed }
+    }
+
+    SendDiscordWebhook(payload)
+end
+
+local Window
+local function BuildGUI()
+    local t = Localization[Localization.CurrentLanguage] or Localization.EN
+
+    Window = Rayfield:CreateWindow({ Name = t.WindowTitle })
+    Rayfield:Notify({ Title = t.LoadedTitle, Content = t.LoadedContent, Duration = 5 })
+
+    local inPvE = IsPvEMode()
+
+    local MainTab     = Window:CreateTab(t.MainTab)
+    local VisualTab   = Window:CreateTab(t.VisualTab)
+    local WeaponTab   = inPvE and Window:CreateTab(t.WeaponTab) or nil
+    local FlyTab      = Window:CreateTab(t.FlyTab)
+    local SettingsTab = Window:CreateTab(t.SettingsTab)
+    local PvETab      = inPvE and Window:CreateTab(t.PvETab) or nil
+
+    if PvETab then
+        PvETab:CreateSection("Auto-Farm")
+        PvETab:CreateToggle({ Name = t.EnablePvE, CurrentValue = PvE.Enabled, Flag = "PvEEnabledFlag",
+            Callback = function(v) if IsRebuildingUI then return end; PvE.Enabled = v; SaveConfig() end })
+        PvETab:CreateDropdown({ Name = t.PvETankSlot, Options = {"slot1", "slot2", "slot3", "slot4"},
+            CurrentOption = {PvE.TankSlot}, MultipleOptions = false, Flag = "PvETankSlotFlag",
+            Callback = function(opt) if IsRebuildingUI then return end; if opt and opt[1] then PvE.TankSlot = opt[1]; SaveConfig() end end })
+        PvETab:CreateSlider({ Name = t.PvEFlyHeight, Range = {100, 3000}, Increment = 50,
+            Suffix = " studs", CurrentValue = PvE.FlyHeight, Flag = "PvEFlyHeightFlag",
+            Callback = function(v) if IsRebuildingUI then return end; PvE.FlyHeight = v; SaveConfig() end })
+        PvETab:CreateSlider({ Name = t.PvEShootInterval, Range = {0.05, 1.0}, Increment = 0.05,
+            Suffix = "s", CurrentValue = PvE.ShootInterval, Flag = "PvEShootIntervalFlag",
+            Callback = function(v) if IsRebuildingUI then return end; PvE.ShootInterval = v; SaveConfig() end })
+        PvETab:CreateToggle({ Name = t.PvEAutoRestart, CurrentValue = PvE.AutoRestart, Flag = "PvEAutoRestartFlag",
+            Callback = function(v) if IsRebuildingUI then return end; PvE.AutoRestart = v; SaveConfig() end })
+
+        local PVE_ALL_MODS = {"LARP", "TERMINATORS", "FOG", "NIGHT", "REINFORCEMENTS", "SLOW MO", "HEAVY RAIN", "MIRROR", "LOW GRAVITY", "FREE WAVE", "CLOUDY", "RAIN"}
+        PvETab:CreateSection(t.PvEModSection or "Modifiers")
+        PvETab:CreateDropdown({
+            Name = t.PvESelectedModifiers or "Auto-Vote Modifiers",
+            Options = PVE_ALL_MODS,
+            CurrentOption = PvE.SelectedModifiers,
+            MultipleOptions = true,
+            Flag = "PvEModifiersFlag",
+            Callback = function(opts)
+                if IsRebuildingUI then return end
+                if type(opts) == "table" then
+                    PvE.SelectedModifiers = opts
+                    SaveConfig()
+                end
+            end
+        })
+
+        PvETab:CreateSection(t.PvEWebhookSection or "Discord Webhook")
+        PvETab:CreateToggle({ Name = t.PvEWebhookEnabled or "Enable Webhook", CurrentValue = Webhook.Enabled, Flag = "PvEWebhookEnabledFlag",
+            Callback = function(v) if IsRebuildingUI then return end; Webhook.Enabled = v; SaveConfig() end })
+        PvETab:CreateInput({ Name = t.PvEWebhookUrl or "Webhook URL", PlaceholderText = "https://discord.com/api/webhooks/...",
+            RemoveTextAfterFocusLost = false, CurrentValue = Webhook.Url, Flag = "PvEWebhookUrlFlag",
+            Callback = function(v) if IsRebuildingUI then return end; Webhook.Url = v; SaveConfig() end })
+        PvETab:CreateButton({ Name = t.PvETestWebhook or "Test Webhook",
+            Callback = function()
+                local ok, err = Webhook_SendTest()
+                if ok then
+                    Rayfield:Notify({ Title = "Webhook", Content = t.PvEWebhookSuccess or "Webhook sent successfully!", Duration = 3 })
+                else
+                    Rayfield:Notify({ Title = "Webhook Error", Content = (t.PvEWebhookFail or "Failed: ") .. tostring(err), Duration = 4 })
+                end
+            end })
+
+        PvETab:CreateLabel(t.PvEStatus .. PvE._statusText)
+    end
+
+    MainTab:CreateSection(t.ControlSection)
+    MainTab:CreateLabel(t.HideShowLabel)
+
+    MainTab:CreateSection(t.MarkSettingsSection)
+    MainTab:CreateToggle({ Name = t.EnableMark, CurrentValue = Mark.Enabled, Flag = "EnableMarkFlag",
+        Callback = function(v) if IsRebuildingUI then return end; Mark.Enabled = v
+            for _, ed in pairs(ESP.Instances) do if ed.MarkBillboard and ed.IsHull then ed.MarkBillboard.Visible = false end end
+            SaveConfig() end })
+    MainTab:CreateLabel(t.DistanceToShowMark)
+    MainTab:CreateSlider({ Name = t.MarkDistance, Range = {0,5000}, Increment = 50,
+        Suffix = " studs", CurrentValue = Mark.Distance, Flag = "MarkDistanceFlag",
+        Callback = function(v) if IsRebuildingUI then return end; Mark.Distance = v; SaveConfig() end })
+    MainTab:CreateSection(t.MarkAppearance)
+    MainTab:CreateInput({ Name = t.MarkDecalID, PlaceholderText = "11552476728",
+        RemoveTextAfterFocusLost = false, CurrentValue = Mark.DecalID, Flag = "MarkDecalIDFlag",
+        Callback = function(v) if IsRebuildingUI then return end
+            local id = tonumber(v)
+            if id and id > 0 then
+                Mark.DecalID = tostring(id)
+                local tid = "rbxassetid://"..Mark.DecalID
+                for _, ed in pairs(ESP.Instances) do if ed.MarkBillboard then local img = ed.MarkBillboard:FindFirstChild("MarkImage"); if img then img.Image = tid end end end
+                Rayfield:Notify({ Title = t.MarkUpdatedTitle, Content = t.MarkUpdatedContent..Mark.DecalID, Duration = 2 }); SaveConfig()
+            else Rayfield:Notify({ Title = t.InvalidIDTitle, Content = t.InvalidIDContent, Duration = 3 }) end end })
+    MainTab:CreateSlider({ Name = t.MarkOffsetY, Range = {0,200}, Increment = 5, Suffix = " px",
+        CurrentValue = Mark.OffsetY, Flag = "MarkOffsetYFlag",
+        Callback = function(v) if IsRebuildingUI then return end; Mark.OffsetY = v; SaveConfig() end })
+    MainTab:CreateSlider({ Name = t.MarkSize, Range = {5,50}, Increment = 5, Suffix = " px",
+        CurrentValue = Mark.Size, Flag = "MarkSizeFlag",
+        Callback = function(v) if IsRebuildingUI then return end; Mark.Size = v
+            for _, ed in pairs(ESP.Instances) do if ed.MarkBillboard then ed.MarkBillboard.Size = UDim2.new(0,v,0,v) end end
+            SaveConfig() end })
+
+    VisualTab:CreateSection(t.ESPSection)
+    ESPToggle = VisualTab:CreateToggle({ Name = t.EnableESP, CurrentValue = ESP.Enabled, Flag = "ESPToggle",
+        Callback = function(v) if IsRebuildingUI then return end; ESP.Enabled = v; UpdateAllESPInstances(); SaveConfig() end })
+    VisualTab:CreateToggle({ Name = t.TeamCheck, CurrentValue = ESP.TeamCheck, Flag = "TeamCheckFlag",
+        Callback = function(v) if IsRebuildingUI then return end; ESP.TeamCheck = v; task.defer(function() ClearAllESP(); ScanVehicles() end); SaveConfig() end })
+    VisualTab:CreateToggle({ Name = t.ShowDistance, CurrentValue = ESP.ShowDistance, Flag = "ShowDistanceFlag",
+        Callback = function(v) if IsRebuildingUI then return end; ESP.ShowDistance = v; UpdateAllESPInstances(); SaveConfig() end })
+
+    VisualTab:CreateSection(t.ColorsSection)
+    VisualTab:CreateColorPicker({ Name = t.HullColor, Color = ESP.HullColor, Flag = "HullColorFlag",
+        Callback = function(v) if IsRebuildingUI then return end; ESP.HullColor = v
+            for _, ed in pairs(ESP.Instances) do if ed.IsHull then
+                ed.Color = v; UpdateESPInstance(ed)
+                if ed.DistanceLabel then ed.DistanceLabel.TextColor3 = v end
+            end end; SaveConfig() end })
+    VisualTab:CreateColorPicker({ Name = t.TurretColor, Color = ESP.TurretColor, Flag = "TurretColorFlag",
+        Callback = function(v) if IsRebuildingUI then return end; ESP.TurretColor = v
+            for _, ed in pairs(ESP.Instances) do if not ed.IsHull then
+                ed.Color = v; UpdateESPInstance(ed)
+            end end; SaveConfig() end })
+
+    VisualTab:CreateSection(t.HighlightSettingsSection)
+    VisualTab:CreateToggle({ Name = t.EnableFill, CurrentValue = ESP.EnableFill, Flag = "EnableFillFlag",
+        Callback = function(v) if IsRebuildingUI then return end; ESP.EnableFill = v; UpdateAllESPInstances(); SaveConfig() end })
+    VisualTab:CreateToggle({ Name = t.EnableOutline, CurrentValue = ESP.EnableOutline, Flag = "EnableOutlineFlag",
+        Callback = function(v) if IsRebuildingUI then return end; ESP.EnableOutline = v; UpdateAllESPInstances(); SaveConfig() end })
+    VisualTab:CreateSlider({ Name = t.FillTransparency, Range = {0,1}, Increment = 0.01,
+        CurrentValue = ESP.FillTransparency, Flag = "FillTransparencyFlag",
+        Callback = function(v) if IsRebuildingUI then return end; ESP.FillTransparency = v; UpdateAllESPInstances(); SaveConfig() end })
+    VisualTab:CreateSlider({ Name = t.OutlineTransparency, Range = {0,1}, Increment = 0.01,
+        CurrentValue = ESP.OutlineTransparency, Flag = "OutlineTransparencyFlag",
+        Callback = function(v) if IsRebuildingUI then return end; ESP.OutlineTransparency = v; UpdateAllESPInstances(); SaveConfig() end })
+
+    VisualTab:CreateSection(t.CrewSection)
+    VisualTab:CreateToggle({ Name = t.EnableCrewESP, CurrentValue = ESP.CrewEnabled, Flag = "CrewESPToggle",
+        Callback = function(v) if IsRebuildingUI then return end; ESP.CrewEnabled = v; UpdateAllInternalESP(); UpdateAllESPInstances()
+            if v then task.defer(function()
+                local folder = workspace:FindFirstChild("Vehicles")
+                if folder then for _, ch in ipairs(folder:GetChildren()) do if ch:IsA("Model") and ch.Name:match("^Chassis") then ProcessInternalParts(ch) end end end
+                for _, ch in ipairs(workspace:GetChildren()) do if ch:IsA("Model") and ch.Name:match("^Chassis") then ProcessInternalParts(ch) end end
+            end) end
+            SaveConfig() end })
+    VisualTab:CreateColorPicker({ Name = t.CrewColor, Color = ESP.CrewColor, Flag = "CrewColorFlag",
+        Callback = function(v) if IsRebuildingUI then return end; ESP.CrewColor = v; UpdateAllInternalESP(); SaveConfig() end })
+
+    VisualTab:CreateSection(t.ModulesSection)
+    VisualTab:CreateToggle({ Name = t.EnableModulesESP, CurrentValue = ESP.ModulesEnabled, Flag = "ModulesESPToggle",
+        Callback = function(v) if IsRebuildingUI then return end; ESP.ModulesEnabled = v; UpdateAllInternalESP(); UpdateAllESPInstances()
+            if v then task.defer(function()
+                local folder = workspace:FindFirstChild("Vehicles")
+                if folder then for _, ch in ipairs(folder:GetChildren()) do if ch:IsA("Model") and ch.Name:match("^Chassis") then ProcessInternalParts(ch) end end end
+                for _, ch in ipairs(workspace:GetChildren()) do if ch:IsA("Model") and ch.Name:match("^Chassis") then ProcessInternalParts(ch) end end
+            end) end
+            SaveConfig() end })
+    VisualTab:CreateColorPicker({ Name = t.ModuleColor, Color = ESP.ModuleColor, Flag = "ModuleColorFlag",
+        Callback = function(v) if IsRebuildingUI then return end; ESP.ModuleColor = v; UpdateAllInternalESP(); SaveConfig() end })
+
+    VisualTab:CreateSection(t.FogSection)
+    VisualTab:CreateToggle({ Name = t.RemoveFog, CurrentValue = Other.RemoveFog, Flag = "RemoveFogFlag",
+        Callback = function(v) if IsRebuildingUI then return end; Other.RemoveFog = v
+            for _, child in ipairs(Services.Lighting:GetChildren()) do
+                if child:IsA("Atmosphere") then if v then child.Density = 0; child.Haze = 0 end end
+            end; SaveConfig() end })
+    VisualTab:CreateSection(t.PenViewSection)
+    VisualTab:CreateToggle({ Name = t.EnablePenView, CurrentValue = Other.PenView, Flag = "PenViewFlag",
+        Callback = function(v) if IsRebuildingUI then return end; Other.PenView = v
+            if v then PenView_Start() else PenView_Stop() end; SaveConfig() end })
+
+    if WeaponTab then
+        WeaponTab:CreateSection("Penetration")
+        WeaponTab:CreateToggle({ Name = t.PenetrationHack, CurrentValue = HACKS.Penetration.active, Flag = "HackPenetrationFlag",
+            Callback = function(v) if IsRebuildingUI then return end; HACKS.Penetration.active = v; task.defer(InitWeapon); SaveConfig() end })
+        WeaponTab:CreateSlider({ Name = t.PenetrationVal, Range = {0,9999}, Increment = 1,
+            CurrentValue = HACKS.Penetration.target, Flag = "PenetrationValueFlag",
+            Callback = function(v) if IsRebuildingUI then return end; HACKS.Penetration.target = v; if HACKS.Penetration.active then task.defer(InitWeapon) end; SaveConfig() end })
+        WeaponTab:CreateSection("Ricochet Angle")
+        WeaponTab:CreateToggle({ Name = t.RicochetHack, CurrentValue = HACKS.Ricochet.active, Flag = "HackRicochetFlag",
+            Callback = function(v) if IsRebuildingUI then return end; HACKS.Ricochet.active = v; task.defer(InitWeapon); SaveConfig() end })
+        WeaponTab:CreateSlider({ Name = t.RicochetVal, Range = {0,9999}, Increment = 1,
+            CurrentValue = HACKS.Ricochet.target, Flag = "RicochetValueFlag",
+            Callback = function(v) if IsRebuildingUI then return end; HACKS.Ricochet.target = v; if HACKS.Ricochet.active then task.defer(InitWeapon) end; SaveConfig() end })
+        WeaponTab:CreateSection("Bullet Gravity")
+        WeaponTab:CreateToggle({ Name = t.BulletGravHack, CurrentValue = HACKS.BulletGravity.active, Flag = "HackBulletGravityFlag",
+            Callback = function(v) if IsRebuildingUI then return end; HACKS.BulletGravity.active = v; task.defer(InitWeapon); SaveConfig() end })
+        WeaponTab:CreateSlider({ Name = t.BulletGravVal, Range = {-500,500}, Increment = 1,
+            CurrentValue = HACKS.BulletGravity.target, Flag = "BulletGravityValueFlag",
+            Callback = function(v) if IsRebuildingUI then return end; HACKS.BulletGravity.target = v; if HACKS.BulletGravity.active then task.defer(InitWeapon) end; SaveConfig() end })
+        WeaponTab:CreateSection("Shell Speed")
+        WeaponTab:CreateToggle({ Name = t.ShellSpeedHack, CurrentValue = HACKS.ShellSpeed.active, Flag = "HackShellSpeedFlag",
+            Callback = function(v) if IsRebuildingUI then return end; HACKS.ShellSpeed.active = v; task.defer(InitWeapon); SaveConfig() end })
+        WeaponTab:CreateSlider({ Name = t.ShellSpeedVal, Range = {0,9999}, Increment = 1,
+            CurrentValue = HACKS.ShellSpeed.target, Flag = "ShellSpeedValueFlag",
+            Callback = function(v) if IsRebuildingUI then return end; HACKS.ShellSpeed.target = v; if HACKS.ShellSpeed.active then task.defer(InitWeapon) end; SaveConfig() end })
+
+        WeaponTab:CreateSection(t.TraverseSection or "Turret Traverse")
+        WeaponTab:CreateToggle({ Name = t.InstantTraverseHack, CurrentValue = HACKS.InstantTraverse.active, Flag = "HackInstantTraverseFlag",
+            Callback = function(v) if IsRebuildingUI then return end; HACKS.InstantTraverse.active = v; task.defer(InitWeapon); SaveConfig() end })
+        WeaponTab:CreateSlider({ Name = t.InstantTraverseVal or "Traverse Speed", Range = {10,9999}, Increment = 10,
+            CurrentValue = HACKS.InstantTraverse.target, Flag = "InstantTraverseValueFlag",
+            Callback = function(v) if IsRebuildingUI then return end; HACKS.InstantTraverse.target = v; if HACKS.InstantTraverse.active then task.defer(InitWeapon) end; SaveConfig() end })
+    end
+
+    FlyTab:CreateSection(t.FlightControlSection)
+    do
+        local mob = Services.UserInput.TouchEnabled and not Services.UserInput.KeyboardEnabled
+        FlyTab:CreateLabel(mob and t.FlightControlLabelMobile or t.FlightControlLabel)
+    end
+    FlyTab:CreateButton({ Name = t.ToggleFly,
+        Callback = function()
+            playSound(TOGGLE_SOUND_ID)
+            if Fly.Active then stopFly(); Rayfield:Notify({ Title = "Fly", Content = t.FlyDisabled, Duration = 2 })
+            else startFly(); Rayfield:Notify({ Title = "Fly", Content = t.FlyEnabled, Duration = 2 }) end
+        end })
+    FlyTab:CreateSlider({ Name = t.FlySpeed, Range = {10,300}, Increment = 10,
+        Suffix = " studs/s", CurrentValue = Fly.Speed, Flag = "FlySpeedFlag",
+        Callback = function(v) if IsRebuildingUI then return end; Fly.Speed = v; SaveConfig() end })
+    FlyTab:CreateSection(t.MobileFlyButtonSection)
+    FlyTab:CreateToggle({ Name = t.MobileFlyButtonEnabled, CurrentValue = MobileFlyButton.Enabled, Flag = "MobileFlyButtonEnabledFlag",
+        Callback = function(v) if IsRebuildingUI then return end; MobileFlyButton.Enabled = v; UpdateMobileFlyButton(); SaveConfig() end })
+    FlyTab:CreateToggle({ Name = t.MobileFlyButtonLock, CurrentValue = MobileFlyButton.Locked, Flag = "MobileFlyButtonLockFlag",
+        Callback = function(v) if IsRebuildingUI then return end; MobileFlyButton.Locked = v; RefreshMobileFlyButton(); SaveConfig() end })
+    FlyTab:CreateSlider({ Name = t.MobileFlyButtonSize, Range = {40,140}, Increment = 2,
+        Suffix = " px", CurrentValue = MobileFlyButton.Size.X.Offset, Flag = "MobileFlyButtonSizeFlag",
+        Callback = function(v) if IsRebuildingUI then return end; MobileFlyButton.Size = UDim2.new(0, v, 0, v)
+            if MobileFlyButton.Ui and MobileFlyButton.Ui.Button then
+                MobileFlyButton.Ui.Button.Size = MobileFlyButton.Size
+                MobileFlyButton.Ui.Button.Position = ClampMobileButtonPosition(MobileFlyButton.Position, MobileFlyButton.Ui.Button.AbsoluteSize)
+            end
+            SaveConfig() end })
+    FlyTab:CreateSlider({ Name = t.MobileFlyButtonTransparency, Range = {0,0.8}, Increment = 0.05,
+        Suffix = "", CurrentValue = MobileFlyButton.Transparency, Flag = "MobileFlyButtonTransparencyFlag",
+        Callback = function(v) if IsRebuildingUI then return end; MobileFlyButton.Transparency = v
+            if MobileFlyButton.Ui and MobileFlyButton.Ui.Button then
+                MobileFlyButton.Ui.Button.BackgroundTransparency = v
+            end
+            SaveConfig() end })
+    FlyTab:CreateButton({ Name = t.FlipTank or "Unflip / Flip Tank",
+        Callback = function()
+            FlipTank()
+        end })
+    FlyTab:CreateSection(t.KeybindSection)
+    FlyTab:CreateKeybind({ Name = t.ToggleFlyKey, CurrentKeybind = Keys.Fly.Name, HoldToInteract = false, Flag = "FlyKeyFlag",
+        Callback = function(v) local key = parseKeyCode(v); if key then
+            Fly.IsRebinding = true; Fly.LastRebindTime = tick()
+            task.delay(0.5, function() Fly.IsRebinding = false end); Keys.Fly = key; SaveConfig() end end })
+    FlyTab:CreateKeybind({ Name = t.FlipKey or "Flip Tank Keybind", CurrentKeybind = Keys.Flip.Name, HoldToInteract = false, Flag = "FlipKeyFlag",
+        Callback = function(v) local key = parseKeyCode(v); if key then
+            Keys.Flip = key; SaveConfig() end end })
+
+    SettingsTab:CreateSection(t.AntiLagSection)
+    local lang = Localization.CurrentLanguage
+    local displayNames = GraphicsLevelsDisplayName[lang] or GraphicsLevelsDisplayName.EN
+    local currentDisp = displayNames[Graphics.DegradationLevel] or displayNames["None"]
+    SettingsTab:CreateDropdown({
+        Name = t.GraphicsDegradation,
+        Options = { displayNames["None"], displayNames["Low"], displayNames["Medium"], displayNames["High"] },
+        CurrentOption = { currentDisp },
+        CurrentValue = { currentDisp },
+        MultipleOptions = false,
+        Flag = "GraphicsDegradationDropdownFlag",
+        Callback = function(opt)
+            if IsRebuildingUI then return end
+            if not opt or type(opt) ~= "table" or not opt[1] then return end
+            local selectedDisp = opt[1]
+            local selectedLevel = "None"
+            for lvl, disp in pairs(displayNames) do
+                if disp == selectedDisp then
+                    selectedLevel = lvl
+                    break
+                end
+            end
+            SetGraphicsDegradation(selectedLevel)
+            SaveConfig()
+        end
+    })
+    SettingsTab:CreateToggle({ Name = t.NoSmoke, CurrentValue = AntiLag.NoSmoke, Flag = "NoSmokeFlag",
+        Callback = function(v) if IsRebuildingUI then return end; SetNoSmoke(v); SaveConfig() end })
+    SettingsTab:CreateToggle({ Name = t.NoDeathEffect, CurrentValue = AntiLag.NoDeathEffect, Flag = "NoDeathEffectFlag",
+        Callback = function(v) if IsRebuildingUI then return end; SetNoDeathEffect(v); SaveConfig() end })
+    SettingsTab:CreateSlider({ Name = t.MarkUpdateRate, Range = {0.016,0.1}, Increment = 0.016,
+        Suffix = "s", CurrentValue = Mark.UpdateInterval, Flag = "MarkUpdateIntervalFlag",
+        Callback = function(v) if IsRebuildingUI then return end; Mark.UpdateInterval = v; SaveConfig() end })
+    SettingsTab:CreateSlider({ Name = t.ScanInterval, Range = {0.1,2.0}, Increment = 0.1,
+        Suffix = "s", CurrentValue = Timers.ScanInterval, Flag = "ScanIntervalFlag",
+        Callback = function(v) if IsRebuildingUI then return end; Timers.ScanInterval = v; SaveConfig() end })
+    SettingsTab:CreateSection(t.ControlsSection)
+    SettingsTab:CreateKeybind({ Name = t.ToggleESPKey, CurrentKeybind = Keys.Toggle.Name, HoldToInteract = false, Flag = "ToggleKeyFlag",
+        Callback = function(v) local key = parseKeyCode(v); if key then
+            Fly.IsRebinding = true; Fly.LastRebindTime = tick()
+            task.delay(0.5, function() Fly.IsRebinding = false end); Keys.Toggle = key; SaveConfig() end end })
+    SettingsTab:CreateKeybind({ Name = t.ToggleGUIKey, CurrentKeybind = Keys.GUI.Name, HoldToInteract = false, Flag = "GUIKeyFlag",
+        Callback = function(v) local key = parseKeyCode(v); if key then Keys.GUI = key; SaveConfig() end end })
+    SettingsTab:CreateSection(t.Language)
+    SettingsTab:CreateDropdown({ Name = t.Language, Options = {"English","Русский"},
+        CurrentOption = {Localization.CurrentLanguage == "EN" and "English" or "Русский"},
+        MultipleOptions = false, Flag = "LanguageDropdownFlag",
+        Callback = function(opt)
+            if IsRebuildingUI then return end
+            if not opt or type(opt) ~= "table" or not opt[1] then return end
+            local newLang = (opt[1] == "English") and "EN" or "RU"
+            if Localization.CurrentLanguage ~= newLang then
+                Localization.CurrentLanguage = newLang; SaveConfig()
+                task.spawn(function()
+                    IsRebuildingUI = true; task.wait(0.3); IsRebuildingUI = false; BuildGUI()
+                end)
+            end
+        end })
+
+    SettingsTab:CreateSection(t.ThemeSection)
+    SettingsTab:CreateDropdown({ Name = t.PresetThemesOption, Options = {"Dark Mode", "White-Black", "White-Gold", "Purple-Black", "Purple-White", "Baby Blue-Black", "✡ Jewish"},
+        CurrentValue = {SelectedTheme}, MultipleOptions = false, Flag = "PresetThemesDropdownFlag",
+        Callback = function(opt)
+            if IsRebuildingUI then return end
+            if not opt or type(opt) ~= "table" or not opt[1] then return end
+            local th = PresetThemes[opt[1]]
+            if th then
+                SelectedTheme = opt[1]
+                for k, v in pairs(th) do
+                    T[k] = v
+                end
+                ApplyTheme()
+                -- Show/hide Star of David decorations
+                local sg = Rayfield.ScreenGui
+                if sg then
+                    local w = sg:FindFirstChild("Window")
+                    if w then
+                        local sd = w:FindFirstChild("StarDecor")
+                        if sd then
+                            for _, star in ipairs(sd:GetChildren()) do
+                                if star.Name == "Star" then
+                                    star.Visible = (opt[1] == "✡ Jewish")
+                                end
+                            end
+                        end
+                    end
+                end
+                SaveConfig()
+            end
+        end })
+    SettingsTab:CreateInput({ Name = t.CustomBackgroundOption, PlaceholderText = "Enter Image ID...",
+        CurrentValue = CustomBgImage, Flag = "CustomBgInputFlag",
+        Callback = function(val)
+            if IsRebuildingUI then return end
+            if val == "" then
+                CustomBgImage = ""
+                ApplyTheme()
+                SaveConfig()
+            else
+                local id = tonumber(val)
+                if id then
+                    CustomBgImage = tostring(id)
+                    ApplyTheme()
+                    SaveConfig()
+                else
+                    Rayfield:Notify({ Title = t.InvalidIDTitle, Content = t.InvalidIDContent, Duration = 3 })
+                end
+            end
+        end })
+
+    SettingsTab:CreateSection(t.ProjectSection or "Credits")
+    SettingsTab:CreateLabel("made by iluhasigma223 in discord")
+    SettingsTab:CreateButton({ Name = t.CopyDiscord,
+        Callback = function() setclipboard("https://discord.gg/gHg5g7eDC4")
+            Rayfield:Notify({ Title = t.CopiedTitle, Content = t.CopiedContent, Duration = 3 }) end })
+end
+
+safeConnect(Services.UserInput.InputBegan, function(input, gameProcessed)
+    if gameProcessed then return end
+    if Fly.IsRebinding or (tick() - Fly.LastRebindTime) < 0.5 then return end
+    
+    local t = Localization[Localization.CurrentLanguage] or Localization.EN
+    
+    if input.KeyCode == Keys.Toggle then
+        ESP.Enabled = not ESP.Enabled; UpdateAllESPInstances(); SaveConfig()
+        playSound(TOGGLE_SOUND_ID)
+        Rayfield:Notify({
+            Title = "ESP",
+            Content = ESP.Enabled and (t.ESPEnabled or "ESP Enabled") or (t.ESPDisabled or "ESP Disabled"),
+            Duration = 2
+        })
+    end
+    if input.KeyCode == Keys.Fly then
+        playSound(TOGGLE_SOUND_ID)
+        if Fly.Active then
+            stopFly()
+            Rayfield:Notify({ Title = "Fly", Content = t.FlyDisabled, Duration = 2 })
+        else
+            startFly()
+            Rayfield:Notify({ Title = "Fly", Content = t.FlyEnabled, Duration = 2 })
+        end
+    end
+    if input.KeyCode == Keys.Flip then
+        FlipTank()
+    end
+end)
+
+if Services.UserInput.TouchEnabled then
+    safeConnect(Services.UserInput.TouchStarted, function(touch, gameProcessed)
+        if not Fly.Active then return end
+        if MobileFly.Touch then return end
+        local cam = Services.Workspace.CurrentCamera
+        local screenW = cam and cam.ViewportSize.X or 1920
+        if touch.Position.X < screenW * 0.5 then
+            MobileFly.Touch = touch
+            MobileFly.StartPos = Vector2.new(touch.Position.X, touch.Position.Y)
+            MobileFly.Delta = Vector2.new(0, 0)
+        end
+    end)
+    safeConnect(Services.UserInput.TouchMoved, function(touch, gameProcessed)
+        if not Fly.Active then return end
+        if touch ~= MobileFly.Touch then return end
+        local dx = touch.Position.X - MobileFly.StartPos.X
+        local dy = touch.Position.Y - MobileFly.StartPos.Y
+        local raw = Vector2.new(dx, dy)
+        if raw.Magnitude > MobileFly.MaxRadius then raw = raw.Unit * MobileFly.MaxRadius end
+        MobileFly.Delta = raw / MobileFly.MaxRadius
+    end)
+    safeConnect(Services.UserInput.TouchEnded, function(touch, gameProcessed)
+        if touch == MobileFly.Touch then MobileFly.Touch = nil; MobileFly.Delta = Vector2.new(0,0) end
+    end)
+end
+
+safeConnect(workspace:GetPropertyChangedSignal("CurrentCamera"), function()
+    Camera = Services.Workspace.CurrentCamera
+end)
+
+safeConnect(Services.RunService.Heartbeat, function(dt)
+    Timers.VehicleScan += dt
+    if Timers.VehicleScan >= Timers.ScanInterval then
+        Timers.VehicleScan = 0
+        ScanVehicles()
+        UpdateAllInternalESP()
+    end
+    Timers.Cleanup += dt
+    if Timers.Cleanup >= Timers.CleanupInterval then Timers.Cleanup = 0; CleanupESP() end
+    UpdateDistanceLabels()
+end)
+
+safeConnect(Services.RunService.RenderStepped, function(dt)
+    Mark.TimeSinceUpdate += dt
+    if Mark.TimeSinceUpdate >= Mark.UpdateInterval then Mark.TimeSinceUpdate = 0; UpdateMarkPositions() end
+    if Fly.Active and Fly.Root and Fly.Root.Parent then
+        local cam = Services.Workspace.CurrentCamera
+        local move = Vector3.zero
+        if Services.UserInput:IsKeyDown(Enum.KeyCode.W) then move += cam.CFrame.LookVector end
+        if Services.UserInput:IsKeyDown(Enum.KeyCode.S) then move -= cam.CFrame.LookVector end
+        if Services.UserInput:IsKeyDown(Enum.KeyCode.A) then move -= cam.CFrame.RightVector end
+        if Services.UserInput:IsKeyDown(Enum.KeyCode.D) then move += cam.CFrame.RightVector end
+        if Services.UserInput:IsKeyDown(Enum.KeyCode.Space) then move += Vector3.new(0,1,0) end
+        if Services.UserInput:IsKeyDown(Enum.KeyCode.LeftControl) then move -= Vector3.new(0,1,0) end
+        if Services.UserInput.TouchEnabled then
+            local jx = MobileFly.Delta.X; local jy = -MobileFly.Delta.Y
+            if math.abs(jx) > 0.1 or math.abs(jy) > 0.1 then
+                local fl = cam.CFrame.LookVector
+                local fr = cam.CFrame.RightVector
+                move += fl*jy + fr*jx
+            end
+        end
+        if not (PvE.Enabled and PvE._phase == "FIGHTING") then
+            bv.Velocity = move.Magnitude > 0 and move.Unit * Fly.Speed or Vector3.zero
+            bg.CFrame = cam.CFrame
+        end
+    end
+end)
+
+local function ProcessAtmosphere(atm) if Other.RemoveFog then atm.Density = 0; atm.Haze = 0 end end
+local function WatchAtmosphere(atm)
+    ProcessAtmosphere(atm)
+    safeConnect(atm.Changed, function(p) if (p == "Density" or p == "Haze") then ProcessAtmosphere(atm) end end)
+end
+safeConnect(Services.Lighting.ChildAdded, function(child) if child:IsA("Atmosphere") then WatchAtmosphere(child) end end)
+for _, child in ipairs(Services.Lighting:GetChildren()) do if child:IsA("Atmosphere") then WatchAtmosphere(child) end end
+
+task.spawn(function()
+    local vehiclesFolder = Services.Workspace:WaitForChild("Vehicles", 60)
+    if not vehiclesFolder then return end
+    safeConnect(vehiclesFolder.ChildAdded, function(obj)
+        if not LocalPlayer then LocalPlayer = Services.Players.LocalPlayer end
+        if LocalPlayer and obj.Name == ("Chassis"..LocalPlayer.Name) then
+            for _, hack in pairs(HACKS) do hack.patched = {}; hack.origPatched = {} end
+            task.wait(1); SetupWeaponChassis(obj)
+        end
+    end)
+    safeConnect(vehiclesFolder.ChildRemoved, function(obj)
+        if not obj:IsA("Model") then return end
+        local toRemove = {}
+        for target, espData in pairs(ESP.Instances) do
+            if target == obj or (espData.Target and espData.Target:IsDescendantOf(obj)) then
+                table.insert(toRemove, target)
+                if espData.Instance then espData.Instance:Destroy() end
+                if espData.DistanceBillboard then espData.DistanceBillboard:Destroy() end
+                if espData.MarkBillboard then espData.MarkBillboard:Destroy() end
+            end
+        end
+        for _, tgt in ipairs(toRemove) do ESP.Instances[tgt] = nil end
+    end)
+end)
+
+local function CleanUpScript()
+    for _, conn in ipairs(ScriptConnections) do
+        if conn and conn.Connected then conn:Disconnect() end
+    end
+    table.clear(ScriptConnections)
+
+    stopFly()
+    PenView_Stop()
+    SetGraphicsDegradation("None")
+    SetNoSmoke(false)
+    SetNoDeathEffect(false)
+    ClearWeaponConnections()
+    if ChassisDescendantConn then ChassisDescendantConn:Disconnect(); ChassisDescendantConn = nil end
+    ClearAllESP()
+
+    if Rayfield.ScreenGui and Rayfield.ScreenGui.Parent then Rayfield.ScreenGui:Destroy() end
+    Rayfield.ScreenGui = nil
+    ESPToggle = nil
+    DestroyMobileFlyButton()
+
+    -- Cleanup easter egg music
+    pcall(function()
+        if getgenv and getgenv()._kolyanchikEasterEgg then
+            getgenv()._kolyanchikEasterEgg:Stop()
+            getgenv()._kolyanchikEasterEgg:Destroy()
+            getgenv()._kolyanchikEasterEgg = nil
+        end
+    end)
+
+    local loadingScreen = Services.CoreGui:FindFirstChild("KolyanchikLoading")
+    if loadingScreen then loadingScreen:Destroy() end
+
+    local markDisplay = Services.CoreGui:FindFirstChild("MarkDisplay")
+    if markDisplay then markDisplay:Destroy() end
+
+    local perfData = Services.CoreGui:FindFirstChild("PerfData")
+    if perfData then perfData:Destroy() end
+end
+
+local function PlayEasterEggMusic()
+    pcall(function()
+        local eggSound = Instance.new("Sound")
+        eggSound.Name = "KolyanchikEasterEgg"
+        eggSound.SoundId = "rbxassetid://1840529306"
+        eggSound.Volume = 0.07
+        eggSound.Looped = true
+        eggSound.PlayOnRemove = false
+        eggSound.Parent = game:GetService("SoundService")
+        eggSound:Play()
+        -- Store reference for cleanup
+        if getgenv then
+            getgenv()._kolyanchikEasterEgg = eggSound
+        end
+    end)
+end
+
+local function PvE_SetStatus(text)
+    PvE._statusText = text
+    PvE._phase = PvE._phase or "IDLE"
+end
+
+-- Performance caches for multi-tank waves
+local PvE_TeammateCache = setmetatable({}, { __mode = "k" })
+local PvE_TargetPartCache = setmetatable({}, { __mode = "k" })
+
+-- Check if a chassis belongs to our team (cached)
+local function PvE_IsTeammate(chassisModel)
+    if not chassisModel then return false end
+    if PvE_TeammateCache[chassisModel] ~= nil then
+        return PvE_TeammateCache[chassisModel]
+    end
+
+    if not LocalPlayer then LocalPlayer = Services.Players.LocalPlayer end
+    if not LocalPlayer then return false end
+    
+    local name = chassisModel.Name:gsub("^Chassis", "")
+    if name == LocalPlayer.Name then
+        PvE_TeammateCache[chassisModel] = true
+        return true
+    end
+    
+    -- Check game.Players
+    local targetPlayer = Services.Players:FindFirstChild(name)
+    if targetPlayer and targetPlayer.Team and LocalPlayer.Team and targetPlayer.Team == LocalPlayer.Team then
+        PvE_TeammateCache[chassisModel] = true
+        return true
+    end
+    
+    -- Check team names / attributes
+    local myTeamRaw = LocalPlayer.Team and LocalPlayer.Team.Name or ""
+    local myTeamClean = myTeamRaw:gsub(" ", ""):lower()
+    
+    local function matchesTeam(val)
+        if not val then return false end
+        local s = tostring(val):gsub(" ", ""):lower()
+        if myTeamClean ~= "" and s == myTeamClean then return true end
+        if myTeamRaw ~= "" and tostring(val) == myTeamRaw then return true end
+        if typeof(val) == "Instance" and LocalPlayer.Team and val == LocalPlayer.Team then return true end
+        return false
+    end
+    
+    -- Check model attributes
+    if matchesTeam(chassisModel:GetAttribute("team")) or 
+       matchesTeam(chassisModel:GetAttribute("Team")) or 
+       matchesTeam(chassisModel:GetAttribute("team_name")) or
+       matchesTeam(chassisModel:GetAttribute("TeamName")) then
+        PvE_TeammateCache[chassisModel] = true
+        return true
+    end
+    
+    -- Check children & descendants
+    for _, child in ipairs(chassisModel:GetChildren()) do
+        if child.Name:lower() == "team" then
+            if child:IsA("StringValue") or child:IsA("ObjectValue") then
+                if matchesTeam(child.Value) then
+                    PvE_TeammateCache[chassisModel] = true
+                    return true
+                end
+            end
+        end
+    end
+    
+    PvE_TeammateCache[chassisModel] = false
+    return false
+end
+
+local function PvE_SelectModifiers()
+    local RS = game:GetService("ReplicatedStorage")
+    for _, modName in ipairs(PvE.SelectedModifiers) do
+        if not PvE.Enabled then return end
+        pcall(function() RS:WaitForChild("modifier_vote", 5):InvokeServer(modName, true) end)
+        task.wait(0.3)
+    end
+end
+
+local function PvE_SpawnTank()
+    local RS = game:GetService("ReplicatedStorage")
+    pcall(function() RS:WaitForChild("css", 5):InvokeServer() end)
+    task.wait(0.5)
+    pcall(function() RS:WaitForChild("SpawnClick", 5):FireServer(PvE.TankSlot, nil) end)
+end
+
+-- Ensure fly engine is active and root part is valid
+local function PvE_EnsureFly()
+    if not Fly.Active or not Fly.Root or not Fly.Root.Parent or not bv.Parent or not bg.Parent then
+        initFlyRoot()
+        Fly.Active = true
+        if Fly.Root then
+            bv.Parent = Fly.Root
+            bg.Parent = Fly.Root
+        end
+    end
+end
+
+-- Find highest value target module (AmmoRack -> Turret -> Hull) with instant cache
+local function PvE_FindTargetPart(chassisModel)
+    if not chassisModel or not chassisModel.Parent then return nil end
+    local cached = PvE_TargetPartCache[chassisModel]
+    if cached and cached.Parent and cached:IsDescendantOf(chassisModel) then
+        return cached
+    end
+    
+    -- Priority 1: AmmoRack / Ammo (guarantees instant detonation/cookoff)
+    for _, desc in ipairs(chassisModel:GetDescendants()) do
+        if desc:IsA("BasePart") and desc.Transparency < 1 then
+            local n = desc.Name:lower()
+            if n:find("ammorack") or n:find("ammo") then
+                PvE_TargetPartCache[chassisModel] = desc
+                return desc
+            end
+        end
+    end
+    
+    -- Priority 2: Turret roof / Turret / GunBrick (thin armor from top)
+    local turret = chassisModel:FindFirstChild("Turret")
+    if turret then
+        for _, desc in ipairs(turret:GetDescendants()) do
+            if desc:IsA("BasePart") and desc.Transparency < 1 then
+                local n = desc.Name:lower()
+                if n:find("roof") or n:find("ring") or n:find("turret") then
+                    PvE_TargetPartCache[chassisModel] = desc
+                    return desc
+                end
+            end
+        end
+        local bp = turret:FindFirstChildWhichIsA("BasePart", true)
+        if bp then
+            PvE_TargetPartCache[chassisModel] = bp
+            return bp
+        end
+    end
+    
+    -- Priority 3: Hull top / PrimaryPart
+    local hull = chassisModel:FindFirstChild("Hull")
+    if hull then
+        for _, child in ipairs(hull:GetChildren()) do
+            if child:IsA("Model") then
+                local pp = child.PrimaryPart or child:FindFirstChildWhichIsA("BasePart")
+                if pp then
+                    PvE_TargetPartCache[chassisModel] = pp
+                    return pp
+                end
+            end
+        end
+        local bp = hull:FindFirstChildWhichIsA("BasePart", true)
+        if bp then
+            PvE_TargetPartCache[chassisModel] = bp
+            return bp
+        end
+    end
+    
+    local fallback = chassisModel:FindFirstChildWhichIsA("BasePart", true)
+    if fallback then PvE_TargetPartCache[chassisModel] = fallback end
+    return fallback
+end
+
+-- PvE lock-on system: zero wobble, rock-solid physical & visual aim
+local PvE_lockTarget = nil  -- set to enemy Part position by main loop
+local PvE_renderConn = nil
+
+local function PvE_StartLockOn()
+    if PvE_renderConn then return end
+    PvE_renderConn = Services.RunService.RenderStepped:Connect(function()
+        if not PvE.Enabled or not Fly.Root or not Fly.Root.Parent then return end
+        local myPos = Fly.Root.Position
+        local targetPos = nil
+        if typeof(PvE_lockTarget) == "Instance" and PvE_lockTarget:IsA("BasePart") and PvE_lockTarget.Parent then
+            targetPos = PvE_lockTarget.Position
+        elseif typeof(PvE_lockTarget) == "Vector3" then
+            targetPos = PvE_lockTarget
+        end
+
+        if targetPos then
+            local toTarget = targetPos - myPos
+            if toTarget.Magnitude < 0.1 then return end
+            local dir = toTarget.Unit
+
+            -- Safe UpVector to prevent Gimbal lock / flipping when aiming downwards
+            local upVec = Vector3.new(0, 1, 0)
+            if math.abs(dir.Y) > 0.95 then
+                upVec = Vector3.new(0, 0, (dir.Y < 0 and 1 or -1))
+            end
+
+            local targetLookCF = CFrame.lookAt(myPos, targetPos, upVec)
+
+            -- 1. Rock-solid BodyGyro without physics oscillation/shaking
+            bg.MaxTorque = Vector3.new(4e6, 4e6, 4e6)
+            bg.D = 600
+            bg.P = 8000
+            bg.CFrame = targetLookCF
+
+            -- Zero out physical angular bouncing completely
+            pcall(function()
+                Fly.Root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+            end)
+
+            -- 2. Aim camera directly at enemy center smoothly
+            local cam = Services.Workspace.CurrentCamera
+            if cam then
+                cam.CameraType = Enum.CameraType.Scriptable
+                local camPos = myPos + Vector3.new(0, 4, 0)
+                cam.CFrame = CFrame.lookAt(camPos, targetPos, upVec)
+            end
+
+            -- 3. Synchronize CTS internal aiming angles so game turret tracks instantly
+            local yaw = math.deg(math.atan2(-dir.X, -dir.Z))
+            local pitch = math.deg(math.asin(math.clamp(dir.Y, -1, 1)))
+            shared.xAngle = yaw
+            shared.yAngle = pitch
+
+            -- 4. Directly align Turret & Gun gyros for instant aim
+            local myChassis = GetOwnChassis()
+            if myChassis then
+                local turretFolder = myChassis:FindFirstChild("Turret")
+                if turretFolder then
+                    local gyroHz = turretFolder:FindFirstChild("GyroPartHz")
+                    local gyroVt = turretFolder:FindFirstChild("GyroPartVt")
+                    if gyroHz and gyroHz:FindFirstChild("BodyGyro") then
+                        gyroHz.BodyGyro.CFrame = targetLookCF
+                    end
+                    if gyroVt and gyroVt:FindFirstChild("BodyGyro") then
+                        gyroVt.BodyGyro.CFrame = targetLookCF
+                    end
+                end
+            end
+        end
+    end)
+end
+
+local function PvE_StopLockOn()
+    PvE_lockTarget = nil
+    if PvE_renderConn then
+        PvE_renderConn:Disconnect()
+        PvE_renderConn = nil
+    end
+    -- Restore BodyGyro to normal values
+    bg.MaxTorque = Vector3.new(500000, 500000, 500000)
+    bg.D = 120
+    bg.P = 3000
+    local cam = Services.Workspace.CurrentCamera
+    if cam and cam.CameraType == Enum.CameraType.Scriptable then
+        cam.CameraType = Enum.CameraType.Custom
+    end
+end
+
+-- Fly the tank to a 3D position (above the target), optionally tilt toward enemy
+local function PvE_FlyToPosition(targetPos, enemyGroundPos)
+    PvE_EnsureFly()
+    if not Fly.Root or not Fly.Root.Parent then return false end
+    local myPos = Fly.Root.Position
+    local diff = targetPos - myPos
+    local horizDist = Vector3.new(diff.X, 0, diff.Z).Magnitude
+    local vertDist = math.abs(diff.Y)
+    -- Adaptive speed: faster when far, slower when close
+    local speed = math.clamp(diff.Magnitude * 1.5, 30, 400)
+    if diff.Magnitude > 8 then
+        bv.Velocity = diff.Unit * speed
+    else
+        bv.Velocity = Vector3.new(0, 0, 0)
+    end
+    local onPosition = horizDist < 15 and vertDist < 20
+    if onPosition and enemyGroundPos then
+        -- ON POSITION: let RenderStepped lock-on handle the aiming
+        PvE_lockTarget = enemyGroundPos
+    else
+        -- FLYING: keep tank level, disable lock-on
+        PvE_lockTarget = nil
+        local lookDir = Vector3.new(diff.X, 0, diff.Z)
+        if lookDir.Magnitude > 0.1 then
+            bg.CFrame = CFrame.new(myPos, myPos + lookDir.Unit)
+        end
+    end
+    return onPosition
+end
+
+-- Aim camera straight down at the target
+local function PvE_AimDown(enemyPos)
+    PvE_lockTarget = enemyPos
+    PvE_StartLockOn()
+end
+
+-- Restore camera to normal
+local function PvE_RestoreCamera()
+    PvE_StopLockOn()
+end
+
+local function PvE_AutoShoot()
+    task.spawn(function()
+        pcall(function()
+            local cam = Services.Workspace.CurrentCamera
+            local vp = cam and cam.ViewportSize or Vector2.new(800, 600)
+            local midX, midY = vp.X / 2, vp.Y / 2
+
+            -- 1. PC mouse executors
+            if mouse1click then
+                mouse1click()
+            elseif mouse1press and mouse1release then
+                mouse1press()
+                task.wait(0.02)
+                mouse1release()
+            end
+
+            -- 2. VirtualInputManager (Desktop mouse click + Mobile touch tap)
+            local vim = game:GetService("VirtualInputManager")
+            if vim then
+                pcall(function() vim:SendMouseButtonEvent(midX, midY, 0, true, game, 1) end)
+                pcall(function() vim:SendTouchEvent(0, 0, midX, midY) end)
+                task.delay(0.03, function()
+                    pcall(function()
+                        vim:SendMouseButtonEvent(midX, midY, 0, false, game, 1)
+                        vim:SendTouchEvent(0, 2, midX, midY)
+                    end)
+                end)
+            end
+
+            -- 3. VirtualUser (Universal Roblox engine service for Mobile and PC)
+            local vu = game:GetService("VirtualUser")
+            if vu then
+                pcall(function()
+                    vu:Button1Down(Vector2.new(midX, midY))
+                    task.delay(0.03, function()
+                        pcall(function() vu:Button1Up(Vector2.new(midX, midY)) end)
+                    end)
+                end)
+            end
+        end)
+    end)
+end
+
+-- Find the defend/capture point position
+local function PvE_GetDefendPointPos()
+    local capPoints = workspace:FindFirstChild("CapPoints")
+    if capPoints then
+        for _, cap in ipairs(capPoints:GetChildren()) do
+            local part = cap:IsA("BasePart") and cap or cap:FindFirstChildWhichIsA("BasePart", true)
+            if part then return part.Position end
+        end
+    end
+    return Vector3.new(0, 10, 0)
+end
+
+-- Detect active CEO Bomb / defusal challenge in workspace
+local function PvE_GetActiveBomb()
+    -- 1. Check workspace.Challenges (e.g. defusal, mortars)
+    local challenges = workspace:FindFirstChild("Challenges")
+    if challenges then
+        for _, ch in ipairs(challenges:GetChildren()) do
+            local name = ch.Name:lower()
+            if name:find("defus") or name:find("bomb") or name:find("ceo") then
+                for _, desc in ipairs(ch:GetDescendants()) do
+                    if desc:IsA("BasePart") and desc.Transparency < 1 then
+                        return desc.Position, desc
+                    elseif desc:IsA("Model") and desc.PrimaryPart then
+                        return desc.PrimaryPart.Position, desc
+                    end
+                end
+                local bp = ch:FindFirstChildWhichIsA("BasePart", true)
+                if bp then return bp.Position, bp end
+            end
+        end
+    end
+
+    -- 2. Check workspace.Interactive
+    local interactive = workspace:FindFirstChild("Interactive")
+    if interactive then
+        for _, obj in ipairs(interactive:GetChildren()) do
+            local name = obj.Name:lower()
+            if name:find("defus") or name:find("bomb") or name:find("ceo") or name:find("c4") then
+                local bp = obj:IsA("BasePart") and obj or obj:FindFirstChildWhichIsA("BasePart", true)
+                if bp then return bp.Position, bp end
+            end
+        end
+    end
+
+    -- 3. Check workspace.CapPoints for defuse zones
+    local capPoints = workspace:FindFirstChild("CapPoints")
+    if capPoints then
+        for _, cap in ipairs(capPoints:GetChildren()) do
+            local name = cap.Name:lower()
+            if name:find("defus") or name:find("bomb") or name:find("ceo") then
+                local bp = cap:IsA("BasePart") and cap or cap:FindFirstChildWhichIsA("BasePart", true)
+                if bp then return bp.Position, bp end
+            end
+        end
+    end
+
+    -- 4. General workspace scan for bomb models
+    for _, obj in ipairs(workspace:GetChildren()) do
+        if obj:IsA("Model") or obj:IsA("Folder") then
+            local name = obj.Name:lower()
+            if (name:find("bomb") or name:find("defus") or name:find("ceo_bomb")) and not name:find("chassis") then
+                local bp = obj:IsA("BasePart") and obj or obj:FindFirstChildWhichIsA("BasePart", true)
+                if bp then return bp.Position, bp end
+            end
+        end
+    end
+
+    return nil
+end
+
+-- Check if camera is aimed precisely at the enemy
+local function PvE_IsAimedAtTarget(enemyPos)
+    local cam = Services.Workspace.CurrentCamera
+    if not cam then return true end
+    local camPos = cam.CFrame.Position
+    local lookDir = cam.CFrame.LookVector
+    local toEnemy = (enemyPos - camPos)
+    if toEnemy.Magnitude < 1 then return true end
+    toEnemy = toEnemy.Unit
+    local dot = lookDir:Dot(toEnemy)
+    return dot > 0.94
+end
+
+-- Keep sight/zoom mode active during PvE (enters sight ONCE on spawn, stays in sight)
+local function PvE_EnterSight()
+    if shared.zoomed and shared.zoomed.Value == true then
+        PvE._inSight = true
+        return
+    end
+    PvE._inSight = true
+    pcall(function()
+        local vim = game:GetService("VirtualInputManager")
+        if vim then
+            vim:SendKeyEvent(true, Enum.KeyCode.LeftShift, false, game)
+            task.wait(0.05)
+            vim:SendKeyEvent(false, Enum.KeyCode.LeftShift, false, game)
+        end
+        -- Direct value fallback for mobile executors
+        if shared.zoomed and not shared.zoomed.Value then
+            shared.zoomed.Value = true
+        end
+    end)
+end
+
+local function PvE_GetEnemies()
+    local enemies = {}
+    local vehiclesFolder = workspace:FindFirstChild("Vehicles")
+    if not vehiclesFolder then return enemies end
+    local defendPos = PvE_GetDefendPointPos()
+    local myChassisName = LocalPlayer and ("Chassis" .. LocalPlayer.Name) or ""
+    
+    for _, ch in ipairs(vehiclesFolder:GetChildren()) do
+        -- Match ALL enemy tanks (ChassisBOT__, ChassisBoss, ChassisCEO, etc.)
+        if ch:IsA("Model") and ch.Name:match("^Chassis") and ch.Name ~= myChassisName then
+            local isDead = ch:GetAttribute("Dead")
+            if isDead then continue end
+            
+            -- Skip teammate bots/players
+            if PvE_IsTeammate(ch) then continue end
+            
+            -- Valid enemy: target immediately without any spawn delay
+            local hp = PvE_FindTargetPart(ch)
+            if hp and hp.Parent then
+                local enemyPos = hp.Position
+                local distToPoint = Vector3.new(enemyPos.X - defendPos.X, 0, enemyPos.Z - defendPos.Z).Magnitude
+                table.insert(enemies, { Model = ch, Part = hp, Distance = distToPoint })
+            end
+        end
+    end
+    
+    table.sort(enemies, function(a, b) return a.Distance < b.Distance end)
+    return enemies
+end
+
+local PvE_lastSkipTime = 0
+local PvE_noEnemySince = 0
+local PvE_targetSwitchTime = 0  -- when target was last switched
+local PvE_defuseStartTime = 0   -- defuse timer tracking
+
+local function PvE_MainLoop()
+    local RS = game:GetService("ReplicatedStorage")
+    local lastShootTime = 0
+
+    while task.wait(0.05) do
+        if not PvE.Enabled then
+            if PvE._phase ~= "IDLE" then
+                PvE._phase = "IDLE"
+                PvE_SetStatus("Idle")
+                if Fly.Active then stopFly() end
+                PvE_StopLockOn()
+                PvE_RestoreCamera()
+            end
+            continue
+        end
+
+        local gameReady = workspace:GetAttribute("game_ready")
+        local gameOver = workspace:GetAttribute("game_over")
+        local challenge = workspace:GetAttribute("challenge")
+
+        if not challenge then
+            PvE._phase = "IDLE"
+            PvE_SetStatus("Waiting for challenge lobby...")
+            PvE_RestoreCamera()
+            continue
+        end
+
+        if gameOver then
+            if PvE._phase ~= "ROUND_END" then
+                PvE._phase = "ROUND_END"
+                PvE_SetStatus("Round ended, restarting in " .. PvE.PostVictoryWait .. "s...")
+                if Fly.Active then stopFly() end
+                PvE_StopLockOn()
+                PvE_RestoreCamera()
+                task.wait(PvE.PostVictoryWait)
+                if PvE.AutoRestart and PvE.Enabled then
+                    pcall(function() RS:WaitForChild("restart_v", 5):InvokeServer() end)
+                    task.wait(2)
+                    pcall(function() RS:WaitForChild("restart_v", 5):InvokeServer() end)
+                end
+                PvE._phase = "IDLE"
+            end
+            continue
+        end
+
+        if not gameReady then
+            if PvE._phase ~= "SETUP_MODIFIERS" and PvE._phase ~= "WAIT_GAME_START" then
+                PvE._phase = "SETUP_MODIFIERS"
+                PvE_SetStatus("Selecting modifiers...")
+                PvE_RestoreCamera()
+                PvE_SelectModifiers()
+                if not PvE.Enabled then continue end
+                task.wait(1)
+                PvE_SetStatus("Setting ready...")
+                pcall(function() RS:WaitForChild("set_ready", 5):InvokeServer(true) end)
+                task.wait(1)
+                PvE_SetStatus("Starting challenge...")
+                pcall(function() RS:WaitForChild("challenge_start", 5):InvokeServer() end)
+                PvE._phase = "WAIT_GAME_START"
+                PvE_SetStatus("Waiting for game to start...")
+            end
+            continue
+        end
+
+        local myChassis = GetOwnChassis()
+        if not myChassis or myChassis:GetAttribute("Dead") then
+            if PvE._phase ~= "DEAD" then
+                PvE._phase = "DEAD"
+                PvE_SetStatus("Tank destroyed, respawning...")
+                if Fly.Active then stopFly() end
+                PvE_StopLockOn()
+                PvE_RestoreCamera()
+                PvE._inSight = false
+                PvE._lastTargetName = nil
+            end
+            task.wait(2)
+            if not PvE.Enabled then continue end
+            PvE_SetStatus("Spawning tank...")
+            PvE_SpawnTank()
+            task.wait(PvE.SpawnDelay)
+
+            -- Wait up to 5s for chassis and root part to be ready
+            for _ = 1, 25 do
+                local ch = GetOwnChassis()
+                if ch and not ch:GetAttribute("Dead") and findFlyPart(ch) then
+                    break
+                end
+                task.wait(0.2)
+            end
+
+            initFlyRoot()
+            Fly.Active = true
+            PvE_EnsureFly()
+            InitWeapon()
+
+            -- Initial takeoff climb
+            if Fly.Root then
+                bv.Velocity = Vector3.new(0, 200, 0)
+            end
+
+            -- Enter sight ONCE after spawning/takeoff
+            task.wait(1)
+            PvE_EnterSight()
+            continue
+        end
+
+        -- === FIGHTING PHASE ===
+        PvE._phase = "FIGHTING"
+        HACKS.BulletGravity.active = true; HACKS.BulletGravity.target = 0
+        HACKS.ShellSpeed.active = true; HACKS.ShellSpeed.target = 9999
+        HACKS.Penetration.active = true; HACKS.Penetration.target = 9999
+        HACKS.InstantTraverse.active = true; HACKS.InstantTraverse.target = 9999
+        HACKS.Ricochet.active = true; HACKS.Ricochet.target = 9999
+        local waveAbs = workspace:GetAttribute("wave_abs") or "?"
+        local wavesTotal = workspace:GetAttribute("waves_total") or "?"
+
+        -- Enter sight if not already in sight
+        if not PvE._inSight then
+            PvE_EnterSight()
+        end
+
+        -- === CHECK FOR ACTIVE CEO BOMB / DEFUSAL EVENT ===
+        local bombPos, bombObj = PvE_GetActiveBomb()
+        if bombPos and bombObj and bombObj.Parent then
+            PvE_StopLockOn()
+            PvE_EnsureFly()
+            if Fly.Root and Fly.Root.Parent then
+                local myPos = Fly.Root.Position
+                local horizDiff = Vector3.new(bombPos.X - myPos.X, 0, bombPos.Z - myPos.Z)
+                local horizDist = horizDiff.Magnitude
+                local vertDiff = (bombPos.Y + 8) - myPos.Y
+                local vertDist = math.abs(vertDiff)
+
+                if horizDist > 20 then
+                    -- PHASE 1: Fly horizontally at HIGH ALTITUDE straight over the bomb (avoids all obstacles/buildings)
+                    local highTarget = Vector3.new(bombPos.X, myPos.Y, bombPos.Z)
+                    local diffHigh = highTarget - myPos
+                    local speed = math.clamp(horizDist * 2, 60, 450)
+                    bv.Velocity = diffHigh.Unit * speed
+                    bg.CFrame = CFrame.new(myPos, myPos + horizDiff.Unit)
+                    PvE_defuseStartTime = 0
+                    PvE_SetStatus("CEO BOMB DETECTED! Flying above bomb (" .. math.floor(horizDist) .. "m)...")
+                elseif vertDist > 18 then
+                    -- PHASE 2: Directly above bomb -> Descend vertically straight down like an elevator
+                    local defuseTargetPos = Vector3.new(bombPos.X, bombPos.Y + 8, bombPos.Z)
+                    local diff = defuseTargetPos - myPos
+                    local speed = math.clamp(diff.Magnitude * 2, 40, 300)
+                    bv.Velocity = diff.Unit * speed
+                    bg.CFrame = CFrame.new(myPos, myPos + Vector3.new(0, 0, -1))
+                    PvE_defuseStartTime = 0
+                    PvE_SetStatus("DESCENDING TO CEO BOMB (" .. math.floor(vertDist) .. "m)...")
+                else
+                    -- PHASE 3: Inside the defusal zone -> Hold position and defuse!
+                    bv.Velocity = Vector3.new(0, 0, 0)
+                    if PvE_defuseStartTime == 0 then
+                        PvE_defuseStartTime = tick()
+                    end
+                    local defuseElapsed = tick() - PvE_defuseStartTime
+                    if defuseElapsed < 5.5 then
+                        PvE_SetStatus("DEFUSING CEO BOMB... (" .. string.format("%.1f", 5.5 - defuseElapsed) .. "s)")
+                    else
+                        PvE_SetStatus("CEO BOMB DEFUSED! Returning to altitude...")
+                    end
+                end
+            end
+            continue
+        else
+            PvE_defuseStartTime = 0
+        end
+
+        -- Stay at fixed height above defend point (don't chase enemies)
+        local defendPos = PvE_GetDefendPointPos()
+        local hoverPos = Vector3.new(defendPos.X, defendPos.Y + PvE.FlyHeight, defendPos.Z)
+        PvE_EnsureFly()
+        if Fly.Root and Fly.Root.Parent then
+            local myPos = Fly.Root.Position
+            local diff = hoverPos - myPos
+            if diff.Magnitude > 10 then
+                local speed = math.clamp(diff.Magnitude * 1.5, 30, 400)
+                bv.Velocity = diff.Unit * speed
+            else
+                bv.Velocity = Vector3.new(0, 0, 0)
+            end
+        end
+
+        local enemies = PvE_GetEnemies()
+        if #enemies > 0 then
+            PvE_noEnemySince = 0  -- reset no-enemy timer
+            local target = enemies[1]
+            PvE._currentTarget = target.Model
+
+            -- Pass LIVE Part instance to lock-on for real-time moving target tracking
+            PvE_lockTarget = target.Part
+            PvE_StartLockOn()
+
+            local targetName = target.Model.Name:gsub("ChassisBOT__", "")
+            if targetName ~= PvE._lastTargetName then
+                PvE._lastTargetName = targetName
+                PvE_targetSwitchTime = tick()
+            end
+
+            -- Immediately set status (shooting is handled by high-speed background thread)
+            PvE_SetStatus("Wave " .. tostring(waveAbs) .. "/" .. tostring(wavesTotal) .. " | FIRING at " .. targetName .. " (" .. math.floor(target.Distance) .. "m to point)")
+            if tick() - lastShootTime >= PvE.ShootInterval then
+                if PvE_IsAimedAtTarget(target.Part.Position) then
+                    lastShootTime = tick()
+                    PvE_AutoShoot()
+                end
+            end
+        else
+            PvE._currentTarget = nil
+            PvE._lastTargetName = nil
+            PvE_StopLockOn()
+
+            local skipInterval = PvE_GetSkipInterval()
+            if skipInterval and (tick() - PvE_lastSkipTime >= skipInterval) then
+                PvE_lastSkipTime = tick()
+                pcall(function() RS:WaitForChild("skipcurrent", 1):InvokeServer() end)
+            end
+            PvE_SetStatus("Wave " .. tostring(waveAbs) .. "/" .. tostring(wavesTotal) .. " | Waiting for next wave...")
+        end
+    end
+end
+
+-- Adaptive Wave Skip Interval calculation:
+-- Waves 1-11: 5s
+-- Wave 12: 30s
+-- Wave 13 (final wave): completely disabled (nil)
+function PvE_GetSkipInterval()
+    local waveAbs = tonumber(workspace:GetAttribute("wave_abs")) or 1
+    local wavesTotal = tonumber(workspace:GetAttribute("waves_total")) or 13
+
+    if waveAbs >= 13 or waveAbs >= wavesTotal then
+        return nil  -- Never skip on wave 13
+    elseif waveAbs == 12 then
+        return 30   -- 30s interval on wave 12
+    else
+        return 5    -- 5s interval on waves 1-11
+    end
+end
+
+task.spawn(PvE_MainLoop)
+
+-- Independent High-Speed Auto-Shooter (never throttled by tank count or main loop latency)
+task.spawn(function()
+    local lastFastShoot = 0
+    while true do
+        task.wait(0.01)
+        if PvE.Enabled and PvE._currentTarget and PvE._currentTarget.Parent and not PvE._currentTarget:GetAttribute("Dead") then
+            local now = tick()
+            if now - lastFastShoot >= PvE.ShootInterval then
+                lastFastShoot = now
+                PvE_AutoShoot()
+            end
+        end
+    end
+end)
+
+-- Wave Skip Timer (Adaptive: 5s waves 1-11, 30s wave 12, disabled wave 13)
+task.spawn(function()
+    local RS = game:GetService("ReplicatedStorage")
+    while true do
+        task.wait(1)
+        if PvE.Enabled then
+            local gameReady = workspace:GetAttribute("game_ready")
+            local gameOver = workspace:GetAttribute("game_over")
+            if gameReady and not gameOver then
+                local skipInterval = PvE_GetSkipInterval()
+                if skipInterval and (tick() - PvE_lastSkipTime >= skipInterval) then
+                    PvE_lastSkipTime = tick()
+                    pcall(function()
+                        local skipRF = RS:FindFirstChild("skipcurrent")
+                        if skipRF then
+                            skipRF:InvokeServer()
+                        end
+                    end)
+                end
+            end
+        end
+    end
+end)
+
+task.spawn(function()
+    local RS = game:GetService("ReplicatedStorage")
+    local upd_timer = RS:WaitForChild("upd_timer", 15)
+    if upd_timer then
+        safeConnect(upd_timer.OnClientEvent, function(seconds, text)
+            if PvE.Enabled and type(text) == "string" and text:lower():find("wave begins") then
+                local skipInterval = PvE_GetSkipInterval()
+                if skipInterval then
+                    pcall(function() RS:WaitForChild("skipcurrent", 1):InvokeServer() end)
+                end
+            end
+        end)
+    end
+    local summaryRE = RS:WaitForChild("SummaryRE", 15)
+    if summaryRE then
+        safeConnect(summaryRE.OnClientEvent, function()
+            if PvE.Enabled and PvE.AutoRestart then
+                task.delay(PvE.PostVictoryWait, function()
+                    if PvE.Enabled then
+                        pcall(function() RS:WaitForChild("restart_v", 5):InvokeServer() end)
+                    end
+                end)
+            end
+        end)
+    end
+end)
+
+-- Discord Webhook Rewards Tracker & 10-Minute Periodic Reporter
+task.spawn(function()
+    local RS = game:GetService("ReplicatedStorage")
+
+    -- 1. Listen for Crate rewards
+    local crateGiver = RS:WaitForChild("CrateGiver", 15)
+    if crateGiver then
+        safeConnect(crateGiver.OnClientEvent, function(count)
+            local c = tonumber(count) or 1
+            Webhook.TotalCrates = Webhook.TotalCrates + c
+        end)
+    end
+
+    -- 2. Listen for SummaryRE rewards
+    local summaryRE = RS:WaitForChild("SummaryRE", 15)
+    if summaryRE then
+        safeConnect(summaryRE.OnClientEvent, function(arg5, _, _, arg8, arg9, arg10)
+            if type(arg9) == "table" then
+                local mainCurr = tonumber(arg9.maincurr) or 0
+                local bonus = (type(arg10) == "table" and tonumber(arg10[1])) or 0
+                local modTotals = 0
+                pcall(function()
+                    local totals = RS:FindFirstChild("get_modifier_totals") and RS.get_modifier_totals:InvokeServer()
+                    if type(totals) == "table" and totals[1] then
+                        modTotals = tonumber(totals[1]) or 0
+                    end
+                end)
+                local earned = mainCurr + bonus + modTotals
+                if earned > 0 then
+                    Webhook.TotalMoney = Webhook.TotalMoney + earned
+                end
+                if arg9.crates and type(arg9.crates) == "table" and arg9.crates.amount then
+                    local ca = tonumber(arg9.crates.amount) or 0
+                    if ca > 0 then
+                        Webhook.TotalCrates = Webhook.TotalCrates + ca
+                    end
+                end
+            end
+        end)
+    end
+
+    -- 3. Live Balance change poller (fallback)
+    task.spawn(function()
+        while true do
+            task.wait(2)
+            if shared.totalMoney2 and type(shared.totalMoney2) == "number" then
+                if Webhook._lastBalance == nil then
+                    Webhook._lastBalance = shared.totalMoney2
+                elseif shared.totalMoney2 > Webhook._lastBalance then
+                    local diff = shared.totalMoney2 - Webhook._lastBalance
+                    if diff > 0 and diff < 10000000 then
+                        Webhook.TotalMoney = Webhook.TotalMoney + diff
+                    end
+                    Webhook._lastBalance = shared.totalMoney2
+                else
+                    Webhook._lastBalance = shared.totalMoney2
+                end
+            end
+        end
+    end)
+
+    -- 4. 10-minute Periodic Report Loop
+    while true do
+        task.wait(5)
+        if Webhook.Enabled and Webhook.Url ~= "" and PvE.Enabled then
+            if tick() - Webhook.LastReportTime >= Webhook.ReportInterval then
+                Webhook.LastReportTime = tick()
+                task.spawn(Webhook_SendReport)
+            end
+        end
+    end
+end)
+
+local function RunStartup()
+    if getgenv then
+        if getgenv().CleanUpKolyanchikScript then
+            pcall(getgenv().CleanUpKolyanchikScript)
+        end
+        getgenv().CleanUpKolyanchikScript = CleanUpScript
+    end
+
+        LoadConfig()
+    -- Easter egg: quietly play background music
+    task.spawn(PlayEasterEggMusic)
+    ShowLoadingScreen(function()
+        ScanVehicles()
+        if Other.PenView then task.spawn(PenView_Start) end
+        if Graphics.DegradationLevel ~= "None" then task.spawn(function() SetGraphicsDegradation(Graphics.DegradationLevel) end) end
+        if AntiLag.NoSmoke then task.spawn(function() SetNoSmoke(true) end) end
+        if AntiLag.NoDeathEffect then task.spawn(function() SetNoDeathEffect(true) end) end
+        InitWeapon()
+        BuildGUI()
+        ApplyTheme()
+        UpdateMobileFlyButton()
+        print("kolyanchik script loaded!")
+    end)
+end
+
+RunStartup()
